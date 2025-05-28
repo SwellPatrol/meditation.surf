@@ -86,4 +86,39 @@ describe("Home.hooks.ready", () => {
 
     (globalThis as any).window = originalWindow;
   });
+
+  it("keeps the canvas square when the window resizes", () => {
+    const originalWindow = globalThis.window;
+    const originalDocument = (globalThis as any).document;
+    const addEventListener = vi.fn();
+    const canvas = {
+      width: 300,
+      height: 300,
+      style: { width: "300px", height: "300px" },
+    } as HTMLCanvasElement;
+    (globalThis as any).window = {
+      addEventListener,
+      innerWidth: 100,
+      innerHeight: 100,
+    };
+    (globalThis as any).document = {
+      querySelector: vi.fn(() => canvas),
+    };
+
+    const context = { startSpin: vi.fn(), w: 0, h: 0 };
+    ready.call(context);
+
+    const resizeCb = addEventListener.mock.calls[0][1] as () => void;
+    (globalThis as any).window.innerWidth = 200;
+    (globalThis as any).window.innerHeight = 150;
+    resizeCb();
+
+    expect(canvas.width).toBe(300);
+    expect(canvas.height).toBe(300);
+    expect(canvas.style.width).toBe("300px");
+    expect(canvas.style.height).toBe("300px");
+
+    (globalThis as any).window = originalWindow;
+    (globalThis as any).document = originalDocument;
+  });
 });

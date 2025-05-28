@@ -73,9 +73,9 @@ export default Blits.Component("Home", {
         this.stageW = window.innerWidth;
         this.stageH = window.innerHeight;
         // Keep compatibility with tests expecting `w`/`h` properties
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         (this as any).w = this.stageW;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         (this as any).h = this.stageH;
         // Inform Lightning that the logical stage size changed if available
         if (typeof this.$size === "function")
