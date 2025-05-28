@@ -14,9 +14,11 @@ export default Blits.Component("Home", {
     <Element :w="$w" :h="$h" color="#000000">
       <Element
         src="assets/icon.png"
+        :w="$iconSize"
+        :h="$iconSize"
         mount="{x: 0.5, y: 0.5}"
-        :x="$w / 2"
-        :y="$h / 2"
+        :x="$centerX"
+        :y="$centerY"
         :rotation.transition="{value: $rotation, duration: 800, easing: 'cubic-bezier(0.34,1.56,0.64,1)'}"
       />
     </Element>
@@ -27,6 +29,15 @@ export default Blits.Component("Home", {
       w: window.innerWidth as number,
       /** Height of the canvas, updated on resize */
       h: window.innerHeight as number,
+      /** X coordinate of the icon center */
+      centerX: (window.innerWidth / 2) as number,
+      /** Y coordinate of the icon center */
+      centerY: (window.innerHeight / 2) as number,
+      /**
+       * Calculated size of the icon. The value is based on the smaller
+       * dimension of the viewport to maintain a square aspect ratio.
+       */
+      iconSize: (Math.min(window.innerWidth, window.innerHeight) / 4) as number,
       /** Rotation of the icon in degrees */
       rotation: 0 as number,
     };
@@ -37,9 +48,16 @@ export default Blits.Component("Home", {
        * Helper to synchronize the canvas and component size with the browser
        * window.
        */
-      const updateDimensions = () => {
+      const updateDimensions = (): void => {
         this.w = window.innerWidth;
         this.h = window.innerHeight;
+        // Maintain the center point based on the updated dimensions
+        this.centerX = this.w / 2;
+        this.centerY = this.h / 2;
+        // Adjust the icon size based on the new viewport dimensions
+        this.iconSize = Math.min(this.w, this.h) / 4;
+        // Inform the renderer about the new dimensions
+        this.$size({ w: this.w, h: this.h });
         if (typeof document !== "undefined") {
           const canvas = document.querySelector(
             "canvas",
