@@ -10,7 +10,7 @@ Follow the steps below to get your Lightning 3 Blits App up and running in no ti
 
 #### IDE setup
 
-It is highly recommended to install the Blits [VS-code extension](https://marketplace.visualstudio.com/items?itemName=LightningJS.lightning-blits) which will give you template highlighting and improved autocompletion.
+It is highly recommended to install the Blits [VS Code extension](https://marketplace.visualstudio.com/items?itemName=LightningJS.lightning-blits) which will give you template highlighting and improved autocompletion.
 
 #### Project setup
 
