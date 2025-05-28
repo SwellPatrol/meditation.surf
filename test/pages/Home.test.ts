@@ -37,6 +37,11 @@ const ready = homeConfig.hooks.ready as (
     startSpin: () => void;
     w: number;
     h: number;
+    stageW?: number;
+    stageH?: number;
+    iconSize: number;
+    $size?: (dims: { w: number; h: number }) => void;
+    $onDestroy?: (cb: () => void) => void;
   },
 ) => void;
 
@@ -83,6 +88,84 @@ describe("Home.hooks.ready", () => {
     resizeCb();
     expect(context.w).toBe(50);
     expect(context.h).toBe(60);
+
+    (globalThis as any).window = originalWindow;
+  });
+
+  it("keeps icon square and centered when window resizes", () => {
+    const originalWindow = globalThis.window;
+    const addEventListener = vi.fn();
+    (globalThis as any).window = {
+      addEventListener,
+      innerWidth: 120,
+      innerHeight: 100,
+    };
+
+    const context: any = {
+      startSpin: vi.fn(),
+      stageW: 0,
+      stageH: 0,
+      w: 0,
+      h: 0,
+      iconSize: 256,
+    };
+
+    ready.call(context);
+
+    expect(context.stageW ?? context.w).toBe(120);
+    expect(context.stageH ?? context.h).toBe(100);
+
+    // Icon should remain square
+    expect(context.iconSize).toBeGreaterThan(0);
+
+    const resizeCb = addEventListener.mock.calls[0][1] as () => void;
+    (globalThis as any).window.innerWidth = 140;
+    (globalThis as any).window.innerHeight = 160;
+    resizeCb();
+    expect(context.stageW ?? context.w).toBe(140);
+    expect(context.stageH ?? context.h).toBe(160);
+
+    // Expected centre coordinates after resize
+    const x = (context.stageW ?? context.w) / 2;
+    const y = (context.stageH ?? context.h) / 2;
+    expect(x).toBeCloseTo(70);
+    expect(y).toBeCloseTo(80);
+
+    (globalThis as any).window = originalWindow;
+  });
+
+  it("keeps icon square and centered on device rotation", () => {
+    const originalWindow = globalThis.window;
+    const addEventListener = vi.fn();
+    (globalThis as any).window = {
+      addEventListener,
+      innerWidth: 100,
+      innerHeight: 200,
+    };
+
+    const context: any = {
+      startSpin: vi.fn(),
+      stageW: 0,
+      stageH: 0,
+      w: 0,
+      h: 0,
+      iconSize: 256,
+    };
+
+    ready.call(context);
+
+    const resizeCb = addEventListener.mock.calls[0][1] as () => void;
+    (globalThis as any).window.innerWidth = 200;
+    (globalThis as any).window.innerHeight = 100;
+    resizeCb();
+
+    expect(context.stageW ?? context.w).toBe(200);
+    expect(context.stageH ?? context.h).toBe(100);
+
+    const x = (context.stageW ?? context.w) / 2;
+    const y = (context.stageH ?? context.h) / 2;
+    expect(x).toBeCloseTo(100);
+    expect(y).toBeCloseTo(50);
 
     (globalThis as any).window = originalWindow;
   });

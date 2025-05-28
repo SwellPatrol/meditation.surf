@@ -80,6 +80,17 @@ export default Blits.Component("Home", {
         // Inform Lightning that the logical stage size changed if available
         if (typeof this.$size === "function")
           this.$size({ w: this.stageW, h: this.stageH });
+        // Update the underlying canvas dimensions so rendering area matches
+        const canvas =
+          typeof document !== "undefined"
+            ? (document.querySelector("canvas") as HTMLCanvasElement | null)
+            : null;
+        if (canvas) {
+          canvas.width = this.stageW;
+          canvas.height = this.stageH;
+          canvas.style.width = `${this.stageW}px`;
+          canvas.style.height = `${this.stageH}px`;
+        }
       };
 
       // Initial sizing + listen for future resizes
