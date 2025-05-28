@@ -14,6 +14,8 @@ export default Blits.Component("Home", {
     <Element :w="$w" :h="$h" color="#000000">
       <Element
         src="assets/icon.png"
+        :w="$iconSize"
+        :h="$iconSize"
         mount="{x: 0.5, y: 0.5}"
         :x="$w / 2"
         :y="$h / 2"
@@ -27,6 +29,11 @@ export default Blits.Component("Home", {
       w: window.innerWidth as number,
       /** Height of the canvas, updated on resize */
       h: window.innerHeight as number,
+      /**
+       * Calculated size of the icon. The value is based on the smaller
+       * dimension of the viewport to maintain a square aspect ratio.
+       */
+      iconSize: (Math.min(window.innerWidth, window.innerHeight) / 4) as number,
       /** Rotation of the icon in degrees */
       rotation: 0 as number,
     };
@@ -40,6 +47,12 @@ export default Blits.Component("Home", {
       const updateDimensions = () => {
         this.w = window.innerWidth;
         this.h = window.innerHeight;
+        // Adjust the icon size based on the new viewport dimensions
+        this.iconSize = Math.min(this.w, this.h) / 4;
+        // Notify the renderer so the stage keeps the correct aspect ratio
+        if (typeof this.$size === "function") {
+          this.$size({ w: this.w, h: this.h });
+        }
         if (typeof document !== "undefined") {
           const canvas = document.querySelector(
             "canvas",
