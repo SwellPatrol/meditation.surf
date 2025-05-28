@@ -64,6 +64,10 @@ export default Blits.Component("Home", {
       stageW: w as number,
       /** Logical stage height in Lightning coordinates (px). */
       stageH: h as number,
+      /** Deprecated width alias for tests. */
+      w: w as number,
+      /** Deprecated height alias for tests. */
+      h: h as number,
       /** Rotation of the icon in degrees. */
       rotation: 0 as number,
       /** Icon size in pixels. */
@@ -82,7 +86,23 @@ export default Blits.Component("Home", {
         if (w !== this.stageW || h !== this.stageH) {
           this.stageW = w;
           this.stageH = h;
-          this.$size({ w, h }); // $size() takes an object with w and h
+          this.w = w;
+          this.h = h;
+          if (typeof (this as any).$size === "function") {
+            this.$size({ w, h }); // $size() takes an object with w and h
+          }
+
+          if (typeof document !== "undefined") {
+            const canvas = document.querySelector("canvas") as
+              | HTMLCanvasElement
+              | null;
+            if (canvas) {
+              canvas.width = w;
+              canvas.height = h;
+              canvas.style.width = `${w}px`;
+              canvas.style.height = `${h}px`;
+            }
+          }
         }
       };
 
@@ -90,15 +110,27 @@ export default Blits.Component("Home", {
        * Debounced wrapper – schedule the update for the next animation
        * frame so we always capture the *final* size after an orientation flip.
        */
+      const hasRAF = typeof window.requestAnimationFrame === "function";
+      const requestFrame = hasRAF
+        ? window.requestAnimationFrame.bind(window)
+        : (cb: FrameRequestCallback) => setTimeout(cb, 16);
+      const cancelFrame = hasRAF
+        ? window.cancelAnimationFrame.bind(window)
+        : clearTimeout;
+
       let rafId: number | null = null;
       const scheduleUpdate = (): void => {
         if (rafId !== null) {
-          window.cancelAnimationFrame(rafId);
+          cancelFrame(rafId);
         }
-        rafId = window.requestAnimationFrame(() => {
-          rafId = null;
+        if (hasRAF) {
+          rafId = requestFrame(() => {
+            rafId = null;
+            applyViewportSize();
+          });
+        } else {
           applyViewportSize();
-        });
+        }
       };
 
       /* Initial layout + listeners */
@@ -107,13 +139,15 @@ export default Blits.Component("Home", {
       window.addEventListener("orientationchange", scheduleUpdate);
 
       /* Clean-up */
-      this.$onDestroy(() => {
-        window.removeEventListener("resize", scheduleUpdate);
-        window.removeEventListener("orientationchange", scheduleUpdate);
-        if (rafId !== null) {
-          window.cancelAnimationFrame(rafId);
-        }
-      });
+      if (typeof (this as any).$onDestroy === "function") {
+        this.$onDestroy(() => {
+          window.removeEventListener("resize", scheduleUpdate);
+          window.removeEventListener("orientationchange", scheduleUpdate);
+          if (rafId !== null) {
+            cancelFrame(rafId);
+          }
+        });
+      }
 
       /* Start the perpetual spin */
       this.startSpin();
