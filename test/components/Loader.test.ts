@@ -6,35 +6,40 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { vi, describe, it, expect } from 'vitest';
+import { describe, expect, it, vi } from "vitest";
 
-vi.mock('@lightningjs/blits', () => ({
+vi.mock("@lightningjs/blits", () => ({
   default: {
     // Return a minimal Component factory and stash the config on a symbol so the
     // test can grab Loader.start without loading the real library
     Component: (_name: string, config: unknown): (() => void) => {
-      const factory = (): void => {};
-      factory[Symbol.for('config')] = config;
+      const factory = (() => {}) as (() => void) & { [key: symbol]: unknown };
+      factory[Symbol.for("config")] = config;
       return factory;
     },
   },
 }));
 
-import Loader from './Loader';
+import Loader from "../../src/components/Loader";
 
 // Access the original methods through the configuration symbol
-const configSymbol = Symbol.for('config');
-const start = (Loader as any)[configSymbol].methods.start as (
-  this: { alpha: number; $setInterval: typeof setInterval }
-) => void;
+const configSymbol = Symbol.for("config");
+// eslint-disable-next-line no-unused-vars
+const start = (Loader as any)[configSymbol].methods.start as (this: {
+  alpha: number;
+  // eslint-disable-next-line no-undef
+  $setInterval: typeof setInterval;
+}) => void;
 
-describe('Loader.start', (): void => {
-  it('toggles alpha between 0 and 1', (): void => {
+describe("Loader.start", (): void => {
+  it("toggles alpha between 0 and 1", (): void => {
     vi.useFakeTimers();
 
     // Mimic the component instance
+    // eslint-disable-next-line no-undef
     const context: { alpha: number; $setInterval: typeof setInterval } = {
       alpha: 0,
+      // eslint-disable-next-line no-undef
       $setInterval: setInterval,
     };
 

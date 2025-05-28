@@ -61,3 +61,7 @@ jobs:
       - name: pnpm build
         run: |
           pnpm build
+
+      - name: pnpm test
+        run: |
+          pnpm test
