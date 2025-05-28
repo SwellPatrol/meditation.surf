@@ -70,27 +70,45 @@ export default Blits.Component("Home", {
     ready(): void {
       // Arrow function so `this` remains the component instance
       const updateDimensions = (): void => {
-        this.stageW = window.innerWidth;
-        this.stageH = window.innerHeight;
+        const vw = window.visualViewport?.width ?? window.innerWidth;
+        const vh = window.visualViewport?.height ?? window.innerHeight;
+        this.stageW = vw;
+        this.stageH = vh;
         // Keep compatibility with tests expecting `w`/`h` properties
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         (this as any).w = this.stageW;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         (this as any).h = this.stageH;
         // Inform Lightning that the logical stage size changed if available
         if (typeof this.$size === "function")
           this.$size({ w: this.stageW, h: this.stageH });
+        // Update the underlying canvas dimensions so rendering area matches
+        const canvas =
+          typeof document !== "undefined"
+            ? (document.querySelector("canvas") as HTMLCanvasElement | null)
+            : null;
+        if (canvas) {
+          canvas.width = vw;
+          canvas.height = vh;
+          canvas.style.width = `${vw}px`;
+          canvas.style.height = `${vh}px`;
+        }
       };
 
       // Initial sizing + listen for future resizes
       updateDimensions();
       window.addEventListener("resize", updateDimensions);
+      window.visualViewport?.addEventListener("resize", updateDimensions);
 
       // Remove listener when component is destroyed
       if (typeof this.$onDestroy === "function")
-        this.$onDestroy(() =>
-          window.removeEventListener("resize", updateDimensions),
-        );
+        this.$onDestroy(() => {
+          window.removeEventListener("resize", updateDimensions);
+          window.visualViewport?.removeEventListener(
+            "resize",
+            updateDimensions,
+          );
+        });
 
       // Start the perpetual spin
       this.startSpin();
