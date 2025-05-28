@@ -35,8 +35,10 @@ const ready = homeConfig.hooks.ready as (
   // eslint-disable-next-line no-unused-vars
   this: {
     startSpin: () => void;
-    w: number;
-    h: number;
+    stageW: number;
+    stageH: number;
+    $size: (s: { w: number; h: number }) => void;
+    $onDestroy: (cb: () => void) => void;
   },
 ) => void;
 
@@ -64,14 +66,25 @@ describe("Home.hooks.ready", () => {
       addEventListener,
       innerWidth: 100,
       innerHeight: 80,
-    };
+      requestAnimationFrame: (cb: FrameRequestCallback) => {
+        cb(0);
+        return 1;
+      },
+      cancelAnimationFrame: vi.fn(),
+    } as unknown as Window;
 
     const spinSpy = vi.fn();
-    const context = { startSpin: spinSpy, w: 0, h: 0 };
+    const context = {
+      startSpin: spinSpy,
+      stageW: 0,
+      stageH: 0,
+      $size: vi.fn(),
+      $onDestroy: vi.fn(),
+    };
     ready.call(context);
     expect(spinSpy).toHaveBeenCalled();
-    expect(context.w).toBe(100);
-    expect(context.h).toBe(80);
+    expect(context.stageW).toBe(100);
+    expect(context.stageH).toBe(80);
     expect(addEventListener).toHaveBeenCalledWith(
       "resize",
       expect.any(Function),
@@ -81,8 +94,8 @@ describe("Home.hooks.ready", () => {
     (globalThis as any).window.innerWidth = 50;
     (globalThis as any).window.innerHeight = 60;
     resizeCb();
-    expect(context.w).toBe(50);
-    expect(context.h).toBe(60);
+    expect(context.stageW).toBe(50);
+    expect(context.stageH).toBe(60);
 
     (globalThis as any).window = originalWindow;
   });
