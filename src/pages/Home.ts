@@ -14,6 +14,8 @@ export default Blits.Component("Home", {
     <Element :w="$w" :h="$h" color="#000000">
       <Element
         src="assets/icon.png"
+        :w="$iconSize"
+        :h="$iconSize"
         mount="{x: 0.5, y: 0.5}"
         :x="$w / 2"
         :y="$h / 2"
@@ -27,6 +29,11 @@ export default Blits.Component("Home", {
       w: window.innerWidth as number,
       /** Height of the canvas, updated on resize */
       h: window.innerHeight as number,
+      /**
+       * Pixel size of the icon. The image is 256x256, so keep it at
+       * its native resolution regardless of the viewport size.
+       */
+      iconSize: 256 as number,
       /** Rotation of the icon in degrees */
       rotation: 0 as number,
     };
