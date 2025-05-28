@@ -1,13 +1,16 @@
+/*
+ * Copyright (C) 2025 Garrett Brown
+ * This file is part of meditation.surf - https://github.com/eigendude/meditation.surf
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ * See the file LICENSE.txt for more information.
+ */
+
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@lightningjs/blits", () => ({
   default: {
     Component: (_name: string, config: unknown) => {
-      const factory = (() => {}) as (() => void) & { [key: symbol]: unknown };
-      factory[Symbol.for("config")] = config;
-      return factory;
-    },
-    Application: (config: unknown) => {
       const factory = (() => {}) as (() => void) & { [key: symbol]: unknown };
       factory[Symbol.for("config")] = config;
       return factory;
@@ -20,75 +23,67 @@ import Home from "../../src/pages/Home";
 const configSymbol = Symbol.for("config");
 const homeConfig = (Home as any)[configSymbol];
 
-const rotateColors = homeConfig.methods.rotateColors as (
+const startSpin = homeConfig.methods.startSpin as (
   // eslint-disable-next-line no-unused-vars
   this: {
-    color: string;
+    rotation: number;
     // eslint-disable-next-line no-undef
     $setInterval: typeof setInterval;
   },
-  // eslint-disable-next-line no-unused-vars
-  interval: number,
 ) => void;
-// eslint-disable-next-line no-unused-vars
-const ready = homeConfig.hooks.ready as (this: any) => void;
+const ready = homeConfig.hooks.ready as (
+  // eslint-disable-next-line no-unused-vars
+  this: {
+    startSpin: () => void;
+    w: number;
+    h: number;
+  },
+) => void;
 
-describe("Home.rotateColors", () => {
-  it("cycles through loader colors", () => {
+describe("Home.startSpin", () => {
+  it("increments rotation over time", () => {
     vi.useFakeTimers();
     const context = {
-      color: "",
+      rotation: 0,
       // eslint-disable-next-line no-undef
       $setInterval: setInterval,
     };
-    rotateColors.call(context, 100);
-
-    expect(context.color).toBe("");
-    vi.advanceTimersByTime(100);
-    expect(context.color).toBe("#ede9fe");
-    vi.advanceTimersByTime(100);
-    expect(context.color).toBe("#ddd6fe");
+    startSpin.call(context);
+    expect(context.rotation).toBe(0);
+    vi.advanceTimersByTime(800);
+    expect(context.rotation).toBe(360);
     vi.useRealTimers();
   });
 });
 
 describe("Home.hooks.ready", () => {
-  it("updates state over time", () => {
-    vi.useFakeTimers();
-    const rotateSpy = vi.fn();
-    const context = {
-      rotateColors: rotateSpy,
-      loaderAlpha: 0,
-      x: 0,
-      rotation: 0,
-      scale: 1,
-      y: 0,
-      textAlpha: 0,
-      color: "",
-      // eslint-disable-next-line no-undef
-      $setTimeout: setTimeout,
-      // eslint-disable-next-line no-undef
-      $setInterval: setInterval,
+  it("tracks window size and registers resize listener", () => {
+    const originalWindow = globalThis.window;
+    const addEventListener = vi.fn();
+    (globalThis as any).window = {
+      addEventListener,
+      innerWidth: 100,
+      innerHeight: 80,
     };
 
+    const spinSpy = vi.fn();
+    const context = { startSpin: spinSpy, w: 0, h: 0 };
     ready.call(context);
+    expect(spinSpy).toHaveBeenCalled();
+    expect(context.w).toBe(100);
+    expect(context.h).toBe(80);
+    expect(addEventListener).toHaveBeenCalledWith(
+      "resize",
+      expect.any(Function),
+    );
 
-    expect(rotateSpy).toHaveBeenCalledWith(200);
-    expect(context.loaderAlpha).toBe(1);
-    expect(context.x).toBe(1920 / 2);
+    const resizeCb = addEventListener.mock.calls[0][1] as () => void;
+    (globalThis as any).window.innerWidth = 50;
+    (globalThis as any).window.innerHeight = 60;
+    resizeCb();
+    expect(context.w).toBe(50);
+    expect(context.h).toBe(60);
 
-    vi.advanceTimersByTime(3000);
-    expect(context.rotation).toBe(720);
-    expect(context.scale).toBe(1.5);
-
-    vi.advanceTimersByTime(300);
-    expect(context.scale).toBe(1);
-
-    vi.advanceTimersByTime(2700);
-    expect(context.y).toBe(-60);
-    expect(context.loaderAlpha).toBe(0);
-    expect(context.scale).toBe(1);
-    expect(context.textAlpha).toBe(1);
-    vi.useRealTimers();
+    (globalThis as any).window = originalWindow;
   });
 });
