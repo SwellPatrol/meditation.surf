@@ -37,6 +37,7 @@ const ready = homeConfig.hooks.ready as (
     startSpin: () => void;
     w: number;
     h: number;
+    iconSize: number;
   },
 ) => void;
 
@@ -67,11 +68,13 @@ describe("Home.hooks.ready", () => {
     };
 
     const spinSpy = vi.fn();
-    const context = { startSpin: spinSpy, w: 0, h: 0 };
+    const context = { startSpin: spinSpy, w: 0, h: 0, iconSize: 0 };
     ready.call(context);
     expect(spinSpy).toHaveBeenCalled();
     expect(context.w).toBe(100);
     expect(context.h).toBe(80);
+    // iconSize should be based on the smallest dimension divided by four
+    expect(context.iconSize).toBe(20);
     expect(addEventListener).toHaveBeenCalledWith(
       "resize",
       expect.any(Function),
@@ -83,6 +86,7 @@ describe("Home.hooks.ready", () => {
     resizeCb();
     expect(context.w).toBe(50);
     expect(context.h).toBe(60);
+    expect(context.iconSize).toBe(12.5);
 
     (globalThis as any).window = originalWindow;
   });
