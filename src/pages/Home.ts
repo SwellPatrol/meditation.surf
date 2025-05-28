@@ -70,8 +70,16 @@ export default Blits.Component("Home", {
     ready(): void {
       // Arrow function so `this` remains the component instance
       const updateDimensions = (): void => {
-        this.stageW = window.innerWidth;
-        this.stageH = window.innerHeight;
+        const width =
+          typeof window.visualViewport !== "undefined"
+            ? window.visualViewport.width
+            : window.innerWidth;
+        const height =
+          typeof window.visualViewport !== "undefined"
+            ? window.visualViewport.height
+            : window.innerHeight;
+        this.stageW = width;
+        this.stageH = height;
         // Keep compatibility with tests expecting `w`/`h` properties
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (this as any).w = this.stageW;
@@ -85,12 +93,16 @@ export default Blits.Component("Home", {
       // Initial sizing + listen for future resizes
       updateDimensions();
       window.addEventListener("resize", updateDimensions);
+      if (typeof window.visualViewport !== "undefined")
+        window.visualViewport.addEventListener("resize", updateDimensions);
 
       // Remove listener when component is destroyed
       if (typeof this.$onDestroy === "function")
-        this.$onDestroy(() =>
-          window.removeEventListener("resize", updateDimensions),
-        );
+        this.$onDestroy(() => {
+          window.removeEventListener("resize", updateDimensions);
+          if (typeof window.visualViewport !== "undefined")
+            window.visualViewport.removeEventListener("resize", updateDimensions);
+        });
 
       // Start the perpetual spin
       this.startSpin();
