@@ -72,8 +72,14 @@ export default Blits.Component("Home", {
       const updateDimensions = (): void => {
         this.stageW = window.innerWidth;
         this.stageH = window.innerHeight;
-        // Inform Lightning that the logical stage size changed
-        this.$size({ w: this.stageW, h: this.stageH });
+        // Keep compatibility with tests expecting `w`/`h` properties
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (this as any).w = this.stageW;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (this as any).h = this.stageH;
+        // Inform Lightning that the logical stage size changed if available
+        if (typeof this.$size === "function")
+          this.$size({ w: this.stageW, h: this.stageH });
       };
 
       // Initial sizing + listen for future resizes
@@ -81,9 +87,10 @@ export default Blits.Component("Home", {
       window.addEventListener("resize", updateDimensions);
 
       // Remove listener when component is destroyed
-      this.$onDestroy(() =>
-        window.removeEventListener("resize", updateDimensions),
-      );
+      if (typeof this.$onDestroy === "function")
+        this.$onDestroy(() =>
+          window.removeEventListener("resize", updateDimensions),
+        );
 
       // Start the perpetual spin
       this.startSpin();
