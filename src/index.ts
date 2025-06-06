@@ -20,13 +20,16 @@ let resizeTimer: number | undefined;
 /**
  * Create a DOM element that will host the Lightning canvas.
  */
-function createContainer(): HTMLDivElement {
+function createContainer(hidden: boolean = false): HTMLDivElement {
   const container: HTMLDivElement = document.createElement("div");
   container.style.width = "100%";
   container.style.height = "100%";
   container.style.position = "absolute";
   container.style.top = "0";
   container.style.left = "0";
+  if (hidden) {
+    container.style.visibility = "hidden";
+  }
   return container;
 }
 
@@ -37,7 +40,7 @@ function createContainer(): HTMLDivElement {
 function relaunchApp(): void {
   const parent: HTMLElement = document.getElementById("app") as HTMLElement;
   const oldContainer: HTMLElement | null = activeContainer;
-  const newContainer: HTMLDivElement = createContainer();
+  const newContainer: HTMLDivElement = createContainer(true);
   parent.appendChild(newContainer);
   launchLightningApp(newContainer);
 
@@ -46,6 +49,7 @@ function relaunchApp(): void {
     if (oldContainer !== null) {
       oldContainer.remove();
     }
+    newContainer.style.visibility = "visible";
     activeContainer = newContainer;
   };
 
