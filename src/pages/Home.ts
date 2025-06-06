@@ -13,5 +13,20 @@ import Blits from "@lightningjs/blits";
 /* ------------------------------------------------------------------ */
 
 export default Blits.Component("Home", {
-  template: `<Element :w="$stageW" :h="$stageH" color="#000000" />`,
+  template: `
+    <Element :w="$stageW" :h="$stageH" color="#000000">
+      <Element
+        src="assets/icon.png"
+        :x="($stageW - $iconSize) / 2"
+        :y="($stageH - $iconSize) / 2"
+        :w="$iconSize"
+        :h="$iconSize"
+      />
+    </Element>
+  `,
+  computed: {
+    iconSize(): number {
+      return Math.min(this.$stageW, this.$stageH) * 0.5;
+    },
+  },
 });
