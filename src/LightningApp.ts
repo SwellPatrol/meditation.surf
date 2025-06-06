@@ -48,6 +48,14 @@ const LightningApp: LightningAppFactory = Blits.Application({
     },
 
     /**
+     * Signal to external listeners that the canvas is rendered and
+     * can replace any previous instance without causing visual glitches.
+     */
+    ready(): void {
+      window.dispatchEvent(new Event("lightningReady"));
+    },
+
+    /**
      * Clean up the resize listener when the component is destroyed.
      */
     destroy(): void {

@@ -18,13 +18,18 @@ function startApp(): void {
   const mount: HTMLElement = document.getElementById("app") as HTMLElement;
   const oldCanvas: HTMLCanvasElement | null = mount.querySelector("canvas");
 
-  // Launch the new LightningJS canvas before removing the old one to
-  // ensure the screen never goes blank during a resize.
-  launchLightningApp();
+  /** Remove the previous canvas once the new one is rendered. */
+  const handleReady: () => void = (): void => {
+    if (oldCanvas !== null) {
+      oldCanvas.remove();
+    }
+    window.removeEventListener("lightningReady", handleReady);
+  };
 
-  if (oldCanvas !== null) {
-    oldCanvas.remove();
-  }
+  window.addEventListener("lightningReady", handleReady);
+
+  // Launch the new canvas. The old one remains until the ready event fires.
+  launchLightningApp();
 }
 
 window.addEventListener("resize", (): void => {
