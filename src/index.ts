@@ -8,8 +8,25 @@
 
 import { launchLightningApp } from "./LightningApp";
 
+/** Milliseconds to debounce window resize events. */
+const DEBOUNCE_MS: number = 200;
+
+let resizeTimer: number | undefined;
+
+/** Launch the app, replacing any existing canvas. */
+function startApp(): void {
+  const mount: HTMLElement = document.getElementById("app") as HTMLElement;
+  mount.innerHTML = "";
+  launchLightningApp();
+}
+
+window.addEventListener("resize", (): void => {
+  window.clearTimeout(resizeTimer);
+  resizeTimer = window.setTimeout(startApp, DEBOUNCE_MS);
+});
+
 /**
  * Application entry point. Loads global state and launches the LightningJS
  * view.
  */
-launchLightningApp();
+startApp();
