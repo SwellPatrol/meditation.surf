@@ -8,9 +8,13 @@ Before committing or opening a pull request, run the following commands and ensu
 
 ```sh
 pnpm lint
+pnpm format
 pnpm build
 pnpm test
 ```
+
+Use `pnpm format` to automatically fix formatting issues, which often helps
+`pnpm lint` pass.
 
 Only proceed if all commands succeed.
 
