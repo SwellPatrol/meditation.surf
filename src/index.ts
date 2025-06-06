@@ -8,4 +8,6 @@
 
 import { startApp } from "./launcher";
 
+// Launch the Lightning application once the script loads
+
 startApp();

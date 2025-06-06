@@ -10,12 +10,17 @@ import Blits from "@lightningjs/blits";
 
 import App from "./App";
 
+//------------------------------------------------------------
+// Application size management
+//------------------------------------------------------------
+
 // Debounce wait period for resize/orientation events in milliseconds
 export const RESIZE_DEBOUNCE_MS: number = 100;
 
-// Reference to the timeout used for debouncing resize and orientation events
+// Identifier returned by setTimeout for the pending relaunch
 let resizeTimeout: number | undefined;
 
+// Start the Lightning application sized to the current viewport
 function launchApp(): void {
   const container: HTMLElement | null = document.getElementById("app");
   if (container) {
@@ -28,11 +33,13 @@ function launchApp(): void {
   });
 }
 
+// Relaunch the app after resize/orientation events settle
 function debouncedLaunch(): void {
   window.clearTimeout(resizeTimeout);
   resizeTimeout = window.setTimeout(launchApp, RESIZE_DEBOUNCE_MS);
 }
 
+// Set up event handlers and launch the application
 export function startApp(): void {
   window.addEventListener("resize", debouncedLaunch);
   window.addEventListener("orientationchange", debouncedLaunch);

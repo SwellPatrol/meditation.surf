@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RESIZE_DEBOUNCE_MS } from "../src/launcher.js";
 
-// Timeout interval used in the size management utilities
+// Debounce interval shared with the launcher utilities
 
 // Stub out the Lightning Blits APIs so the app can be imported in a Node environment
 vi.mock("@lightningjs/blits", () => {
@@ -36,7 +36,8 @@ interface FakeElement {
 }
 
 interface FakeDocument {
-  getElementById(errId: string): FakeElement;
+  // eslint-disable-next-line no-unused-vars
+  getElementById(id: string): FakeElement;
 }
 
 beforeEach(() => {
@@ -47,11 +48,11 @@ beforeEach(() => {
   // Simple document implementation that stores created elements by id
   const elements: Record<string, FakeElement> = {};
   const fakeDocument: FakeDocument = {
-    getElementById(errId: string): FakeElement {
-      if (!elements[errId]) {
-        elements[errId] = { innerHTML: "" };
+    getElementById(id: string): FakeElement {
+      if (!elements[id]) {
+        elements[id] = { innerHTML: "" };
       }
-      return elements[errId];
+      return elements[id];
     },
   };
 
@@ -91,7 +92,7 @@ afterEach(() => {
   delete (globalThis as any).document;
 });
 
-describe("index window events", () => {
+describe("launcher window events", () => {
   // The app should relaunch when the window is resized
   it("relaunches on resize", async () => {
     await import("../src/index.js");
