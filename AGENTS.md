@@ -19,7 +19,7 @@ Only proceed if all commands succeed.
 
 ## Coding guidelines
 
-- Annotate all TypeScript variables, parameters, and return types explicitly, even if the compiler could infer them.
+- Annotate all TypeScript variables, parameters, and return types explicitly, even if the compiler could infer them. This includes giving every variable an explicit type after the variable name (e.g., `const foo: number = 1;`).
 - Optimize code for readability and understandability.
 - Use plentiful comments to clarify the purpose and functioning of code.
 - Start new files with the project copyright header whenever possible.

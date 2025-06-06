@@ -39,7 +39,7 @@
   ],
   "scripts": {
     "audit-ci": "audit-ci --config audit-ci.json",
-    "build": "vite build",
+    "build": "tsc && vite build",
     "clean": "rm -rf dist node_modules",
     "deploy": "gh-pages --branch main --repo git@github.com-eigendude:SwellPatrol/swellpatrol.github.io.git --dist dist --dotfiles",
     "dev": "vite dev --host",
