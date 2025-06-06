@@ -8,17 +8,19 @@
 
 import Blits from "@lightningjs/blits";
 
-// Type alias for a Lightning component factory
+// Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
 
-// LightningJS application displaying a full-screen white view
+// Minimal LightningJS app with a white background
 const LightningApp: LightningAppFactory = Blits.Application({
+  // Track viewport dimensions for the root stage
   state() {
     return {
-      stageW: window.innerWidth as number,
-      stageH: window.innerHeight as number,
+      stageW: window.innerWidth as number, // viewport width
+      stageH: window.innerHeight as number, // viewport height
     };
   },
+  // Render a white root element
   template: `<Element :w="$stageW" :h="$stageH" color="#ffffff" />`,
 });
 
