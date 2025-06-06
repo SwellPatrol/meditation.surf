@@ -11,9 +11,9 @@ import Blits from "@lightningjs/blits";
 // Type alias for a Lightning component factory
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
 
-// LightningJS application displaying a full-screen black view
+// LightningJS application displaying a full-screen white view
 const LightningApp: LightningAppFactory = Blits.Application({
-  template: `<Element :w="$stageW" :h="$stageH" color="#000000" />`,
+  template: `<Element :w="$stageW" :h="$stageH" color="#ffffff" />`,
 });
 
 /**
