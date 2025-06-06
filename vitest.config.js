@@ -6,7 +6,11 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { startApp } from "./launcher";
+import { defineConfig } from "vitest/config";
 
-// Launch the Lightning application once the script loads
-startApp();
+export default defineConfig({
+  test: {
+    // Node is used so the tests can provide their own window and document objects
+    environment: "node",
+  },
+});
