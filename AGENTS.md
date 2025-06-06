@@ -13,3 +13,8 @@ pnpm test
 ```
 
 Only proceed if all commands succeed.
+
+## Coding guidelines
+
+- Annotate all TypeScript variables, parameters, and return types explicitly, even if the compiler could infer them.
+- Optimize code for readability and understandability.
