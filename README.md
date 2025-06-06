@@ -10,6 +10,23 @@ Follow the steps below to get the app up and running in no time.
 
 It is highly recommended to install the Blits [VS Code extension](https://marketplace.visualstudio.com/items?itemName=LightningJS.lightning-blits) which will give you template highlighting and improved autocompletion.
 
+#### Node setup (NVM and npm)
+
+Install [nvm](https://github.com/nvm-sh/nvm) to manage Node versions:
+
+```sh
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.4/install.sh | bash
+```
+
+Then install the required Node version and set it as the default:
+
+```sh
+nvm install 24
+nvm use 24
+```
+
+npm is installed with Node and is only used to install pnpm globally.
+
 #### pnpm setup
 
 This project uses [pnpm](https://pnpm.io/) as a package manager. If you don't have it installed, you can install it globally with:
