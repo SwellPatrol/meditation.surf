@@ -47,7 +47,7 @@
     "lint": "prettier --check . && eslint .",
     "preview": "vite preview",
     "start": "vite",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:ui": "vitest --ui"
   },
   "dependencies": {
