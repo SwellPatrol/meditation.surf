@@ -8,8 +8,9 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Timeout interval used in index.ts for debouncing resize and orientation events
-const RESIZE_DEBOUNCE_MS = 100;
+import { RESIZE_DEBOUNCE_MS } from "../src/launcher.js";
+
+// Timeout interval used in the size management utilities
 
 // Stub out the Lightning Blits APIs so the app can be imported in a Node environment
 vi.mock("@lightningjs/blits", () => {
@@ -29,7 +30,7 @@ import Blits from "@lightningjs/blits";
 // Reference to the mocked Blits.Launch function
 let launchSpy: ReturnType<typeof vi.fn>;
 
-// Minimal interfaces used to emulate the DOM elements accessed by index.ts
+// Minimal interfaces used to emulate the DOM elements accessed by the launcher
 interface FakeElement {
   innerHTML: string;
 }
@@ -54,7 +55,7 @@ beforeEach(() => {
     },
   };
 
-  // Construct a minimal window object with properties accessed by index.ts
+  // Construct a minimal window object with properties accessed by the launcher
   const fakeWindow: Window & {
     innerWidth: number;
     innerHeight: number;
@@ -72,7 +73,7 @@ beforeEach(() => {
   fakeWindow.setTimeout = globalThis.setTimeout.bind(globalThis);
   fakeWindow.clearTimeout = globalThis.clearTimeout.bind(globalThis);
 
-  // Expose the fake window and document on the global object so index.ts can access them
+  // Expose the fake window and document on the global object so the launcher can access them
   (globalThis as any).window = fakeWindow;
   (globalThis as any).document = fakeDocument;
 
