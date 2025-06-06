@@ -28,7 +28,7 @@ import Blits from "@lightningjs/blits";
 // Reference to the mocked Blits.Launch function
 let launchSpy: ReturnType<typeof vi.fn>;
 
-// Minimal interfaces used to emulate the DOM elements accessed by index.ts
+// Minimal interfaces used to emulate the DOM elements accessed by launcher.ts
 interface FakeElement {
   innerHTML: string;
 }
@@ -63,7 +63,7 @@ beforeEach(() => {
     },
   };
 
-  // Construct a minimal window object with properties accessed by index.ts
+  // Construct a minimal window object with properties accessed by launcher.ts
   const fakeWindow: Window & {
     innerWidth: number;
     innerHeight: number;
@@ -81,7 +81,7 @@ beforeEach(() => {
   fakeWindow.setTimeout = globalThis.setTimeout.bind(globalThis);
   fakeWindow.clearTimeout = globalThis.clearTimeout.bind(globalThis);
 
-  // Expose the fake window and document on the global object so index.ts can access them
+  // Expose the fake window and document on the global object so launcher.ts can access them
   const globalObject: TestGlobal = globalThis as unknown as TestGlobal;
   globalObject.window = fakeWindow;
   globalObject.document = fakeDocument as unknown as Document & FakeDocument;
@@ -104,7 +104,9 @@ afterEach(() => {
 describe("launcher window events", () => {
   // The app should relaunch when the window is resized
   it("relaunches on resize", async () => {
-    await import("../src/index.js");
+    // Import the launcher module and manually start the app
+    const { startApp } = await import("../src/launcher.js");
+    startApp();
 
     expect(launchSpy).toHaveBeenCalledTimes(1);
     expect(launchSpy).toHaveBeenLastCalledWith(expect.anything(), "app", {
@@ -130,7 +132,9 @@ describe("launcher window events", () => {
 
   // The app should also relaunch when the device orientation changes
   it("relaunches on orientation change", async () => {
-    await import("../src/index.js");
+    // Import the launcher module and manually start the app
+    const { startApp } = await import("../src/launcher.js");
+    startApp();
 
     window.innerWidth = 600;
     window.innerHeight = 800;
@@ -146,7 +150,9 @@ describe("launcher window events", () => {
 
   // Multiple quick resizes should only cause a single relaunch
   it("debounces spurious resize events", async () => {
-    await import("../src/index.js");
+    // Import the launcher module and manually start the app
+    const { startApp } = await import("../src/launcher.js");
+    startApp();
 
     window.innerWidth = 900;
     window.innerHeight = 500;
