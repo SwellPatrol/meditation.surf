@@ -6,7 +6,9 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { startApp } from "./launcher";
+import { launchBlackApp } from "./blackApp";
 
-// Launch the Lightning application once the script loads
-startApp();
+/**
+ * Application entry point. Launches the LightningJS view.
+ */
+launchBlackApp();

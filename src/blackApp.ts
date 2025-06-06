@@ -8,10 +8,17 @@
 
 import Blits from "@lightningjs/blits";
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                         */
-/* ------------------------------------------------------------------ */
-
-export default Blits.Component("Home", {
+/** LightningJS application displaying a full-screen black view. */
+const BlackApp = Blits.Application({
   template: `<Element :w="$stageW" :h="$stageH" color="#000000" />`,
 });
+
+/**
+ * Launch the LightningJS application sized to the current viewport.
+ */
+export function launchBlackApp(): void {
+  Blits.Launch(BlackApp, "app", {
+    w: window.innerWidth,
+    h: window.innerHeight,
+  });
+}
