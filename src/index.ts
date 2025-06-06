@@ -6,9 +6,15 @@
  * See the file LICENSE.txt for more information.
  */
 
+import { loadIconDimensions } from "./GlobalState";
 import { launchLightningApp } from "./LightningApp";
 
 /**
- * Application entry point. Launches the LightningJS view.
+ * Application entry point. Loads global state and launches the LightningJS
+ * view.
  */
+loadIconDimensions();
 launchLightningApp();
+window.addEventListener("resize", (): void => {
+  launchLightningApp();
+});
