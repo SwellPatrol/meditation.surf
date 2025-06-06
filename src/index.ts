@@ -8,8 +8,32 @@
 
 import { launchLightningApp } from "./LightningApp";
 
+/** Milliseconds to debounce window resize events */
+const DEBOUNCE_MS: number = 100;
+
+let resizeTimer: number | undefined;
+
+/** Launch the app, replacing any existing canvas */
+function startApp(): void {
+  const mount: HTMLElement = document.getElementById("app") as HTMLElement;
+  const oldCanvas: HTMLCanvasElement | null = mount.querySelector("canvas");
+
+  // Launch the new LightningJS canvas before removing the old one to minimize
+  // the time the screen goes blank during a resize
+  launchLightningApp();
+
+  if (oldCanvas !== null) {
+    oldCanvas.remove();
+  }
+}
+
+window.addEventListener("resize", (): void => {
+  window.clearTimeout(resizeTimer);
+  resizeTimer = window.setTimeout(startApp, DEBOUNCE_MS);
+});
+
 /**
  * Application entry point. Loads global state and launches the LightningJS
  * view.
  */
-launchLightningApp();
+startApp();
