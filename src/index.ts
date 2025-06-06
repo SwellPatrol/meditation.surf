@@ -16,8 +16,15 @@ let resizeTimer: number | undefined;
 /** Launch the app, replacing any existing canvas. */
 function startApp(): void {
   const mount: HTMLElement = document.getElementById("app") as HTMLElement;
-  mount.innerHTML = "";
+  const oldCanvas: HTMLCanvasElement | null = mount.querySelector("canvas");
+
+  // Launch the new LightningJS canvas before removing the old one to
+  // ensure the screen never goes blank during a resize.
   launchLightningApp();
+
+  if (oldCanvas !== null) {
+    oldCanvas.remove();
+  }
 }
 
 window.addEventListener("resize", (): void => {
