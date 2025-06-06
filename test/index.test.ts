@@ -38,6 +38,8 @@ interface FakeDocument {
   getElementById(errId: string): FakeElement;
 }
 
+// Describe the subset of the global object that our tests modify. This avoids
+// casting `globalThis` to `any` when assigning the fake window and document.
 interface TestGlobal {
   window?: Window & {
     innerWidth: number;
