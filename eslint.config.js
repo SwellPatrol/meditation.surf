@@ -40,13 +40,12 @@ export default [
     },
     rules: {
       ...tseslint.configs.recommended.rules,
-      "brace-style": ["error", "1tbs", { allowSingleLine: false }],
       curly: ["error", "all"],
       "simple-import-sort/imports": "error",
       // Run Prettier as an ESLint rule
       "prettier/prettier": "error",
       "no-unused-vars": [
-        1,
+        "error",
         {
           argsIgnorePattern: "^err",
         },
