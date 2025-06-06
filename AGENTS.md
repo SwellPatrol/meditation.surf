@@ -18,3 +18,30 @@ Only proceed if all commands succeed.
 
 - Annotate all TypeScript variables, parameters, and return types explicitly, even if the compiler could infer them.
 - Optimize code for readability and understandability.
+- Start new files with the project copyright header whenever possible.
+
+  For TypeScript or languages that use block comments:
+
+  ```ts
+  /*
+   * Copyright (C) 2025 Garrett Brown
+   * This file is part of meditation.surf - https://github.com/eigendude/meditation.surf
+   *
+   * SPDX-License-Identifier: AGPL-3.0-or-later
+   * See the file LICENSE.txt for more information.
+   */
+  ```
+
+  For files that use `#` style comments:
+
+  ```
+  ################################################################################
+  #
+  #  Copyright (C) 2025 Garrett Brown
+  #  This file is part of meditation.surf - https://github.com/eigendude/meditation.surf
+  #
+  #  SPDX-License-Identifier: AGPL-3.0-or-later
+  #  See the file LICENSE.txt for more information.
+  #
+  ################################################################################
+  ```
