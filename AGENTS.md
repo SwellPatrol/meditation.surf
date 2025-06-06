@@ -18,6 +18,7 @@ Only proceed if all commands succeed.
 
 - Annotate all TypeScript variables, parameters, and return types explicitly, even if the compiler could infer them.
 - Optimize code for readability and understandability.
+- Use plentiful comments to clarify the purpose and functioning of code.
 - Start new files with the project copyright header whenever possible.
 
   For TypeScript or languages that use block comments:
