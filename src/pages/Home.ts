@@ -13,5 +13,22 @@ import Blits from "@lightningjs/blits";
 /* ------------------------------------------------------------------ */
 
 export default Blits.Component("Home", {
-  template: `<Element :w="$stageW" :h="$stageH" color="#000000" />`,
+  computed: {
+    // Size of the square icon based on the larger stage dimension
+    iconSize(): number {
+      return Math.max(this.$stageW, this.$stageH);
+    },
+  },
+  template: `
+    <Element :w="$stageW" :h="$stageH" color="#000000">
+      <Element
+        :w="$iconSize"
+        :h="$iconSize"
+        :x="($stageW - $iconSize) / 2"
+        :y="($stageH - $iconSize) / 2"
+        :src="$$appState.iconSrc"
+        fit="cover"
+      />
+    </Element>
+  `,
 });
