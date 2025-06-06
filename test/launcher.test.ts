@@ -73,10 +73,12 @@ beforeEach(() => {
     innerHeight: number;
     document: Document & FakeDocument;
   };
+
   // Default window size before any resize events are triggered
   fakeWindow.innerWidth = 800;
   fakeWindow.innerHeight = 600;
   fakeWindow.document = fakeDocument as unknown as Document & FakeDocument;
+
   // Use the global timer functions so Vitest's fake timers apply
   fakeWindow.setTimeout = globalThis.setTimeout.bind(globalThis);
   fakeWindow.clearTimeout = globalThis.clearTimeout.bind(globalThis);
