@@ -51,7 +51,8 @@
     "test:ui": "vitest --ui"
   },
   "dependencies": {
-    "@lightningjs/blits": "^1.29.1"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.27.0",
@@ -68,6 +69,9 @@
     "prettier-plugin-pkg": "^0.19.1",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.32.1",
+    "@types/react": "^18.2.59",
+    "@types/react-dom": "^18.2.15",
+    "@vitejs/plugin-react": "^4.2.1",
     "vite": "^6.3.5",
     "vitest": "^3.1.4"
   },

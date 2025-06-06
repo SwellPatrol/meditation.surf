@@ -6,14 +6,14 @@
  * See the file LICENSE.txt for more information.
  */
 
-import blitsVitePlugins from "@lightningjs/blits/vite";
+import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 // eslint-disable-next-line no-unused-vars
 export default defineConfig(({ command, mode, ssrBuild }) => {
   return {
     base: "/", // Set to your base path if you are deploying to a subdirectory (example: /myApp/)
-    plugins: [...blitsVitePlugins],
+    plugins: [react()],
     resolve: {
       mainFields: ["browser", "module", "jsnext:main", "jsnext"],
     },
