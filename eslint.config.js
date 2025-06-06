@@ -7,7 +7,8 @@
  */
 
 import js from "@eslint/js";
-import * as tseslint from "typescript-eslint";
+import parser from "@typescript-eslint/parser";
+import plugin from "@typescript-eslint/eslint-plugin";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 import prettierConfig from "eslint-config-prettier";
 import prettierPlugin from "eslint-plugin-prettier";
@@ -21,7 +22,7 @@ export default [
   {
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
-      parser: tseslint.parser,
+      parser,
       parserOptions: {
         ecmaVersion: "latest",
         sourceType: "module",
@@ -34,12 +35,12 @@ export default [
       },
     },
     plugins: {
-      "@typescript-eslint": tseslint.plugin,
+      "@typescript-eslint": plugin,
       "simple-import-sort": simpleImportSort,
       prettier: prettierPlugin,
     },
     rules: {
-      ...tseslint.configs.recommended.rules,
+      ...plugin.configs.recommended.rules,
       "brace-style": ["error", "1tbs", { allowSingleLine: false }],
       curly: ["error", "all"],
       "simple-import-sort/imports": "error",

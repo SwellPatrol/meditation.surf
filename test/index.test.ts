@@ -38,6 +38,15 @@ interface FakeDocument {
   getElementById(errId: string): FakeElement;
 }
 
+interface TestGlobal {
+  window?: Window & {
+    innerWidth: number;
+    innerHeight: number;
+    document: Document & FakeDocument;
+  };
+  document?: Document & FakeDocument;
+}
+
 beforeEach(() => {
   // Use fake timers so resize debouncing can be tested deterministically
   vi.useFakeTimers();
@@ -73,8 +82,9 @@ beforeEach(() => {
   fakeWindow.clearTimeout = globalThis.clearTimeout.bind(globalThis);
 
   // Expose the fake window and document on the global object so index.ts can access them
-  (globalThis as any).window = fakeWindow;
-  (globalThis as any).document = fakeDocument;
+  const globalObject: TestGlobal = globalThis as unknown as TestGlobal;
+  globalObject.window = fakeWindow;
+  globalObject.document = fakeDocument as unknown as Document & FakeDocument;
 
   launchSpy = Blits.Launch as ReturnType<typeof vi.fn>;
   launchSpy.mockClear();
@@ -86,8 +96,9 @@ afterEach(() => {
   vi.resetModules();
 
   // Clean up the global objects to avoid leaking state between tests
-  delete (globalThis as any).window;
-  delete (globalThis as any).document;
+  const globalObject: TestGlobal = globalThis as unknown as TestGlobal;
+  delete globalObject.window;
+  delete globalObject.document;
 });
 
 describe("index window events", () => {
