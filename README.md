@@ -1,6 +1,6 @@
 # meditation.surf
 
-Welcome to the _meditation.surf_ Lightning 3 Blits App!
+Welcome to the _meditation.surf_ React App!
 
 ### Getting started
 
@@ -8,7 +8,7 @@ Follow the steps below to get the app up and running in no time.
 
 #### IDE setup
 
-It is highly recommended to install the Blits [VS Code extension](https://marketplace.visualstudio.com/items?itemName=LightningJS.lightning-blits) which will give you template highlighting and improved autocompletion.
+It is highly recommended to install the React [VS Code extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-react-native) which will give you helpful snippets and improved autocompletion.
 
 #### pnpm setup
 
@@ -72,6 +72,5 @@ pnpm format
 
 ### Resources
 
-- [Blits documentation](https://lightningjs.io/v3-docs/blits/getting_started/intro.html) - official documentation
-- [Blits Example App](https://blits-demo.lightningjs.io/?source=true) - a great reference to learn by example
-- [Blits Components](https://lightningjs.io/blits-components.html) - off-the-shelf, basic and performant reference components
+- [React documentation](https://react.dev/) - official documentation
+- [Vite + React guide](https://vitejs.dev/guide/#scaffolding-your-first-vite-project) - quick start guide

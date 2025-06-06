@@ -6,11 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
-import Blits from "@lightningjs/blits";
+import Home from "./pages/Home";
 
-import App from "./App";
-
-Blits.Launch(App, "app", {
-  w: window.innerWidth,
-  h: window.innerHeight,
-});
+export default function App() {
+  return <Home />;
+}

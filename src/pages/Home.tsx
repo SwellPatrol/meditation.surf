@@ -6,14 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
-import Blits from "@lightningjs/blits";
-
-import Home from "./pages/Home";
-
-export default Blits.Application({
-  template: `
-    <Element>
-      <RouterView />
-    </Element>`,
-  routes: [{ path: "/", component: Home }],
-});
+export default function Home() {
+  return (
+    <div style={{ width: "100vw", height: "100vh", backgroundColor: "#000" }} />
+  );
+}
