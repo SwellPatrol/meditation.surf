@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { launchLightningApp } from "./LightningApp";
+import { launchLightningApp, sharedState } from "./LightningApp";
 
 /** Milliseconds to debounce window resize events. */
 const DEBOUNCE_MS: number = 200;
@@ -42,14 +42,16 @@ function relaunchApp(): void {
   const oldContainer: HTMLElement | null = activeContainer;
   const newContainer: HTMLDivElement = createContainer(true);
   parent.appendChild(newContainer);
+  sharedState.stageW = window.innerWidth;
+  sharedState.stageH = window.innerHeight;
   launchLightningApp(newContainer);
 
   const onReady: () => void = (): void => {
     window.removeEventListener("lightningReady", onReady);
+    newContainer.style.visibility = "visible";
     if (oldContainer !== null) {
       oldContainer.remove();
     }
-    newContainer.style.visibility = "visible";
     activeContainer = newContainer;
   };
 
@@ -70,5 +72,7 @@ window.addEventListener("resize", (): void => {
   const parent: HTMLElement = document.getElementById("app") as HTMLElement;
   activeContainer = createContainer();
   parent.appendChild(activeContainer);
+  sharedState.stageW = window.innerWidth;
+  sharedState.stageH = window.innerHeight;
   launchLightningApp(activeContainer);
 })();

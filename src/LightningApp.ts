@@ -8,17 +8,33 @@
 
 import Blits from "@lightningjs/blits";
 
+/** Shape of the LightningJS application state. */
+export interface AppState {
+  stageW: number; // viewport width
+  stageH: number; // viewport height
+}
+
+/**
+ * Global state object shared across multiple LightningJS applications.
+ * By sharing a single object, multiple apps can read and mutate the same
+ * values without incurring extra allocations.
+ */
+export const sharedState: AppState = {
+  stageW: window.innerWidth,
+  stageH: window.innerHeight,
+};
+
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
 
 // LightningJS app that displays the icon full screen
 const LightningApp: LightningAppFactory = Blits.Application({
-  // Track viewport dimensions for the root stage
+  /**
+   * Provide the shared application state to each instance. Returning the same
+   * object ensures that multiple applications reference identical data.
+   */
   state() {
-    return {
-      stageW: window.innerWidth as number, // viewport width
-      stageH: window.innerHeight as number, // viewport height
-    };
+    return sharedState;
   },
 
   computed: {
@@ -34,36 +50,12 @@ const LightningApp: LightningAppFactory = Blits.Application({
 
   hooks: {
     /**
-     * Listen for window resize events so the app keeps
-     * filling the viewport when dimensions change.
-     */
-    init(): void {
-      const self: any = this;
-      const listener: () => void = (): void => {
-        self.stageW = window.innerWidth;
-        self.stageH = window.innerHeight;
-      };
-      self.resizeListener = listener;
-      window.addEventListener("resize", listener);
-    },
-
-    /**
-     * Signal that rendering is finished. The DOM listener
-     * in `index.ts` uses this to know when it can swap
-     * canvases without a visual flash.
+     * Notify the DOM layer when LightningJS has performed its initial render.
+     * This allows the code in `index.ts` to swap canvases without causing a
+     * visible flicker.
      */
     ready(): void {
       window.dispatchEvent(new Event("lightningReady"));
-    },
-
-    /**
-     * Remove the resize listener when the app is destroyed.
-     */
-    destroy(): void {
-      const self: any = this;
-      if (self.resizeListener !== undefined) {
-        window.removeEventListener("resize", self.resizeListener as () => void);
-      }
     },
   },
 
@@ -85,8 +77,8 @@ const LightningApp: LightningAppFactory = Blits.Application({
  */
 export function launchLightningApp(target: HTMLElement): void {
   Blits.Launch(LightningApp, target, {
-    w: window.innerWidth,
-    h: window.innerHeight,
+    w: sharedState.stageW,
+    h: sharedState.stageH,
     canvasColor: "#000000",
   });
 }
