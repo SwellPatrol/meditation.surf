@@ -23,5 +23,6 @@ export function launchLightningApp(): void {
   Blits.Launch(LightningApp, "app", {
     w: window.innerWidth,
     h: window.innerHeight,
+    canvasColor: "#ffffff",
   });
 }
