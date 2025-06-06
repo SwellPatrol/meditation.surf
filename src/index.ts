@@ -13,32 +13,30 @@ const DEBOUNCE_MS: number = 200;
 
 let resizeTimer: number | undefined;
 
-/** Launch the app, replacing any existing canvas. */
-function startApp(): void {
-  const mount: HTMLElement = document.getElementById("app") as HTMLElement;
-  const oldCanvas: HTMLCanvasElement | null = mount.querySelector("canvas");
+/**
+ * Resize the Lightning renderer's canvas to match the viewport.
+ * The Lightning application itself listens for resize events and
+ * adjusts its stage size, so here we only need to update the DOM
+ * canvas element.
+ */
+function resizeCanvas(): void {
+  const canvas: HTMLCanvasElement | null =
+    document.querySelector("#app canvas");
 
-  /** Remove the previous canvas once the new one is rendered. */
-  const handleReady: () => void = (): void => {
-    if (oldCanvas !== null) {
-      oldCanvas.remove();
-    }
-    window.removeEventListener("lightningReady", handleReady);
-  };
-
-  window.addEventListener("lightningReady", handleReady);
-
-  // Launch the new canvas. The old one remains until the ready event fires.
-  launchLightningApp();
+  if (canvas !== null) {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
 }
 
 window.addEventListener("resize", (): void => {
   window.clearTimeout(resizeTimer);
-  resizeTimer = window.setTimeout(startApp, DEBOUNCE_MS);
+  resizeTimer = window.setTimeout(resizeCanvas, DEBOUNCE_MS);
 });
 
 /**
- * Application entry point. Loads global state and launches the LightningJS
- * view.
+ * Application entry point. Launch the LightningJS view and size the canvas to
+ * the current viewport.
  */
-startApp();
+launchLightningApp();
+resizeCanvas();
