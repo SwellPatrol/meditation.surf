@@ -11,7 +11,7 @@ import Blits from "@lightningjs/blits";
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
 
-// Minimal LightningJS app displaying a full-screen icon
+// LightningJS app that displays the icon full screen
 const LightningApp: LightningAppFactory = Blits.Application({
   // Track viewport dimensions for the root stage
   state() {
@@ -24,8 +24,8 @@ const LightningApp: LightningAppFactory = Blits.Application({
   computed: {
     /**
      * Size of the square icon that covers the viewport.
-     * The largest stage dimension is used so the icon
-     * always fills the screen while keeping its aspect ratio.
+     * Use the largest stage dimension so the image always
+     * fills the screen.
      */
     iconSize(): number {
       return Math.max(this.stageW, this.stageH);
@@ -34,8 +34,8 @@ const LightningApp: LightningAppFactory = Blits.Application({
 
   hooks: {
     /**
-     * Setup the window resize handler so the app continues to
-     * cover the viewport when the browser size changes.
+     * Listen for window resize events so the app keeps
+     * filling the viewport when dimensions change.
      */
     init(): void {
       const self: any = this;
@@ -48,25 +48,26 @@ const LightningApp: LightningAppFactory = Blits.Application({
     },
 
     /**
-     * Signal to external listeners that the canvas is rendered and
-     * can replace any previous instance without causing visual glitches.
+     * Signal that rendering is finished. The DOM listener
+     * in `index.ts` uses this to know when it can swap
+     * canvases without a visual flash.
      */
     ready(): void {
       window.dispatchEvent(new Event("lightningReady"));
     },
 
     /**
-     * Clean up the resize listener when the component is destroyed.
+     * Remove the resize listener when the app is destroyed.
      */
     destroy(): void {
       const self: any = this;
-      if (self.resizeListener) {
+      if (self.resizeListener !== undefined) {
         window.removeEventListener("resize", self.resizeListener as () => void);
       }
     },
   },
 
-  // Render the icon centered on a black canvas
+  // Render the icon centered on a black background
   template: `<Element :w="$stageW" :h="$stageH">
     <Element
       src="assets/icon.png"
@@ -82,8 +83,8 @@ const LightningApp: LightningAppFactory = Blits.Application({
 /**
  * Launch the LightningJS application sized to the current viewport
  */
-export function launchLightningApp(): void {
-  Blits.Launch(LightningApp, "app", {
+export function launchLightningApp(target: HTMLElement): void {
+  Blits.Launch(LightningApp, target, {
     w: window.innerWidth,
     h: window.innerHeight,
     canvasColor: "#000000",
