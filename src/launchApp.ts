@@ -9,7 +9,7 @@
 import Blits from "@lightningjs/blits";
 
 import LightningApp from "./LightningApp";
-import { debounce } from "./utils/debounce";
+import { throttle } from "./utils/throttle";
 
 /**
  * Launch the LightningJS application sized to the current viewport.
@@ -40,11 +40,11 @@ function startApp(width: number, height: number): void {
 
 /** Start the app and watch for window size changes */
 export function launchApp(): void {
-  const debouncedStartApp: (...errArgs: Parameters<typeof startApp>) => void =
-    debounce(startApp, COOL_DOWN_MS);
+  const throttledStartApp: (...errArgs: Parameters<typeof startApp>) => void =
+    throttle(startApp, COOL_DOWN_MS);
 
   window.addEventListener("resize", (): void => {
-    debouncedStartApp(window.innerWidth, window.innerHeight);
+    throttledStartApp(window.innerWidth, window.innerHeight);
   });
 
   startApp(window.innerWidth, window.innerHeight);
