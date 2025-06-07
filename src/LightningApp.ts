@@ -8,6 +8,8 @@
 
 import Blits from "@lightningjs/blits";
 
+import Icon from "./components/Icon";
+
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
 
@@ -21,16 +23,12 @@ const LightningApp: LightningAppFactory = Blits.Application({
     };
   },
 
-  computed: {
-    /**
-     * Size of the square icon that covers the viewport.
-     * The largest stage dimension is used so the icon
-     * always fills the screen while keeping its aspect ratio.
-     */
-    iconSize(): number {
-      return Math.max(this.stageW, this.stageH);
-    },
+  // Register child components available in the template
+  components: {
+    Icon,
   },
+
+  // No computed properties for the stage itself
 
   hooks: {
     /**
@@ -58,16 +56,9 @@ const LightningApp: LightningAppFactory = Blits.Application({
     },
   },
 
-  // Render the icon centered on a black canvas
+  // Render the icon component centered on a black canvas
   template: `<Element :w="$stageW" :h="$stageH">
-    <Element
-      src="assets/icon.png"
-      :w="$iconSize"
-      :h="$iconSize"
-      :x="$stageW / 2"
-      :y="$stageH / 2"
-      :mount="0.5"
-    />
+    <Icon :stageW="$stageW" :stageH="$stageH" />
   </Element>`,
 });
 
