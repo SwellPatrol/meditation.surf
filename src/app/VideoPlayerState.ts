@@ -28,14 +28,42 @@ class VideoPlayerState {
   }
 
   /**
+   * Ensure the DOM contains a <video> element that the Lightning
+   * VideoPlayer plugin can use. The element is hidden by default so
+   * it does not interfere with canvas rendering.
+   */
+  private ensureVideoElement(): HTMLVideoElement {
+    const existing: HTMLVideoElement | null = document.getElementById(
+      "video-player",
+    ) as HTMLVideoElement | null;
+
+    if (existing !== null) {
+      return existing;
+    }
+
+    const element: HTMLVideoElement = document.createElement("video");
+    element.id = "video-player";
+    element.style.position = "absolute";
+    element.style.zIndex = "0";
+    element.style.display = "none";
+    element.style.visibility = "hidden";
+    element.style.top = "0";
+    element.style.left = "0";
+    document.body.appendChild(element);
+    return element;
+  }
+
+  /**
    * Configure the shared VideoPlayer instance if it has not been initialized.
    *
    * @param width - Width of the viewport in pixels.
    * @param height - Height of the viewport in pixels.
    */
   public initialize(width: number, height: number): void {
-    // Ensure the <video> element exists. The plugin creates the element on the
-    // first interaction, so call a harmless method to trigger setup.
+    // Ensure the <video> element exists for the VideoPlayer plugin.
+    this.ensureVideoElement();
+
+    // Lazily initialize the plugin by calling a benign method once.
     if (!this.initialized) {
       this.player.hide();
       this.initialized = true as boolean;
@@ -44,14 +72,6 @@ class VideoPlayerState {
     // Ensure the video covers the viewport
     this.player.position(0, 0);
     this.player.size(width, height);
-
-    // Adjust the stacking order once the SDK creates the element
-    const videoElement: HTMLVideoElement | null = document.getElementById(
-      "video-player",
-    ) as HTMLVideoElement | null;
-    if (videoElement !== null) {
-      videoElement.style.zIndex = "0";
-    }
   }
 }
 
