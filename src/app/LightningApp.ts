@@ -9,6 +9,7 @@
 import Blits from "@lightningjs/blits";
 
 import Icon from "../components/Icon";
+import VideoOverlay from "../components/VideoOverlay";
 
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
@@ -26,6 +27,7 @@ const LightningApp: LightningAppFactory = Blits.Application({
   // Register child components available in the template
   components: {
     Icon,
+    VideoOverlay,
   },
 
   // No computed properties for the stage itself
@@ -56,9 +58,10 @@ const LightningApp: LightningAppFactory = Blits.Application({
     },
   },
 
-  // Render the icon component centered on a black canvas
-  template: `<Element :w="$stageW" :h="$stageH">
+  // Render the icon and video overlay components
+  template: `<Element :w="$stageW" :h="$stageH" :zIndex="-1">
     <Icon :stageW="$stageW" :stageH="$stageH" />
+    <VideoOverlay :stageW="$stageW" :stageH="$stageH" />
   </Element>`,
 });
 
