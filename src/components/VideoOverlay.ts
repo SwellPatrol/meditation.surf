@@ -38,13 +38,11 @@ const VideoOverlay: VideoOverlayFactory = Blits.Component("VideoOverlay", {
      * the icon on screen.
      */
     updateArea(): void {
-      // @ts-ignore `this` contains the reactive props provided at runtime
-      const w: number = this.videoSize as number;
+      const self: any = this;
+      const w: number = self.videoSize() as number;
       const h: number = w;
-      // @ts-ignore `this` contains the reactive props provided at runtime
-      const left: number = (this.stageW as number) / 2 - w / 2;
-      // @ts-ignore `this` contains the reactive props provided at runtime
-      const top: number = (this.stageH as number) / 2 - h / 2;
+      const left: number = (self.stageW as number) / 2 - w / 2;
+      const top: number = (self.stageH as number) / 2 - h / 2;
 
       VideoPlayer.area(top, left + w, top + h, left);
     },
@@ -68,10 +66,10 @@ const VideoOverlay: VideoOverlayFactory = Blits.Component("VideoOverlay", {
      */
     init(): void {
       VideoPlayer.consumer(this as never);
-      this.updateArea();
       VideoPlayer.open(
         "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
       );
+      this.updateArea();
     },
 
     /**
