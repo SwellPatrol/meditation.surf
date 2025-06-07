@@ -20,49 +20,74 @@ const QuadIcon: QuadIconFactory = Blits.Component("QuadIcon", {
   props: ["stageW", "stageH"],
 
   computed: {
-    /** Width of each quadrant in pixels. */
-    cellW(): number {
+    /** Width of half of the viewport. */
+    halfW(): number {
       // @ts-ignore `this` contains the reactive props provided at runtime
       return (this.stageW as number) / 2;
     },
 
-    /** Height of each quadrant in pixels. */
-    cellH(): number {
+    /** Height of half of the viewport. */
+    halfH(): number {
       // @ts-ignore `this` contains the reactive props provided at runtime
       return (this.stageH as number) / 2;
     },
+
+    /**
+     * Size of the square icon in pixels. The longest stage
+     * dimension is used to keep the icon centered when cropping.
+     */
+    iconSize(): number {
+      // @ts-ignore `this` contains the reactive props provided at runtime
+      return Math.max(this.stageW as number, this.stageH as number);
+    },
   },
 
-  // Render four cropped icons positioned in a 2x2 grid
+  // Render a single icon sliced into quadrants using clipping
   template: `<Element :w="$stageW" :h="$stageH">
-      <Element
-        src="assets/icon.png"
-        :w="$cellW"
-        :h="$cellH"
-        fit="{type: 'cover', position: {x: 0, y: 0}}"
-      />
-      <Element
-        src="assets/icon.png"
-        :x="$cellW"
-        :w="$cellW"
-        :h="$cellH"
-        fit="{type: 'cover', position: {x: 1, y: 0}}"
-      />
-      <Element
-        src="assets/icon.png"
-        :y="$cellH"
-        :w="$cellW"
-        :h="$cellH"
-        fit="{type: 'cover', position: {x: 0, y: 1}}"
-      />
-      <Element
-        src="assets/icon.png"
-        :x="$cellW"
-        :y="$cellH"
-        :w="$cellW"
-        :h="$cellH"
-        fit="{type: 'cover', position: {x: 1, y: 1}}"
-      />
+      <!-- Top-left corner -->
+      <Element :w="$halfW" :h="$halfH" clipping="true">
+        <Element
+          src="assets/icon.png"
+          :w="$iconSize"
+          :h="$iconSize"
+          :x="$stageW / 2"
+          :y="$stageH / 2"
+          mount="0.5"
+        />
+      </Element>
+      <!-- Top-right corner -->
+      <Element :x="$halfW" :w="$halfW" :h="$halfH" clipping="true">
+        <Element
+          src="assets/icon.png"
+          :w="$iconSize"
+          :h="$iconSize"
+          :x="0"
+          :y="$stageH / 2"
+          mount="0.5"
+        />
+      </Element>
+      <!-- Bottom-left corner -->
+      <Element :y="$halfH" :w="$halfW" :h="$halfH" clipping="true">
+        <Element
+          src="assets/icon.png"
+          :w="$iconSize"
+          :h="$iconSize"
+          :x="$stageW / 2"
+          :y="0"
+          mount="0.5"
+        />
+      </Element>
+      <!-- Bottom-right corner -->
+      <Element :x="$halfW" :y="$halfH" :w="$halfW" :h="$halfH" clipping="true">
+        <Element
+          src="assets/icon.png"
+          :w="$iconSize"
+          :h="$iconSize"
+          :x="0"
+          :y="0"
+          mount="0.5"
+        />
+      </Element>
     </Element>`,
 });
 
