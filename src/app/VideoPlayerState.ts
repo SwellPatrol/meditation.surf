@@ -34,6 +34,20 @@ class VideoPlayerState {
    * @param height - Height of the viewport in pixels.
    */
   public initialize(width: number, height: number): void {
+    // Ensure a <video> element exists so the player can attach to it
+    let videoEl: HTMLVideoElement | null = document.querySelector(
+      "#video-player",
+    ) as HTMLVideoElement | null;
+    if (videoEl === null) {
+      videoEl = document.createElement("video") as HTMLVideoElement;
+      videoEl.id = "video-player";
+      videoEl.style.position = "absolute";
+      videoEl.style.zIndex = "0";
+      videoEl.style.top = "0";
+      videoEl.style.left = "0";
+      document.body.appendChild(videoEl);
+    }
+
     // Size the <video> element to cover the viewport
     this.player.position(0, 0);
     this.player.size(width, height);
