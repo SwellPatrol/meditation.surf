@@ -18,7 +18,7 @@ class VideoPlayerState {
   /** Global VideoPlayer instance from the Lightning SDK. */
   public readonly player: typeof VideoPlayer;
 
-  /** True after the video player has been configured and started. */
+  /** True after the video player has been configured. */
   private initialized: boolean;
 
   constructor() {
@@ -28,20 +28,16 @@ class VideoPlayerState {
   }
 
   /**
-   * Configure the shared video player and start playback if needed.
+   * Configure the shared VideoPlayer instance if it has not been initialized.
    *
    * @param width - Width of the viewport in pixels.
    * @param height - Height of the viewport in pixels.
    */
   public initialize(width: number, height: number): void {
-    // Start playback on the first initialization. The SDK automatically
-    // creates a <video> element with id "video-player" the first time the
-    // VideoPlayer plugin is interacted with.
+    // Ensure the <video> element exists. The plugin creates the element on the
+    // first interaction, so call a harmless method to trigger setup.
     if (!this.initialized) {
-      this.player.open(
-        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-      );
-      this.player.loop(true);
+      this.player.hide();
       this.initialized = true as boolean;
     }
 
