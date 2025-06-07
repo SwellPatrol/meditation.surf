@@ -13,11 +13,11 @@ type LightningAppFactory = ReturnType<typeof Blits.Application>;
 
 // Minimal LightningJS app displaying a full-screen icon
 const LightningApp: LightningAppFactory = Blits.Application({
-  // Track viewport dimensions for the root stage
+  // Stage dimensions are captured on launch
   state() {
     return {
-      stageW: window.innerWidth as number, // viewport width
-      stageH: window.innerHeight as number, // viewport height
+      width: window.innerWidth as number,
+      height: window.innerHeight as number,
     };
   },
 
@@ -28,44 +28,18 @@ const LightningApp: LightningAppFactory = Blits.Application({
      * always fills the screen while keeping its aspect ratio.
      */
     iconSize(): number {
-      return Math.max(this.stageW, this.stageH);
-    },
-  },
-
-  hooks: {
-    /**
-     * Setup the window resize handler so the app continues to
-     * cover the viewport when the browser size changes.
-     */
-    init(): void {
-      const self: any = this;
-      const listener: () => void = (): void => {
-        self.stageW = window.innerWidth;
-        self.stageH = window.innerHeight;
-      };
-      self.resizeListener = listener;
-      window.addEventListener("resize", listener);
-    },
-
-    /**
-     * Clean up the resize listener when the component is destroyed.
-     */
-    destroy(): void {
-      const self: any = this;
-      if (self.resizeListener) {
-        window.removeEventListener("resize", self.resizeListener as () => void);
-      }
+      return Math.max(this.width, this.height);
     },
   },
 
   // Render the icon centered on a black canvas
-  template: `<Element :w="$stageW" :h="$stageH">
+  template: `<Element :w="$width" :h="$height">
     <Element
       src="assets/icon.png"
       :w="$iconSize"
       :h="$iconSize"
-      :x="$stageW / 2"
-      :y="$stageH / 2"
+      :x="$width / 2"
+      :y="$height / 2"
       :mount="0.5"
     />
   </Element>`,

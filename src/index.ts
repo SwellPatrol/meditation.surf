@@ -6,14 +6,13 @@
  * See the file LICENSE.txt for more information.
  */
 
+import { Debounce } from "./Debounce";
 import { launchLightningApp } from "./LightningApp";
 
-/** Milliseconds to wait before applying the final size after a resize */
-const COOL_DOWN_MS: number = 100;
+/** How long to wait before applying the final size after a resize */
+const RESIZE_DELAY_MS: number = 100;
 
-let coolDownTimer: number | undefined;
-let lastWidth: number = window.innerWidth;
-let lastHeight: number = window.innerHeight;
+const resizeDebounce: Debounce = new Debounce(RESIZE_DELAY_MS);
 
 /** Launch the app, replacing any existing canvas */
 function startApp(width: number, height: number): void {
@@ -30,20 +29,9 @@ function startApp(width: number, height: number): void {
 }
 
 window.addEventListener("resize", (): void => {
-  lastWidth = window.innerWidth;
-  lastHeight = window.innerHeight;
-
-  // Apply the new resolution immediately if we're not in the cooldown period
-  if (coolDownTimer === undefined) {
-    startApp(lastWidth, lastHeight);
-  }
-
-  // Restart the cooldown timer to apply the last resolution after the cooldown
-  window.clearTimeout(coolDownTimer);
-  coolDownTimer = window.setTimeout((): void => {
-    startApp(lastWidth, lastHeight);
-    coolDownTimer = undefined;
-  }, COOL_DOWN_MS);
+  resizeDebounce.run((): void => {
+    startApp(window.innerWidth, window.innerHeight);
+  });
 });
 
 /**
