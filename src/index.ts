@@ -6,35 +6,10 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { launchLightningApp } from "./LightningApp";
-import { debounce } from "./utils/debounce";
-
-/** Milliseconds to wait before applying the final size after a resize */
-const COOL_DOWN_MS: number = 100;
-
-/** Launch the app, replacing any existing canvas */
-function startApp(width: number, height: number): void {
-  const mount: HTMLElement = document.getElementById("app") as HTMLElement;
-  const oldCanvas: HTMLCanvasElement | null = mount.querySelector("canvas");
-
-  // Launch the new LightningJS canvas before removing the old one to minimize
-  // the time the screen goes blank during a resize
-  launchLightningApp(width, height);
-
-  if (oldCanvas !== null) {
-    oldCanvas.remove();
-  }
-}
-
-const debouncedStartApp: (...errArgs: Parameters<typeof startApp>) => void =
-  debounce(startApp, COOL_DOWN_MS);
-
-window.addEventListener("resize", (): void => {
-  debouncedStartApp(window.innerWidth, window.innerHeight);
-});
+import { initApp } from "./bootstrap";
 
 /**
- * Application entry point. Loads global state and launches the LightningJS
- * view.
+ * Application entry point. Boots the Lightning app and registers
+ * the resize handler.
  */
-startApp(window.innerWidth, window.innerHeight);
+initApp();
