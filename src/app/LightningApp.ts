@@ -8,12 +8,12 @@
 
 import Blits from "@lightningjs/blits";
 
-import Icon from "../components/Icon";
+import Video from "../components/Video";
 
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
 
-// Minimal LightningJS app displaying a full-screen icon
+// Minimal LightningJS app streaming a full-screen video
 const LightningApp: LightningAppFactory = Blits.Application({
   // Track viewport dimensions for the root stage
   state() {
@@ -25,7 +25,7 @@ const LightningApp: LightningAppFactory = Blits.Application({
 
   // Register child components available in the template
   components: {
-    Icon,
+    Video,
   },
 
   // No computed properties for the stage itself
@@ -56,9 +56,9 @@ const LightningApp: LightningAppFactory = Blits.Application({
     },
   },
 
-  // Render the icon component centered on a black canvas
+  // Render the video component covering a black canvas
   template: `<Element :w="$stageW" :h="$stageH">
-    <Icon :stageW="$stageW" :stageH="$stageH" />
+    <Video :stageW="$stageW" :stageH="$stageH" />
   </Element>`,
 });
 
