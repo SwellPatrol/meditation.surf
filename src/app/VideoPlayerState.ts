@@ -34,39 +34,25 @@ class VideoPlayerState {
    * @param height - Height of the viewport in pixels.
    */
   public initialize(width: number, height: number): void {
-    // Ensure a <video> element exists so the player can attach to it
-    let videoEl: HTMLVideoElement | null = document.querySelector(
-      "#video-player",
-    ) as HTMLVideoElement | null;
-    if (videoEl === null) {
-      videoEl = document.createElement("video") as HTMLVideoElement;
-      videoEl.id = "video-player";
-      videoEl.style.position = "absolute";
-      videoEl.style.zIndex = "0";
-      videoEl.style.top = "0";
-      videoEl.style.left = "0";
-      document.body.appendChild(videoEl);
-    }
-
-    // Size the <video> element to cover the viewport
-    this.player.position(0, 0);
-    this.player.size(width, height);
-
+    // Start playback on the first initialization
     if (!this.initialized) {
-      // Place the video behind the Lightning canvas
-      const videoEl: HTMLVideoElement | null =
-        (this.player as unknown as { _videoEl: HTMLVideoElement })._videoEl ??
-        null;
-      if (videoEl !== null) {
-        videoEl.style.zIndex = "0";
-      }
-
-      // Start playing Big Buck Bunny on first initialization
       this.player.open(
         "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
       );
       this.player.loop(true);
       this.initialized = true as boolean;
+    }
+
+    // Ensure the video covers the viewport
+    this.player.position(0, 0);
+    this.player.size(width, height);
+
+    // Place the video behind the Lightning canvas
+    const videoElement: HTMLVideoElement | undefined = (
+      this.player as unknown as { _videoEl?: HTMLVideoElement }
+    )._videoEl;
+    if (videoElement !== undefined) {
+      videoElement.style.zIndex = "0";
     }
   }
 }

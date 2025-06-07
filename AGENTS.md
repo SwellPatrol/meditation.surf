@@ -25,6 +25,7 @@ Only proceed if all commands succeed.
 - Optimize code for readability and understandability.
 - Use plentiful comments to clarify the purpose and functioning of code.
 - Poorly commented code will be rejected during review.
+- Choose descriptive variable names that clearly convey their purpose.
 - Start new files with the project copyright header (using the current year) whenever possible.
 
   For TypeScript or languages that use block comments:
