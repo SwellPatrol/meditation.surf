@@ -6,8 +6,20 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { launchLightningApp } from "./LightningApp";
+import Blits from "@lightningjs/blits";
+
+import LightningApp from "./LightningApp";
 import { debounce } from "./utils/debounce";
+
+/**
+ * Launch the LightningJS application sized to the current viewport.
+ */
+function launchLightningApp(width: number, height: number): void {
+  Blits.Launch(LightningApp, "app", {
+    w: width,
+    h: height,
+  });
+}
 
 /** Milliseconds to wait before applying the final size after a resize */
 const COOL_DOWN_MS: number = 100;
