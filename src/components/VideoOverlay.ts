@@ -39,8 +39,7 @@ const VideoOverlay: VideoOverlayFactory = Blits.Component("VideoOverlay", {
      */
     updateArea(): void {
       // @ts-ignore `this` contains the reactive props provided at runtime
-      const w: number = this.videoSize() as number;
-      // @ts-ignore `this` contains the reactive props provided at runtime
+      const w: number = this.videoSize as number;
       const h: number = w;
       // @ts-ignore `this` contains the reactive props provided at runtime
       const left: number = (this.stageW as number) / 2 - w / 2;
