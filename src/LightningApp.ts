@@ -74,9 +74,9 @@ const LightningApp: LightningAppFactory = Blits.Application({
 /**
  * Launch the LightningJS application sized to the current viewport
  */
-export function launchLightningApp(): void {
+export function launchLightningApp(width: number, height: number): void {
   Blits.Launch(LightningApp, "app", {
-    w: window.innerWidth,
-    h: window.innerHeight,
+    w: width,
+    h: height,
   });
 }
