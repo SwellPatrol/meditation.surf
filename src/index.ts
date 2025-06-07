@@ -7,6 +7,10 @@
  */
 
 import { launchApp } from "./app/launchApp";
+import { createBackgroundVideo } from "./utils/backgroundVideo";
 
 // Application entry point
+createBackgroundVideo(
+  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+);
 launchApp();
