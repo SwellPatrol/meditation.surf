@@ -8,12 +8,16 @@
 
 import Blits from "@lightningjs/blits";
 import { VideoPlayer } from "@lightningjs/sdk";
+import Hls from "hls.js";
 
 // Type alias for the factory returned by Blits.Component
 type MuxVideoFactory = ReturnType<typeof Blits.Component>;
 
 /** URL of the sample HLS stream provided by Mux */
 const MUX_URL: string = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
+
+/** Active Hls.js instance for loading the stream */
+let hls: Hls | null = null;
 
 /**
  * Component responsible for displaying a video overlay using the
@@ -31,6 +35,8 @@ const MuxVideo: MuxVideoFactory = Blits.Component("MuxVideo", {
      */
     init(): void {
       const self: any = this;
+      VideoPlayer.loader(createLoader());
+      VideoPlayer.unloader(createUnloader());
       VideoPlayer.consumer(self);
       updateVideoSize(self.stageW as number, self.stageH as number);
       void VideoPlayer.open(MUX_URL);
@@ -41,6 +47,8 @@ const MuxVideo: MuxVideoFactory = Blits.Component("MuxVideo", {
      */
     destroy(): void {
       VideoPlayer.close();
+      VideoPlayer.loader();
+      VideoPlayer.unloader();
     },
   },
 
@@ -76,6 +84,63 @@ function updateVideoSize(stageW: number, stageH: number): void {
   const top: number = (stageH - size) / 2;
   VideoPlayer.position(top, left);
   VideoPlayer.size(size, size);
+}
+
+/**
+ * Create a custom loader that uses Hls.js when needed to play HLS streams.
+ */
+type LoaderFn = (
+  errUrl: string,
+  errVideoEl: HTMLVideoElement,
+  errConfig?: Record<string, never>,
+) => Promise<void>;
+
+function createLoader(): LoaderFn {
+  return (
+    url: string,
+    videoEl: HTMLVideoElement,
+    errConfig?: Record<string, never>,
+  ): Promise<void> =>
+    new Promise((resolve: () => void, reject: (errE: Error) => void): void => {
+      if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
+        videoEl.src = url;
+        videoEl.load();
+        resolve();
+      } else if (Hls.isSupported()) {
+        hls = new Hls();
+        hls.loadSource(url);
+        hls.attachMedia(videoEl);
+        hls.on(Hls.Events.MANIFEST_PARSED, (): void => {
+          resolve();
+        });
+      } else {
+        reject(new Error("HLS not supported"));
+      }
+    });
+}
+
+/**
+ * Create a custom unloader that cleans up Hls.js when closing the video.
+ */
+type UnloaderFn = (
+  errVideoEl: HTMLVideoElement,
+  errConfig?: Record<string, never>,
+) => Promise<void>;
+
+function createUnloader(): UnloaderFn {
+  return (
+    videoEl: HTMLVideoElement,
+    errConfig?: Record<string, never>,
+  ): Promise<void> =>
+    new Promise((resolve: () => void): void => {
+      if (hls !== null) {
+        hls.destroy();
+        hls = null;
+      }
+      videoEl.removeAttribute("src");
+      videoEl.load();
+      resolve();
+    });
 }
 
 export default MuxVideo;

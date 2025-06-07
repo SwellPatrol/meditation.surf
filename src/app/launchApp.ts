@@ -8,7 +8,6 @@
 
 import Blits from "@lightningjs/blits";
 
-import { debounce } from "../utils/debounce";
 import LightningApp from "./LightningApp";
 
 /**
@@ -20,9 +19,6 @@ function launchLightningApp(width: number, height: number): void {
     h: height,
   });
 }
-
-/** Milliseconds to wait before applying the final size after a resize */
-const COOL_DOWN_MS: number = 100;
 
 /** Launch the app, replacing any existing canvas */
 function startApp(width: number, height: number): void {
@@ -38,14 +34,7 @@ function startApp(width: number, height: number): void {
   }
 }
 
-/** Start the app and watch for window size changes */
+/** Start the app sized to the current viewport */
 export function launchApp(): void {
-  const debouncedStartApp: (...errArgs: Parameters<typeof startApp>) => void =
-    debounce(startApp, COOL_DOWN_MS);
-
-  window.addEventListener("resize", (): void => {
-    debouncedStartApp(window.innerWidth, window.innerHeight);
-  });
-
   startApp(window.innerWidth, window.innerHeight);
 }

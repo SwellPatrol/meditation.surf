@@ -20,6 +20,9 @@ importers:
       '@lightningjs/sdk':
         specifier: ^5.5.5
         version: 5.5.5
+      hls.js:
+        specifier: ^1.6.5
+        version: 1.6.5
     devDependencies:
       '@eslint/js':
         specifier: ^9.27.0
@@ -1174,6 +1177,9 @@ packages:
   hasown@2.0.2:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
     engines: {node: '>= 0.4'}
+
+  hls.js@1.6.5:
+    resolution: {integrity: sha512-KMn5n7JBK+olC342740hDPHnGWfE8FiHtGMOdJPfUjRdARTWj9OB+8c13fnsf9sk1VtpuU2fKSgUjHvg4rNbzQ==}
 
   http-cache-semantics@4.2.0:
     resolution: {integrity: sha512-dTxcvPXqPvXBQpq5dUr6mEMJX4oIEFv6bwom3FDwKRDsuIjjJGANqhBuoAn9c1RQJIdAKav33ED65E2ys+87QQ==}
@@ -3173,6 +3179,8 @@ snapshots:
   hasown@2.0.2:
     dependencies:
       function-bind: 1.1.2
+
+  hls.js@1.6.5: {}
 
   http-cache-semantics@4.2.0: {}
 
