@@ -28,6 +28,20 @@ class VideoPlayerState {
   }
 
   /**
+   * Log whether the video element is present in the DOM. This aids debugging
+   * scenarios where the Lightning SDK fails to create its `<video>` element.
+   */
+  private logVideoElement(): void {
+    const videoElement: HTMLVideoElement | null =
+      document.querySelector("video");
+    if (videoElement === null) {
+      console.warn("Video element not found in DOM");
+    } else {
+      console.debug("Video element found", videoElement);
+    }
+  }
+
+  /**
    * Configure the shared VideoPlayer instance if it has not been initialized.
    *
    * @param width - Width of the viewport in pixels.
@@ -37,12 +51,14 @@ class VideoPlayerState {
     // Lazily initialize the plugin by calling a benign method once.
     if (!this.initialized) {
       this.videoPlayer.hide();
+      this.logVideoElement();
       this.initialized = true as boolean;
     }
 
     // Ensure the video covers the viewport
     this.videoPlayer.position(0, 0);
     this.videoPlayer.size(width, height);
+    this.logVideoElement();
   }
 }
 
