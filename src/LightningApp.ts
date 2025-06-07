@@ -30,32 +30,6 @@ const LightningApp: LightningAppFactory = Blits.Application({
 
   // No computed properties for the stage itself
 
-  hooks: {
-    /**
-     * Setup the window resize handler so the app continues to
-     * cover the viewport when the browser size changes.
-     */
-    init(): void {
-      const self: any = this;
-      const listener: () => void = (): void => {
-        self.stageW = window.innerWidth;
-        self.stageH = window.innerHeight;
-      };
-      self.resizeListener = listener;
-      window.addEventListener("resize", listener);
-    },
-
-    /**
-     * Clean up the resize listener when the component is destroyed.
-     */
-    destroy(): void {
-      const self: any = this;
-      if (self.resizeListener) {
-        window.removeEventListener("resize", self.resizeListener as () => void);
-      }
-    },
-  },
-
   // Render the icon component centered on a black canvas
   template: `<Element :w="$stageW" :h="$stageH">
     <Icon :stageW="$stageW" :stageH="$stageH" />
