@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { launchApp } from "./launchApp";
+import { launchApp } from "./app/launchApp";
 
 // Application entry point
 launchApp();

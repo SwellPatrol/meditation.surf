@@ -8,8 +8,8 @@
 
 import Blits from "@lightningjs/blits";
 
+import { debounce } from "../utils/debounce";
 import LightningApp from "./LightningApp";
-import { debounce } from "./utils/debounce";
 
 /**
  * Launch the LightningJS application sized to the current viewport.

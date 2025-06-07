@@ -8,7 +8,7 @@
 
 import Blits from "@lightningjs/blits";
 
-import Icon from "./components/Icon";
+import Icon from "../components/Icon";
 
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
