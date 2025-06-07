@@ -27,15 +27,16 @@ const COOL_DOWN_MS: number = 100;
 /** Launch the app, replacing any existing canvas */
 function startApp(width: number, height: number): void {
   const mount: HTMLElement = document.getElementById("app") as HTMLElement;
-  const oldCanvas: HTMLCanvasElement | null = mount.querySelector("canvas");
+  const oldCanvases: NodeListOf<HTMLCanvasElement> =
+    mount.querySelectorAll("canvas");
 
-  // Launch the new LightningJS canvas before removing the old one to minimize
-  // the time the screen goes blank during a resize
+  // Launch the new LightningJS canvas before removing the old one so the screen
+  // never goes blank during resize
   launchLightningApp(width, height);
 
-  if (oldCanvas !== null) {
-    oldCanvas.remove();
-  }
+  oldCanvases.forEach((canvas: HTMLCanvasElement): void => {
+    canvas.remove();
+  });
 }
 
 /** Start the app and watch for window size changes */

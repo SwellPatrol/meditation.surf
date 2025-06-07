@@ -37,6 +37,7 @@ const Video: VideoFactory = Blits.Component("Video", {
       VideoPlayer.position(0, 0);
       VideoPlayer.size(width, height);
       VideoPlayer.open("https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8");
+      VideoPlayer.play();
       VideoPlayer.show();
     },
 
