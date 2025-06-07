@@ -16,41 +16,15 @@ import { VideoPlayer } from "@lightningjs/sdk";
  */
 class VideoPlayerState {
   /** Global VideoPlayer instance from the Lightning SDK. */
-  public readonly player: typeof VideoPlayer;
+  public readonly videoPlayer: typeof VideoPlayer;
 
   /** True after the video player has been configured. */
   private initialized: boolean;
 
   constructor() {
     // The VideoPlayer plugin sets up its video tag only once.
-    this.player = VideoPlayer;
+    this.videoPlayer = VideoPlayer;
     this.initialized = false as boolean;
-  }
-
-  /**
-   * Ensure the DOM contains a <video> element that the Lightning
-   * VideoPlayer plugin can use. The element is hidden by default so
-   * it does not interfere with canvas rendering.
-   */
-  private ensureVideoElement(): HTMLVideoElement {
-    const existing: HTMLVideoElement | null = document.getElementById(
-      "video-player",
-    ) as HTMLVideoElement | null;
-
-    if (existing !== null) {
-      return existing;
-    }
-
-    const element: HTMLVideoElement = document.createElement("video");
-    element.id = "video-player";
-    element.style.position = "absolute";
-    element.style.zIndex = "0";
-    element.style.display = "none";
-    element.style.visibility = "hidden";
-    element.style.top = "0";
-    element.style.left = "0";
-    document.body.appendChild(element);
-    return element;
   }
 
   /**
@@ -60,18 +34,15 @@ class VideoPlayerState {
    * @param height - Height of the viewport in pixels.
    */
   public initialize(width: number, height: number): void {
-    // Ensure the <video> element exists for the VideoPlayer plugin.
-    this.ensureVideoElement();
-
     // Lazily initialize the plugin by calling a benign method once.
     if (!this.initialized) {
-      this.player.hide();
+      this.videoPlayer.hide();
       this.initialized = true as boolean;
     }
 
     // Ensure the video covers the viewport
-    this.player.position(0, 0);
-    this.player.size(width, height);
+    this.videoPlayer.position(0, 0);
+    this.videoPlayer.size(width, height);
   }
 }
 
