@@ -7,11 +7,15 @@
  */
 
 import Blits from "@lightningjs/blits";
+import { VideoPlayer } from "@lightningjs/sdk";
+
+// Example HLS stream provided by Mux
+const HLS_URL: string = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
 
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
 
-// Minimal LightningJS app displaying a full-screen icon
+// Minimal LightningJS app playing a full-screen HLS video
 const LightningApp: LightningAppFactory = Blits.Application({
   // Track viewport dimensions for the root stage
   state() {
@@ -19,17 +23,6 @@ const LightningApp: LightningAppFactory = Blits.Application({
       stageW: window.innerWidth as number, // viewport width
       stageH: window.innerHeight as number, // viewport height
     };
-  },
-
-  computed: {
-    /**
-     * Size of the square icon that covers the viewport.
-     * The largest stage dimension is used so the icon
-     * always fills the screen while keeping its aspect ratio.
-     */
-    iconSize(): number {
-      return Math.max(this.stageW, this.stageH);
-    },
   },
 
   hooks: {
@@ -42,9 +35,14 @@ const LightningApp: LightningAppFactory = Blits.Application({
       const listener: () => void = (): void => {
         self.stageW = window.innerWidth;
         self.stageH = window.innerHeight;
+        VideoPlayer.size(self.stageW, self.stageH);
       };
       self.resizeListener = listener;
       window.addEventListener("resize", listener);
+
+      VideoPlayer.consumer(self);
+      VideoPlayer.size(self.stageW, self.stageH);
+      VideoPlayer.open(HLS_URL);
     },
 
     /**
@@ -55,20 +53,13 @@ const LightningApp: LightningAppFactory = Blits.Application({
       if (self.resizeListener) {
         window.removeEventListener("resize", self.resizeListener as () => void);
       }
+
+      VideoPlayer.close();
     },
   },
 
-  // Render the icon centered on a black canvas
-  template: `<Element :w="$stageW" :h="$stageH">
-    <Element
-      src="assets/icon.png"
-      :w="$iconSize"
-      :h="$iconSize"
-      :x="$stageW / 2"
-      :y="$stageH / 2"
-      :mount="0.5"
-    />
-  </Element>`,
+  // Empty stage used to register resize events while the video plays
+  template: `<Element :w="$stageW" :h="$stageH" />`,
 });
 
 /**

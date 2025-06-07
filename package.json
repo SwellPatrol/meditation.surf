@@ -51,7 +51,8 @@
     "test:ui": "vitest --ui"
   },
   "dependencies": {
-    "@lightningjs/blits": "^1.29.1"
+    "@lightningjs/blits": "^1.29.1",
+    "@lightningjs/sdk": "^5.5.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.27.0",
