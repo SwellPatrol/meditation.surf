@@ -7,7 +7,7 @@
  */
 
 import Blits from "@lightningjs/blits";
-import { Settings, VideoPlayer } from "@lightningjs/sdk";
+import { VideoPlayer } from "@lightningjs/sdk";
 
 // Type alias for the factory returned by Blits.Component
 type VideoOverlayFactory = ReturnType<typeof Blits.Component>;
@@ -68,7 +68,6 @@ const VideoOverlay: VideoOverlayFactory = Blits.Component("VideoOverlay", {
      * Initialize the video player in texture mode and start playback.
      */
     init(): void {
-      Settings.set("platform", "textureMode", true);
       VideoPlayer.consumer(this as never);
       this.updateArea();
       VideoPlayer.open(

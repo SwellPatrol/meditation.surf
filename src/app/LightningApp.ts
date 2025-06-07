@@ -59,7 +59,7 @@ const LightningApp: LightningAppFactory = Blits.Application({
   },
 
   // Render the icon and video overlay components
-  template: `<Element :w="$stageW" :h="$stageH" :zIndex="-1">
+  template: `<Element :w="$stageW" :h="$stageH">
     <Icon :stageW="$stageW" :stageH="$stageH" />
     <VideoOverlay :stageW="$stageW" :stageH="$stageH" />
   </Element>`,
