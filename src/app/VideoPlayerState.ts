@@ -21,36 +21,6 @@ class VideoPlayerState {
   /** True after the video player has been configured and started. */
   private initialized: boolean;
 
-  /**
-   * Ensure that a <video> element with id "video-player" exists in the DOM.
-   * The Lightning SDK normally creates the element automatically, but some
-   * environments might skip this setup. This helper guarantees that a video
-   * tag is present so the player can attach to it.
-   *
-   * @param width - Width of the viewport in pixels.
-   * @param height - Height of the viewport in pixels.
-   * @returns The HTML video element used by the player.
-   */
-  private ensureVideoElement(width: number, height: number): HTMLVideoElement {
-    let videoEl: HTMLVideoElement | null = document.getElementById(
-      "video-player",
-    ) as HTMLVideoElement | null;
-
-    if (videoEl === null) {
-      videoEl = document.createElement("video") as HTMLVideoElement;
-      videoEl.id = "video-player";
-      videoEl.width = width;
-      videoEl.height = height;
-      videoEl.style.position = "absolute";
-      videoEl.style.zIndex = "0";
-      videoEl.style.top = "0px";
-      videoEl.style.left = "0px";
-      document.body.appendChild(videoEl);
-    }
-
-    return videoEl;
-  }
-
   constructor() {
     // The VideoPlayer plugin sets up its video tag only once.
     this.player = VideoPlayer;
@@ -64,13 +34,9 @@ class VideoPlayerState {
    * @param height - Height of the viewport in pixels.
    */
   public initialize(width: number, height: number): void {
-    // Guarantee a video element is present for the player
-    const videoElement: HTMLVideoElement = this.ensureVideoElement(
-      width,
-      height,
-    );
-
-    // Start playback on the first initialization
+    // Start playback on the first initialization. The SDK automatically
+    // creates a <video> element with id "video-player" the first time the
+    // VideoPlayer plugin is interacted with.
     if (!this.initialized) {
       this.player.open(
         "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
@@ -83,8 +49,13 @@ class VideoPlayerState {
     this.player.position(0, 0);
     this.player.size(width, height);
 
-    // Place the video behind the Lightning canvas
-    videoElement.style.zIndex = "0";
+    // Adjust the stacking order once the SDK creates the element
+    const videoElement: HTMLVideoElement | null = document.getElementById(
+      "video-player",
+    ) as HTMLVideoElement | null;
+    if (videoElement !== null) {
+      videoElement.style.zIndex = "0";
+    }
   }
 }
 
