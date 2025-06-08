@@ -10,6 +10,7 @@ import Blits from "@lightningjs/blits";
 
 import { debounce } from "../utils/debounce";
 import LightningApp from "./LightningApp";
+import videoPlayerState from "./VideoPlayerState";
 
 /**
  * Launch the LightningJS application sized to the current viewport.
@@ -28,10 +29,16 @@ const COOL_DOWN_MS: number = 100;
 function startApp(width: number, height: number): void {
   const mount: HTMLElement = document.getElementById("app") as HTMLElement;
   const oldCanvas: HTMLCanvasElement | null = mount.querySelector("canvas");
+  const oldApp: unknown | null = videoPlayerState.getAppInstance();
 
-  // Launch the new LightningJS canvas before removing the old one to minimize
-  // the time the screen goes blank during a resize
+  // Launch the new LightningJS canvas before destroying the previous instance
+  // so the screen remains visible during the transition.
   launchLightningApp(width, height);
+
+  // Clean up the old Lightning application to free its WebGL context.
+  if (oldApp !== null && typeof (oldApp as any).quit === "function") {
+    (oldApp as any).quit();
+  }
 
   if (oldCanvas !== null) {
     oldCanvas.remove();

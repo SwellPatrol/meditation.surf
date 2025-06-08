@@ -61,6 +61,16 @@ class VideoPlayerState {
   }
 
   /**
+   * Retrieve the Lightning application instance currently registered with the
+   * video player.
+   *
+   * @returns The active Lightning application or `null` if none is set.
+   */
+  public getAppInstance(): unknown | null {
+    return this.appInstance;
+  }
+
+  /**
    * Log whether the video element is present in the DOM. This aids debugging
    * scenarios where the Lightning SDK fails to create its `<video>` element.
    */
