@@ -24,6 +24,20 @@ const LightningApp: LightningAppFactory = Blits.Application({
     };
   },
 
+  // Log VideoPlayer events for debugging
+  methods: {
+    $videoPlayerEvent(
+      eventName: string,
+      details: { videoElement: HTMLVideoElement; event: Event },
+      currentTime: number,
+    ): void {
+      console.debug(
+        `VideoPlayer event: ${eventName} at ${currentTime.toFixed(2)}s`,
+        details,
+      );
+    },
+  },
+
   // Register child components available in the template
   components: {
     Icon,

@@ -38,13 +38,13 @@ class VideoPlayerState {
   }
 
   /**
-   * Provide the active Lightning application instance so the VideoPlayer
-   * plugin can attach itself to the stage.
+   * Register a Lightning component to receive VideoPlayer events.
    *
    * @param app - Root Lightning application instance.
    */
   public setAppInstance(app: unknown): void {
     this.appInstance = app;
+    this.videoPlayer.consumer(app as any);
   }
 
   /**
@@ -68,6 +68,10 @@ class VideoPlayerState {
    * @param height - Height of the viewport in pixels.
    */
   public initialize(width: number, height: number): void {
+    console.debug(
+      `VideoPlayerState.initialize: width=${width} height=${height}`,
+    );
+
     // Lazily initialize the plugin by calling a benign method once.
     if (!this.initialized) {
       // Configure the Lightning SDK plugin so the VideoPlayer has access to
@@ -83,6 +87,7 @@ class VideoPlayerState {
 
       this.videoPlayer.hide();
       this.logVideoElement();
+      console.info("VideoPlayer plugin initialized");
       this.initialized = true as boolean;
     }
 
@@ -96,10 +101,12 @@ class VideoPlayerState {
         "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
       this.videoPlayer.open(url);
       this.videoPlayer.play();
+      console.info(`Video opened: ${url}`);
       this.opened = true as boolean;
     }
 
     this.videoPlayer.show();
+    console.debug("VideoPlayer shown on stage");
 
     // Move the video texture under the VideoBackground element and raise it
     if (this.appInstance !== null) {
@@ -108,10 +115,12 @@ class VideoPlayerState {
       if (texture !== undefined && container !== undefined) {
         container.childList.add(texture);
         texture.patch({ x: 0, y: 0, w: width, h: height, zIndex: 2 });
+        console.debug("Video texture added to stage");
       }
     }
 
     this.logVideoElement();
+    console.debug("VideoPlayer initialization complete");
   }
 }
 
