@@ -40,6 +40,7 @@ class VideoPlayerState {
    */
   public setAppInstance(app: unknown): void {
     this.appInstance = app;
+    initLightningSdkPlugin.appInstance = app as unknown;
     if (this.initialized) {
       this.videoPlayer.consumer(app as any);
     }
@@ -70,20 +71,30 @@ class VideoPlayerState {
       `VideoPlayerState.initialize: width=${width} height=${height}`,
     );
 
+    if (this.appInstance === null) {
+      console.warn(
+        "VideoPlayerState.initialize skipped: no app instance provided",
+      );
+      return;
+    }
+
     // Lazily initialize the plugin by calling a benign method once.
     if (!this.initialized) {
-      // Configure the Lightning SDK plugin so the VideoPlayer has access to
-      // runtime services such as logging and settings.
-      initSettings({}, { width, height, textureMode: true });
+      // The plugin needs Settings, Logging, and the Lightning instance.
+      // Disable texture mode because Blits does not expose the old Lightning
+      // Application APIs required by the VideoTexture integration.
+      initSettings({}, { width, height, textureMode: false });
       initLightningSdkPlugin.log = Log;
       initLightningSdkPlugin.settings = Settings;
       initLightningSdkPlugin.ads = Ads;
       initLightningSdkPlugin.lightning = Lightning;
       if (this.appInstance !== null) {
         initLightningSdkPlugin.appInstance = this.appInstance as unknown;
-      }
-      if (this.appInstance !== null) {
         this.videoPlayer.consumer(this.appInstance as any);
+      } else {
+        console.warn(
+          "VideoPlayerState.initialize called without an app instance",
+        );
       }
 
       this.videoPlayer.hide();
@@ -99,8 +110,10 @@ class VideoPlayerState {
     this.videoPlayer.show();
     console.debug("VideoPlayer shown on stage");
 
-    // Move the video texture under the VideoBackground element and raise it
-    if (this.appInstance !== null) {
+    // In texture mode the plugin provides a Lightning component that must be
+    // inserted into the scene graph. Because texture mode is disabled, this
+    // block is kept for reference but does not run.
+    if (this.appInstance !== null && Settings.get("platform", "textureMode")) {
       const texture: any = (this.appInstance as any).tag("VideoTexture");
       const container: any = (this.appInstance as any).tag("VideoBackground");
       if (texture !== undefined && container !== undefined) {
