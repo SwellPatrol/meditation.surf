@@ -150,10 +150,14 @@ class VideoPlayerState {
       consumer: (this.videoPlayer as any)._consumer,
     });
 
-    // Load and play the demo video the first time initialization runs
+    // Load and play the demo video the first time initialization runs.
     if (!this.opened) {
       const url: string = VideoPlayerState.DEMO_URL;
       this.videoPlayer.open(url);
+      // Enable looping so the demo repeats indefinitely.
+      this.videoPlayer.loop(true);
+      // Ensure playback begins automatically.
+      this.videoPlayer.play();
       this.opened = true as boolean;
     }
 
