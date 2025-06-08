@@ -20,8 +20,15 @@ class VideoPlayerState {
   /** Global VideoPlayer instance from the Lightning SDK. */
   public readonly videoPlayer: typeof VideoPlayer;
 
+  /** URL of the demo video used for testing playback. */
+  private static readonly DEMO_URL: string =
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+
   /** True after the video player has been configured. */
   private initialized: boolean;
+
+  /** True after the demo video has been opened. */
+  private opened: boolean;
 
   /** Lightning application instance provided after launch. */
   private appInstance: unknown | null;
@@ -31,6 +38,7 @@ class VideoPlayerState {
     this.videoPlayer = VideoPlayer;
     this.initialized = false as boolean;
     this.appInstance = null as unknown | null;
+    this.opened = false as boolean;
   }
 
   /**
@@ -137,6 +145,13 @@ class VideoPlayerState {
       videoElement: (this.videoPlayer as any)._videoEl,
       consumer: (this.videoPlayer as any)._consumer,
     });
+
+    // Load and play the demo video the first time initialization runs
+    if (!this.opened) {
+      const url: string = VideoPlayerState.DEMO_URL;
+      this.videoPlayer.open(url);
+      this.opened = true as boolean;
+    }
 
     // In texture mode the plugin provides a Lightning component that must be
     // inserted into the scene graph. Because texture mode is disabled, this
