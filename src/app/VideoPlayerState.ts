@@ -56,14 +56,14 @@ class VideoPlayerState {
     const internalElement: HTMLVideoElement | null =
       (this.videoPlayer as any)._videoEl ?? null;
     if (videoElement === null) {
-      console.warn("Video element not found in DOM");
+      console.info("Video element not found in DOM");
     } else {
-      console.debug("Video element found in DOM", videoElement);
+      console.info("Video element found in DOM", videoElement);
     }
     if (internalElement === null) {
-      console.warn("VideoPlayer._videoEl is null");
+      console.info("VideoPlayer._videoEl is null");
     } else {
-      console.debug("VideoPlayer._videoEl", internalElement);
+      console.info("VideoPlayer._videoEl", internalElement);
     }
   }
 
@@ -107,7 +107,7 @@ class VideoPlayerState {
       this.videoPlayer.hide();
       this.logVideoElement();
       console.info("VideoPlayer plugin initialized");
-      console.debug("After hide()", {
+      console.info("After hide()", {
         videoElement: (this.videoPlayer as any)._videoEl,
       });
       this.initialized = true as boolean;
@@ -118,8 +118,8 @@ class VideoPlayerState {
     this.videoPlayer.size(width, height);
 
     this.videoPlayer.show();
-    console.debug("VideoPlayer shown on stage");
-    console.debug("VideoPlayer internal state", {
+    console.info("VideoPlayer shown on stage");
+    console.info("VideoPlayer internal state", {
       videoElement: (this.videoPlayer as any)._videoEl,
       consumer: (this.videoPlayer as any)._consumer,
     });
@@ -138,7 +138,7 @@ class VideoPlayerState {
     }
 
     this.logVideoElement();
-    console.debug("VideoPlayer initialization complete");
+    console.info("VideoPlayer initialization complete");
   }
 }
 
