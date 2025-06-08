@@ -20,6 +20,9 @@ importers:
       '@lightningjs/sdk':
         specifier: ^5.5.5
         version: 5.5.5
+      '@metrological/sdk':
+        specifier: ^1.0.2
+        version: 1.0.2
     devDependencies:
       '@eslint/js':
         specifier: ^9.27.0

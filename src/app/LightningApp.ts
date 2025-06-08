@@ -9,6 +9,7 @@
 import Blits from "@lightningjs/blits";
 
 import Icon from "../components/Icon";
+import videoPlayerState from "./VideoPlayerState";
 
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
@@ -43,6 +44,8 @@ const LightningApp: LightningAppFactory = Blits.Application({
       };
       self.resizeListener = listener;
       window.addEventListener("resize", listener);
+      // Share the app instance with the VideoPlayer plugin
+      videoPlayerState.setAppInstance(self);
     },
 
     /**

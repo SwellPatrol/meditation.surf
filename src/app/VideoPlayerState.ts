@@ -6,7 +6,9 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { VideoPlayer } from "@lightningjs/sdk";
+import { Ads, Lightning, Log, Settings, VideoPlayer } from "@lightningjs/sdk";
+import { initSettings } from "@lightningjs/sdk/src/Settings";
+import { initLightningSdkPlugin } from "@metrological/sdk";
 
 /**
  * Wrapper holding a reference to the Lightning SDK VideoPlayer.
@@ -21,10 +23,24 @@ class VideoPlayerState {
   /** True after the video player has been configured. */
   private initialized: boolean;
 
+  /** Lightning application instance provided after launch. */
+  private appInstance: unknown | null;
+
   constructor() {
     // The VideoPlayer plugin sets up its video tag only once.
     this.videoPlayer = VideoPlayer;
     this.initialized = false as boolean;
+    this.appInstance = null as unknown | null;
+  }
+
+  /**
+   * Provide the active Lightning application instance so the VideoPlayer
+   * plugin can attach itself to the stage.
+   *
+   * @param app - Root Lightning application instance.
+   */
+  public setAppInstance(app: unknown): void {
+    this.appInstance = app;
   }
 
   /**
@@ -50,6 +66,17 @@ class VideoPlayerState {
   public initialize(width: number, height: number): void {
     // Lazily initialize the plugin by calling a benign method once.
     if (!this.initialized) {
+      // Configure the Lightning SDK plugin so the VideoPlayer has access to
+      // runtime services such as logging and settings.
+      initSettings({}, { width, height });
+      initLightningSdkPlugin.log = Log;
+      initLightningSdkPlugin.settings = Settings;
+      initLightningSdkPlugin.ads = Ads;
+      initLightningSdkPlugin.lightning = Lightning;
+      if (this.appInstance !== null) {
+        initLightningSdkPlugin.appInstance = this.appInstance as unknown;
+      }
+
       this.videoPlayer.hide();
       this.logVideoElement();
       this.initialized = true as boolean;
