@@ -53,10 +53,17 @@ class VideoPlayerState {
   private logVideoElement(): void {
     const videoElement: HTMLVideoElement | null =
       document.querySelector("video");
+    const internalElement: HTMLVideoElement | null =
+      (this.videoPlayer as any)._videoEl ?? null;
     if (videoElement === null) {
       console.warn("Video element not found in DOM");
     } else {
-      console.debug("Video element found", videoElement);
+      console.debug("Video element found in DOM", videoElement);
+    }
+    if (internalElement === null) {
+      console.warn("VideoPlayer._videoEl is null");
+    } else {
+      console.debug("VideoPlayer._videoEl", internalElement);
     }
   }
 
@@ -100,6 +107,9 @@ class VideoPlayerState {
       this.videoPlayer.hide();
       this.logVideoElement();
       console.info("VideoPlayer plugin initialized");
+      console.debug("After hide()", {
+        videoElement: (this.videoPlayer as any)._videoEl,
+      });
       this.initialized = true as boolean;
     }
 
@@ -109,6 +119,10 @@ class VideoPlayerState {
 
     this.videoPlayer.show();
     console.debug("VideoPlayer shown on stage");
+    console.debug("VideoPlayer internal state", {
+      videoElement: (this.videoPlayer as any)._videoEl,
+      consumer: (this.videoPlayer as any)._consumer,
+    });
 
     // In texture mode the plugin provides a Lightning component that must be
     // inserted into the scene graph. Because texture mode is disabled, this

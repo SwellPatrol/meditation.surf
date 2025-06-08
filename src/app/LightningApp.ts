@@ -60,6 +60,8 @@ const LightningApp: LightningAppFactory = Blits.Application({
       window.addEventListener("resize", listener);
       // Share the app instance with the VideoPlayer plugin
       videoPlayerState.setAppInstance(self);
+      // Initialize the video player once the application instance is ready
+      videoPlayerState.initialize(self.stageW as number, self.stageH as number);
     },
 
     /**
