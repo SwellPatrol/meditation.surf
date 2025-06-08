@@ -26,11 +26,15 @@ class VideoPlayerState {
   /** Lightning application instance provided after launch. */
   private appInstance: unknown | null;
 
+  /** True when the Big Buck Bunny video has been loaded once. */
+  private opened: boolean;
+
   constructor() {
     // The VideoPlayer plugin sets up its video tag only once.
     this.videoPlayer = VideoPlayer;
     this.initialized = false as boolean;
     this.appInstance = null as unknown | null;
+    this.opened = false as boolean;
   }
 
   /**
@@ -85,14 +89,28 @@ class VideoPlayerState {
     // Ensure the video covers the viewport
     this.videoPlayer.position(0, 0);
     this.videoPlayer.size(width, height);
+
+    // Start playback once so we can verify the texture is rendered
+    if (!this.opened) {
+      const url: string =
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+      this.videoPlayer.open(url);
+      this.videoPlayer.play();
+      this.opened = true as boolean;
+    }
+
     this.videoPlayer.show();
-    // Place the video texture above other elements
+
+    // Move the video texture under the VideoBackground element and raise it
     if (this.appInstance !== null) {
       const texture: any = (this.appInstance as any).tag("VideoTexture");
-      if (texture !== undefined) {
-        texture.zIndex = 1;
+      const container: any = (this.appInstance as any).tag("VideoBackground");
+      if (texture !== undefined && container !== undefined) {
+        container.childList.add(texture);
+        texture.patch({ x: 0, y: 0, w: width, h: height, zIndex: 2 });
       }
     }
+
     this.logVideoElement();
   }
 }
