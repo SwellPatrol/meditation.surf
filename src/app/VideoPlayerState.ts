@@ -47,6 +47,26 @@ class VideoPlayerState {
   }
 
   /**
+   * Ensure the Lightning VideoPlayer has inserted its `<video>` element.
+   * The plugin lazily creates this tag on the first interaction, so we call
+   * `hide()` to trigger setup if needed and append the element to the DOM.
+   */
+  private ensureVideoElement(): void {
+    let element: HTMLVideoElement | undefined = (this.videoPlayer as any)
+      ._videoEl;
+
+    // Trigger the plugin's setup routine if the tag does not exist yet
+    if (element === undefined) {
+      this.videoPlayer.hide();
+      element = (this.videoPlayer as any)._videoEl;
+    }
+
+    if (element !== undefined && !element.isConnected) {
+      document.body.appendChild(element);
+    }
+  }
+
+  /**
    * Log whether the video element is present in the DOM. This aids debugging
    * scenarios where the Lightning SDK fails to create its `<video>` element.
    */
@@ -84,6 +104,9 @@ class VideoPlayerState {
       );
       return;
     }
+
+    // Ensure the SDK's `<video>` tag exists and is attached to the DOM
+    this.ensureVideoElement();
 
     // Lazily initialize the plugin by calling a benign method once.
     if (!this.initialized) {
