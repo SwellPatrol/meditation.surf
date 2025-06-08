@@ -23,9 +23,6 @@ class VideoPlayerState {
   /** True after the video player has been configured. */
   private initialized: boolean;
 
-  /** True once the demo video has been opened. */
-  private opened: boolean;
-
   /** Lightning application instance provided after launch. */
   private appInstance: unknown | null;
 
@@ -33,7 +30,6 @@ class VideoPlayerState {
     // The VideoPlayer plugin sets up its video tag only once.
     this.videoPlayer = VideoPlayer;
     this.initialized = false as boolean;
-    this.opened = false as boolean;
     this.appInstance = null as unknown | null;
   }
 
@@ -45,8 +41,14 @@ class VideoPlayerState {
   public setAppInstance(app: unknown): void {
     this.appInstance = app;
     initLightningSdkPlugin.appInstance = app as unknown;
+    const component: any = app as any;
+    if (component.fire === undefined && component.$emit !== undefined) {
+      component.fire = (eventName: string, ...args: unknown[]): void => {
+        component.$emit(eventName, ...args);
+      };
+    }
     if (this.initialized) {
-      this.videoPlayer.consumer(app as any);
+      this.videoPlayer.consumer(component);
     }
   }
 
@@ -135,13 +137,6 @@ class VideoPlayerState {
       videoElement: (this.videoPlayer as any)._videoEl,
       consumer: (this.videoPlayer as any)._consumer,
     });
-
-    // Load and start playback of the demo video only once
-    if (!this.opened) {
-      const url: string = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
-      this.videoPlayer.open(url);
-      this.opened = true as boolean;
-    }
 
     // In texture mode the plugin provides a Lightning component that must be
     // inserted into the scene graph. Because texture mode is disabled, this
