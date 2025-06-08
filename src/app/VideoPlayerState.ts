@@ -46,8 +46,12 @@ class VideoPlayerState {
    *
    * @param app - Root Lightning application instance.
    */
-  public setAppInstance(app: unknown): void {
+  public setAppInstance(app: unknown | null): void {
     this.appInstance = app;
+    if (app === null) {
+      initLightningSdkPlugin.appInstance = undefined as unknown as undefined;
+      return;
+    }
     initLightningSdkPlugin.appInstance = app as unknown;
     const component: any = app as any;
     if (component.fire === undefined && component.$emit !== undefined) {
@@ -68,6 +72,15 @@ class VideoPlayerState {
    */
   public getAppInstance(): unknown | null {
     return this.appInstance;
+  }
+
+  /**
+   * Clear the reference to the current Lightning application instance.
+   * This prevents stale objects from being reused after the app quits.
+   */
+  public clearAppInstance(): void {
+    this.appInstance = null as unknown | null;
+    initLightningSdkPlugin.appInstance = undefined as unknown as undefined;
   }
 
   /**

@@ -37,7 +37,14 @@ function startApp(width: number, height: number): void {
 
   // Clean up the old Lightning application to free its WebGL context.
   if (oldApp !== null && typeof (oldApp as any).quit === "function") {
-    (oldApp as any).quit();
+    try {
+      (oldApp as any).quit();
+    } catch (error: unknown) {
+      console.warn("Failed to quit previous Lightning app", error);
+    } finally {
+      // Remove reference so we don't attempt to quit again.
+      videoPlayerState.clearAppInstance();
+    }
   }
 
   if (oldCanvas !== null) {
