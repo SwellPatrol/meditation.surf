@@ -62,6 +62,7 @@ const LightningApp: LightningAppFactory = Blits.Application({
   // Render the icon component centered on a black canvas
   template: `<Element :w="$stageW" :h="$stageH">
     <Icon :stageW="$stageW" :stageH="$stageH" />
+    <Element ref="VideoBackground" />
   </Element>`,
 });
 

@@ -68,7 +68,7 @@ class VideoPlayerState {
     if (!this.initialized) {
       // Configure the Lightning SDK plugin so the VideoPlayer has access to
       // runtime services such as logging and settings.
-      initSettings({}, { width, height });
+      initSettings({}, { width, height, textureMode: true });
       initLightningSdkPlugin.log = Log;
       initLightningSdkPlugin.settings = Settings;
       initLightningSdkPlugin.ads = Ads;
@@ -86,6 +86,13 @@ class VideoPlayerState {
     this.videoPlayer.position(0, 0);
     this.videoPlayer.size(width, height);
     this.videoPlayer.show();
+    // Place the video texture above other elements
+    if (this.appInstance !== null) {
+      const texture: any = (this.appInstance as any).tag("VideoTexture");
+      if (texture !== undefined) {
+        texture.zIndex = 1;
+      }
+    }
     this.logVideoElement();
   }
 }
