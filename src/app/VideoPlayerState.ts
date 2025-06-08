@@ -65,19 +65,11 @@ class VideoPlayerState {
    * scenarios where the Lightning SDK fails to create its `<video>` element.
    */
   private logVideoElement(): void {
-    const videoElement: HTMLVideoElement | null =
-      document.querySelector("video");
-    const internalElement: HTMLVideoElement | null =
-      (this.videoPlayer as any)._videoEl ?? null;
-    if (videoElement === null) {
-      console.info("Video element not found in DOM");
+    const element: HTMLVideoElement | null = document.querySelector("video");
+    if (element === null) {
+      console.debug("Video element not found in DOM");
     } else {
-      console.info("Video element found in DOM", videoElement);
-    }
-    if (internalElement === null) {
-      console.info("VideoPlayer._videoEl is null");
-    } else {
-      console.info("VideoPlayer._videoEl", internalElement);
+      console.debug("Video element present in DOM");
     }
   }
 
@@ -121,10 +113,7 @@ class VideoPlayerState {
       // Trigger the plugin's setup routine so the `<video>` element is created.
       this.videoPlayer.hide();
       this.logVideoElement();
-      console.info("VideoPlayer plugin initialized");
-      console.info("After hide()", {
-        videoElement: (this.videoPlayer as any)._videoEl,
-      });
+      console.debug("VideoPlayer plugin initialized");
       this.initialized = true as boolean;
     }
 
@@ -144,20 +133,14 @@ class VideoPlayerState {
     this.videoPlayer.size(width, height);
 
     this.videoPlayer.show();
-    console.info("VideoPlayer shown on stage");
-    console.info("VideoPlayer internal state", {
-      videoElement: (this.videoPlayer as any)._videoEl,
-      consumer: (this.videoPlayer as any)._consumer,
-    });
+    console.debug("VideoPlayer shown on stage");
 
     // Load and play the demo video the first time initialization runs.
     if (!this.opened) {
       const url: string = VideoPlayerState.DEMO_URL;
+      this.videoPlayer.mute(true);
       this.videoPlayer.open(url);
-      // Enable looping so the demo repeats indefinitely.
       this.videoPlayer.loop(true);
-      // Ensure playback begins automatically.
-      this.videoPlayer.play();
       this.opened = true as boolean;
     }
 
@@ -175,7 +158,7 @@ class VideoPlayerState {
     }
 
     this.logVideoElement();
-    console.info("VideoPlayer initialization complete");
+    console.debug("VideoPlayer initialization complete");
   }
 }
 
