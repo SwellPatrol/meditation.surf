@@ -85,6 +85,7 @@ class VideoPlayerState {
     // Ensure the video covers the viewport
     this.videoPlayer.position(0, 0);
     this.videoPlayer.size(width, height);
+    this.videoPlayer.show();
     this.logVideoElement();
   }
 }
