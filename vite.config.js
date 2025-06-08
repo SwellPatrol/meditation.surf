@@ -27,7 +27,9 @@ export default defineConfig({
       // Required to enable SharedArrayBuffer and other security-sensitive
       // browser features. Both headers are needed for proper isolation.
       "Cross-Origin-Opener-Policy": "same-origin",
-      "Cross-Origin-Embedder-Policy": "require-corp",
+      // Use `credentialless` so the demo video can be fetched without CORS
+      // or Cross-Origin-Resource-Policy headers.
+      "Cross-Origin-Embedder-Policy": "credentialless",
     },
   },
 

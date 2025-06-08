@@ -131,8 +131,12 @@ class VideoPlayerState {
     // Ensure the SDK's `<video>` tag is attached to the DOM
     const videoElement: HTMLVideoElement | undefined = (this.videoPlayer as any)
       ._videoEl;
-    if (videoElement !== undefined && !videoElement.isConnected) {
-      document.body.appendChild(videoElement);
+    if (videoElement !== undefined) {
+      // Ensure the tag is attached and configured for cross-origin playback.
+      if (!videoElement.isConnected) {
+        document.body.appendChild(videoElement);
+      }
+      videoElement.setAttribute("crossorigin", "anonymous");
     }
 
     // Ensure the video covers the viewport
