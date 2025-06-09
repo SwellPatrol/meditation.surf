@@ -33,7 +33,7 @@ const Icon: IconFactory = Blits.Component("Icon", {
 
   // Render the icon centered at half mount
   template: `<Element
-      src="assets/icon.png"
+      src="assets/icon-1500x1500.png"
       :w="$iconSize"
       :h="$iconSize"
       :x="$stageW / 2"
