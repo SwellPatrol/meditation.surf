@@ -144,11 +144,17 @@ class VideoPlayerState {
     const videoElement: HTMLVideoElement | undefined = (this.videoPlayer as any)
       ._videoEl;
     if (videoElement !== undefined) {
-      // Ensure the tag is attached and configured for cross-origin playback.
+      // Ensure the tag is attached before configuring playback.
       if (!videoElement.isConnected) {
         document.body.appendChild(videoElement);
       }
+
+      // Allow cross-origin playback and configure autoplay settings.
       videoElement.setAttribute("crossorigin", "anonymous");
+      videoElement.setAttribute("muted", "");
+      videoElement.setAttribute("autoplay", "");
+      videoElement.setAttribute("playsinline", "");
+      videoElement.muted = true;
     }
 
     // Ensure the video covers the viewport
@@ -163,6 +169,8 @@ class VideoPlayerState {
       const url: string = VideoPlayerState.DEMO_URL;
       this.videoPlayer.mute(true);
       this.videoPlayer.open(url);
+      // Some browsers require an explicit play call for autoplay to succeed.
+      this.videoPlayer.play();
       this.videoPlayer.loop(true);
       this.opened = true as boolean;
     }
