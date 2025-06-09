@@ -28,11 +28,15 @@ class VideoPlayerState {
   /** Lightning application instance or `null` when not attached. */
   private appInstance: unknown | null;
 
+  /** Wrapper exposing LightningJS methods expected by the SDK plugin. */
+  private instanceWrapper: unknown | null;
+
   constructor() {
     this.videoPlayer = VideoPlayer;
     this.shakaPlayer = null;
     this.initialized = false;
     this.appInstance = null;
+    this.instanceWrapper = null;
   }
 
   /**
@@ -46,18 +50,39 @@ class VideoPlayerState {
   public setAppInstance(app: unknown | null): void {
     this.appInstance = app;
     if (app === null) {
+      this.instanceWrapper = null;
       initLightningSdkPlugin.appInstance = undefined as unknown as undefined;
       return;
     }
-    initLightningSdkPlugin.appInstance = app as unknown;
+
+    const component: any = app as any;
+    this.instanceWrapper = {
+      tag: (name: string): unknown => {
+        if (typeof component.tag === "function") {
+          return component.tag(name);
+        }
+        return undefined;
+      },
+      stage: component.stage ?? component,
+      childList: component.childList ?? component.stage?.childList,
+      fire:
+        typeof component.fire === "function"
+          ? component.fire.bind(component)
+          : typeof component.$emit === "function"
+            ? component.$emit.bind(component)
+            : undefined,
+    } as unknown;
+
+    initLightningSdkPlugin.appInstance = this.instanceWrapper as unknown;
     if (this.initialized) {
-      this.videoPlayer.consumer(app as any);
+      this.videoPlayer.consumer(this.instanceWrapper as any);
     }
   }
 
   /** Clear the registered application instance. */
   public clearAppInstance(): void {
     this.appInstance = null;
+    this.instanceWrapper = null;
     initLightningSdkPlugin.appInstance = undefined as unknown as undefined;
   }
 
@@ -87,8 +112,8 @@ class VideoPlayerState {
     initLightningSdkPlugin.settings = Settings;
     initLightningSdkPlugin.ads = Ads;
     initLightningSdkPlugin.lightning = Lightning;
-    initLightningSdkPlugin.appInstance = this.appInstance as unknown;
-    this.videoPlayer.consumer(this.appInstance as any);
+    initLightningSdkPlugin.appInstance = this.instanceWrapper as unknown;
+    this.videoPlayer.consumer(this.instanceWrapper as any);
 
     // Provide a loader that uses Shaka Player for HLS streams.
     this.videoPlayer.loader(
@@ -107,11 +132,11 @@ class VideoPlayerState {
                 resolve();
                 return;
               }
-            this.shakaPlayer = new shakaLib.Player(videoEl);
-            const start: number = config.startTime ?? 0;
-            (this.shakaPlayer as shaka.Player)
-              .load(url, start)
-              .then(resolve)
+              this.shakaPlayer = new shakaLib.Player(videoEl);
+              const start: number = config.startTime ?? 0;
+              (this.shakaPlayer as shaka.Player)
+                .load(url, start)
+                .then(resolve)
                 .catch((err: unknown): void => {
                   console.error("Shaka load error", err);
                   resolve();
