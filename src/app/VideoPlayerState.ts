@@ -140,30 +140,23 @@ class VideoPlayerState {
 
       // Trigger the plugin's setup routine so the `<video>` element is created.
       this.videoPlayer.hide();
-      // Use hls.js for HLS playback when the browser lacks native support.
+      // Always use hls.js for HLS playback rather than relying on native
+      // browser support. If hls.js is not supported, playback will not start.
       this.videoPlayer.loader(
         (url: string, videoEl: HTMLVideoElement): Promise<void> => {
           return new Promise((resolve: () => void): void => {
-            if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
-              videoEl.setAttribute("src", url);
-              videoEl.load();
+            if (!Hls.isSupported()) {
+              console.error("hls.js is not supported in this browser");
               resolve();
               return;
             }
 
-            if (Hls.isSupported()) {
-              this.hls = new Hls();
-              this.hls.on(Hls.Events.MEDIA_ATTACHED, (): void => {
-                this.hls?.loadSource(url);
-                resolve();
-              });
-              this.hls.attachMedia(videoEl);
-              return;
-            }
-
-            videoEl.setAttribute("src", url);
-            videoEl.load();
-            resolve();
+            this.hls = new Hls();
+            this.hls.on(Hls.Events.MEDIA_ATTACHED, (): void => {
+              this.hls?.loadSource(url);
+              resolve();
+            });
+            this.hls.attachMedia(videoEl);
           });
         },
       );
