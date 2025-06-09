@@ -10,6 +10,8 @@ import { Ads, Lightning, Log, Settings, VideoPlayer } from "@lightningjs/sdk";
 import { initSettings } from "@lightningjs/sdk/src/Settings";
 import { initLightningSdkPlugin } from "@metrological/sdk";
 
+import { registerShakaLoader } from "./ShakaLoader";
+
 /**
  * Wrapper holding a reference to the Lightning SDK VideoPlayer.
  * This module initializes the VideoPlayer once and exposes it
@@ -136,6 +138,7 @@ class VideoPlayerState {
       // Trigger the plugin's setup routine so the `<video>` element is created.
       this.videoPlayer.hide();
       this.logVideoElement();
+      registerShakaLoader();
       console.debug("VideoPlayer plugin initialized");
       this.initialized = true as boolean;
     }

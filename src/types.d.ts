@@ -13,3 +13,20 @@
  */
 declare module "@lightningjs/sdk/src/Settings";
 declare module "@metrological/sdk";
+declare module "shaka-player/dist/shaka-player.hls.js";
+
+/* eslint-disable no-unused-vars */
+
+declare namespace shaka {
+  class Player {
+    constructor(video: HTMLVideoElement);
+    load(uri: string): Promise<void>;
+    attach(
+      video: HTMLVideoElement,
+      initializeMediaSource?: boolean,
+    ): Promise<void>;
+    detach(): Promise<void>;
+    destroy(): Promise<void>;
+  }
+}
+/* eslint-enable no-unused-vars */
