@@ -87,6 +87,14 @@ Run the formatter to ensure code is formatted consistently:
 pnpm format
 ```
 
+#### Audit new dependencies
+
+After adding new dependencies, check for security issues with:
+
+```sh
+pnpm audit-ci
+```
+
 ### Resources
 
 - [Blits documentation](https://lightningjs.io/v3-docs/blits/getting_started/intro.html) - official documentation
