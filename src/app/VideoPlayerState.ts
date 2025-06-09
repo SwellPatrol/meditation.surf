@@ -9,6 +9,7 @@
 import { Ads, Lightning, Log, Settings, VideoPlayer } from "@lightningjs/sdk";
 import { initSettings } from "@lightningjs/sdk/src/Settings";
 import { initLightningSdkPlugin } from "@metrological/sdk";
+import Hls from "hls.js";
 
 /**
  * Wrapper holding a reference to the Lightning SDK VideoPlayer.
@@ -22,10 +23,13 @@ class VideoPlayerState {
 
   /** URL of the demo video used for testing playback. */
   private static readonly DEMO_URL: string =
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+    "https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8";
 
   /** True after the video player has been configured. */
   private initialized: boolean;
+
+  /** Active Hls.js instance if HLS playback is required. */
+  private hls: Hls | null;
 
   /** True after the demo video has been opened. */
   private opened: boolean;
@@ -37,6 +41,7 @@ class VideoPlayerState {
     // The VideoPlayer plugin sets up its video tag only once.
     this.videoPlayer = VideoPlayer;
     this.initialized = false as boolean;
+    this.hls = null as Hls | null;
     this.appInstance = null as unknown | null;
     this.opened = false as boolean;
   }
@@ -97,6 +102,62 @@ class VideoPlayerState {
   }
 
   /**
+   * Configure custom loader and unloader functions to enable HLS playback.
+   * The loader instantiates Hls.js when necessary and resolves once the video
+   * element is ready to play.
+   */
+  private configureHlsLoader(): void {
+    this.videoPlayer.loader(
+      (
+        url: string,
+        videoEl: HTMLVideoElement,
+        errConfig?: Record<string, unknown>,
+      ): Promise<void> => {
+        return new Promise(
+          (resolve: () => void, reject: (err: unknown) => void): void => {
+            if (
+              url.endsWith(".m3u8") &&
+              videoEl.canPlayType("application/vnd.apple.mpegurl") === ""
+            ) {
+              const hls: Hls = new Hls();
+              this.hls = hls;
+              hls.attachMedia(videoEl);
+              hls.on(Hls.Events.MEDIA_ATTACHED, (): void => {
+                hls.loadSource(url);
+              });
+              hls.on(Hls.Events.MANIFEST_PARSED, (): void => {
+                resolve();
+              });
+              hls.on(
+                Hls.Events.ERROR,
+                (_event: string, data: unknown): void => {
+                  reject(data);
+                },
+              );
+            } else {
+              videoEl.setAttribute("src", url);
+              videoEl.load();
+              resolve();
+            }
+          },
+        );
+      },
+    );
+
+    this.videoPlayer.unloader((videoEl: HTMLVideoElement): Promise<void> => {
+      return new Promise((resolve: () => void): void => {
+        if (this.hls !== null) {
+          this.hls.destroy();
+          this.hls = null as Hls | null;
+        }
+        videoEl.removeAttribute("src");
+        videoEl.load();
+        resolve();
+      });
+    });
+  }
+
+  /**
    * Configure the shared VideoPlayer instance if it has not been initialized.
    *
    * @param width - Width of the viewport in pixels.
@@ -132,6 +193,9 @@ class VideoPlayerState {
           "VideoPlayerState.initialize called without an app instance",
         );
       }
+
+      // Enable HLS playback via custom loader functions.
+      this.configureHlsLoader();
 
       // Trigger the plugin's setup routine so the `<video>` element is created.
       this.videoPlayer.hide();

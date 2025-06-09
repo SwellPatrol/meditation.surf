@@ -52,7 +52,8 @@
   },
   "dependencies": {
     "@lightningjs/blits": "^1.29.1",
-    "@lightningjs/sdk": "^5.5.5"
+    "@lightningjs/sdk": "^5.5.5",
+    "hls.js": "^1.6.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.27.0",
