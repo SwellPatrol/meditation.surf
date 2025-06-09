@@ -9,75 +9,80 @@
 import shaka from "shaka-player/dist/shaka-player.compiled.js";
 
 /**
- * Wrapper around a Shaka Player instance that handles pausing by capturing a
- * screenshot and destroying the player to save resources.
+ * Holds playback state for a single video URL. The screenshot element persists
+ * across play and pause so that it can be reattached to different containers.
  */
-export class ShakaVideo {
-  /** DOM id for the underlying video element. */
-  private readonly id: string;
-
-  /** CSS class for positioning (top or bottom). */
-  private readonly positionClass: string;
-
-  /** URL currently loaded into the player. */
+export class ManagedVideo {
+  /** URL for this video. */
   private readonly url: string;
 
-  /** Shaka Player instance for playback. */
-  private player: any | undefined;
+  /** Shaka Player instance used for playback. */
+  private player: shaka.Player | undefined;
 
-  /** Video element used for playback. */
+  /** Video element that renders the stream. */
   private videoEl: HTMLVideoElement | undefined;
 
-  /** Image element showing the paused frame. */
+  /** Image element displaying the paused frame. */
   private readonly screenshotEl: HTMLImageElement;
 
-  /** Playback time saved when pausing. */
+  /** Last playback position in seconds. */
   private currentTime: number = 0;
 
-  constructor(id: string, positionClass: string, url: string) {
-    this.id = id;
-    this.positionClass = positionClass;
+  constructor(url: string) {
     this.url = url;
 
-    // Pre-create the screenshot element so it persists while paused.
     this.screenshotEl = document.createElement("img");
-    this.screenshotEl.classList.add("video-half", positionClass);
     this.screenshotEl.style.position = "absolute";
-    this.screenshotEl.style.zIndex = "0";
+    this.screenshotEl.style.top = "0";
+    this.screenshotEl.style.left = "0";
+    this.screenshotEl.style.width = "100%";
+    this.screenshotEl.style.height = "100%";
+    this.screenshotEl.style.objectFit = "cover";
     this.screenshotEl.style.display = "none";
-    document.body.appendChild(this.screenshotEl);
   }
 
-  /** Create and attach the video element used for playback. */
-  private createVideoEl(): HTMLVideoElement {
+  /**
+   * Create the HTML video element and attach it to the provided container.
+   */
+  private attachVideo(container: HTMLElement): void {
+    if (this.videoEl !== undefined) {
+      container.appendChild(this.videoEl);
+      return;
+    }
+
     const video: HTMLVideoElement = document.createElement("video");
-    video.id = this.id;
-    video.classList.add("video-half", this.positionClass);
     video.autoplay = true;
     video.muted = true;
     video.playsInline = true;
     video.crossOrigin = "anonymous";
-    return video;
+    video.style.position = "absolute";
+    video.style.top = "0";
+    video.style.left = "0";
+    video.style.width = "100%";
+    video.style.height = "100%";
+    video.style.objectFit = "cover";
+
+    container.appendChild(video);
+    this.videoEl = video;
+    this.player = new shaka.Player(video);
   }
 
   /**
-   * Start or resume playback. The previously saved time position is restored
-   * if the video was paused earlier.
+   * Start or resume playback at the previously saved time.
    */
-  public async play(): Promise<void> {
-    if (this.videoEl === undefined) {
-      this.videoEl = this.createVideoEl();
-      document.body.appendChild(this.videoEl);
-      this.player = new shaka.Player(this.videoEl);
-    }
+  public async play(container: HTMLElement): Promise<void> {
+    // Attach screenshot and video to the new container.
+    container.appendChild(this.screenshotEl);
+    this.attachVideo(container);
 
-    const player: any = this.player as any;
+    const player: shaka.Player = this.player as shaka.Player;
     await player.load(this.url, this.currentTime);
-    await this.videoEl.play().catch((): void => {
+
+    await this.videoEl!.play().catch((): void => {
       /* ignore */
     });
 
-    this.videoEl.addEventListener(
+    this.videoEl!.addEventListener(
       "playing",
       (): void => {
         this.screenshotEl.style.display = "none";
@@ -87,7 +92,7 @@ export class ShakaVideo {
   }
 
   /**
-   * Pause playback by capturing the current frame and tearing down the player.
+   * Pause playback and capture the current frame as a screenshot.
    */
   public async pause(): Promise<void> {
     if (this.videoEl === undefined || this.player === undefined) {

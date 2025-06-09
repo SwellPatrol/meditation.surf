@@ -6,42 +6,46 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { PLAYLIST } from "../playlist";
-import { ShakaVideo } from "./ShakaVideo";
+import { ManagedVideo } from "./ManagedVideo";
 
 /**
  * Manages multiple ShakaVideo instances so only one is active at a time.
  */
 export class VideoManager {
-  /** Underlying video wrappers. */
-  private readonly videos: ShakaVideo[] = [];
+  /** Map of video URLs to their managed state. */
+  private readonly registry: Map<string, ManagedVideo> = new Map();
 
-  /** Index of the currently playing video, if any. */
-  private activeIndex: number | undefined;
+  /** URL currently playing, if any. */
+  private activeUrl: string | undefined;
 
-  constructor() {
-    this.videos.push(new ShakaVideo("video-top", "video-top", PLAYLIST[0]));
-    this.videos.push(
-      new ShakaVideo("video-bottom", "video-bottom", PLAYLIST[1]),
-    );
-  }
-
-  /** Play the specified video and pause the previous one. */
-  public async play(index: number): Promise<void> {
-    if (this.activeIndex !== undefined && this.activeIndex !== index) {
-      await this.videos[this.activeIndex].pause();
+  /**
+   * Play the given video into the specified container. Any currently playing
+   * video is paused first.
+   */
+  public async play(url: string, container: HTMLElement): Promise<void> {
+    if (this.activeUrl !== undefined && this.activeUrl !== url) {
+      const active: ManagedVideo = this.registry.get(
+        this.activeUrl,
+      ) as ManagedVideo;
+      await active.pause();
     }
 
-    this.activeIndex = index;
-    await this.videos[index].play();
+    let state: ManagedVideo | undefined = this.registry.get(url);
+    if (state === undefined) {
+      state = new ManagedVideo(url);
+      this.registry.set(url, state);
+    }
+
+    this.activeUrl = url;
+    await state.play(container);
   }
 
-  /** Pause the specified video. */
-  public async pause(index: number): Promise<void> {
-    await this.videos[index].pause();
-    if (this.activeIndex === index) {
-      this.activeIndex = undefined;
+  /** Pause all managed videos. */
+  public async pauseAll(): Promise<void> {
+    for (const video of this.registry.values()) {
+      await video.pause();
     }
+    this.activeUrl = undefined;
   }
 }
 
