@@ -39,7 +39,11 @@ function startApp(width: number, height: number): void {
   if (previousApp !== null) {
     const instance: any = previousApp as any;
     try {
-      if (typeof instance.destroy === "function") {
+      if (typeof instance.quit === "function") {
+        // Prefer `quit()` because it handles renderer shutdown internally.
+        instance.quit();
+      } else if (typeof instance.destroy === "function") {
+        // Fall back to the lower level destroy if no quit method exists.
         instance.destroy();
       }
     } catch (error: unknown) {
