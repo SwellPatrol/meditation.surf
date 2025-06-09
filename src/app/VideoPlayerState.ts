@@ -97,6 +97,28 @@ class VideoPlayerState {
   }
 
   /**
+   * Attempt playback again after the first user interaction. Some browsers
+   * block autoplay until the user taps or clicks on the page. By listening for
+   * a single interaction event, we can manually trigger playback if the
+   * original attempt failed.
+   *
+   * @param videoElement - The HTML `<video>` element used by the player.
+   */
+  private addInteractionPlayFallback(videoElement: HTMLVideoElement): void {
+    const handler: () => void = (): void => {
+      videoElement.play().catch((): void => {
+        /* Silently ignore further errors */
+      });
+    };
+
+    window.addEventListener("click", handler, { once: true, passive: true });
+    window.addEventListener("touchstart", handler, {
+      once: true,
+      passive: true,
+    });
+  }
+
+  /**
    * Configure the shared VideoPlayer instance if it has not been initialized.
    *
    * @param width - Width of the viewport in pixels.
@@ -144,11 +166,19 @@ class VideoPlayerState {
     const videoElement: HTMLVideoElement | undefined = (this.videoPlayer as any)
       ._videoEl;
     if (videoElement !== undefined) {
-      // Ensure the tag is attached and configured for cross-origin playback.
+      // Ensure the tag is attached before configuring playback.
       if (!videoElement.isConnected) {
         document.body.appendChild(videoElement);
       }
+
+      // Allow cross-origin playback and configure autoplay settings.
       videoElement.setAttribute("crossorigin", "anonymous");
+      videoElement.setAttribute("muted", "");
+      videoElement.setAttribute("autoplay", "");
+      videoElement.setAttribute("playsinline", "");
+      videoElement.autoplay = true;
+      videoElement.playsInline = true;
+      videoElement.muted = true;
     }
 
     // Ensure the video covers the viewport
@@ -163,7 +193,12 @@ class VideoPlayerState {
       const url: string = VideoPlayerState.DEMO_URL;
       this.videoPlayer.mute(true);
       this.videoPlayer.open(url);
+      // Some browsers require an explicit play call for autoplay to succeed.
+      this.videoPlayer.play();
       this.videoPlayer.loop(true);
+      if (videoElement !== undefined) {
+        this.addInteractionPlayFallback(videoElement);
+      }
       this.opened = true as boolean;
     }
 
