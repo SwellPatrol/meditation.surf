@@ -7,6 +7,12 @@
  */
 
 import { launchApp } from "./app/launchApp";
+import { setupBrightnessButton } from "./utils/brightness";
+import { setupFullscreenButton } from "./utils/fullscreen";
+import { setupVolumeButton } from "./utils/volume";
 
 // Application entry point
 launchApp();
+setupFullscreenButton();
+setupBrightnessButton();
+setupVolumeButton();
