@@ -11,6 +11,8 @@ import { initSettings } from "@lightningjs/sdk/src/Settings";
 import { initLightningSdkPlugin } from "@metrological/sdk";
 import Hls from "hls.js";
 
+import { getAudioMuted } from "../utils/audio";
+
 /**
  * Wrapper holding a reference to the Lightning SDK VideoPlayer.
  * This module initializes the VideoPlayer once and exposes it
@@ -37,6 +39,9 @@ class VideoPlayerState {
   /** Lightning application instance provided after launch. */
   private appInstance: unknown | null;
 
+  /** Persisted mute state applied to the video element. */
+  private audioMuted: boolean;
+
   constructor() {
     // The VideoPlayer plugin sets up its video tag only once.
     this.videoPlayer = VideoPlayer;
@@ -44,6 +49,7 @@ class VideoPlayerState {
     this.initialized = false as boolean;
     this.appInstance = null as unknown | null;
     this.opened = false as boolean;
+    this.audioMuted = getAudioMuted();
   }
 
   /**
@@ -99,6 +105,40 @@ class VideoPlayerState {
     } else {
       console.debug("Video element present in DOM");
     }
+  }
+
+  /** Apply the current mute state to the video element and player. */
+  private applyMutedState(): void {
+    const videoElement: HTMLVideoElement | undefined = (this.videoPlayer as any)
+      ._videoEl;
+    this.videoPlayer.mute(this.audioMuted);
+    if (videoElement !== undefined) {
+      videoElement.muted = this.audioMuted;
+      if (this.audioMuted) {
+        videoElement.setAttribute("muted", "");
+      } else {
+        videoElement.removeAttribute("muted");
+      }
+    }
+  }
+
+  /**
+   * Update the mute state and persist it.
+   *
+   * @param muted - Desired mute state.
+   */
+  public setMuted(muted: boolean): void {
+    this.audioMuted = muted;
+    this.applyMutedState();
+  }
+
+  /**
+   * Report whether audio is currently muted.
+   *
+   * @returns True when muted.
+   */
+  public getMuted(): boolean {
+    return this.audioMuted;
   }
 
   /**
@@ -189,10 +229,9 @@ class VideoPlayerState {
 
       // Allow cross-origin playback and configure autoplay settings.
       videoElement.setAttribute("crossorigin", "anonymous");
-      videoElement.setAttribute("muted", "");
       videoElement.setAttribute("autoplay", "");
       videoElement.setAttribute("playsinline", "");
-      videoElement.muted = true;
+      this.applyMutedState();
 
       // Fill the viewport while maintaining aspect ratio
       videoElement.style.objectFit = "cover";
@@ -208,7 +247,7 @@ class VideoPlayerState {
     // Load and play the demo video the first time initialization runs.
     if (!this.opened) {
       const url: string = VideoPlayerState.DEMO_URL;
-      this.videoPlayer.mute(true);
+      this.applyMutedState();
       this.videoPlayer.open(url);
 
       // Attempt to start playback immediately so the demo video begins
