@@ -14,6 +14,17 @@
 declare module "@lightningjs/sdk/src/Settings";
 declare module "@metrological/sdk";
 declare module "shaka-player/dist/shaka-player.compiled.js" {
-  const shaka: any;
+  const shaka: {
+    Player: {
+      new (videoElement?: HTMLVideoElement | null): {
+        attach(video: HTMLVideoElement): Promise<void>;
+        load(uri: string): Promise<void>;
+        destroy(): Promise<void>;
+      };
+    };
+    polyfill: {
+      installAll(): void;
+    };
+  };
   export default shaka;
 }

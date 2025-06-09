@@ -22,7 +22,7 @@ class VideoPlayerState {
   public readonly videoPlayer: typeof VideoPlayer;
 
   /** Active Shaka Player instance or `null` when not using Shaka. */
-  private shakaPlayer: shaka.Player | null;
+  private shakaPlayer: any | null;
 
   /** URL of the demo video used for testing playback. */
   private static readonly DEMO_URL: string =
@@ -43,7 +43,7 @@ class VideoPlayerState {
   constructor() {
     // The VideoPlayer plugin sets up its video tag only once.
     this.videoPlayer = VideoPlayer;
-    this.shakaPlayer = null as shaka.Player | null;
+    this.shakaPlayer = null as any | null;
     this.initialized = false as boolean;
     this.appInstance = null as unknown | null;
     this.opened = false as boolean;
@@ -171,10 +171,13 @@ class VideoPlayerState {
           return new Promise((resolve: () => void): void => {
             shaka.polyfill.installAll();
 
-            const player: shaka.Player = new shaka.Player(videoEl);
+            const player: any = new shaka.Player();
             this.shakaPlayer = player;
             player
-              .load(url)
+              .attach(videoEl)
+              .then((): Promise<void> => {
+                return player.load(url);
+              })
               .then((): void => {
                 resolve();
               })
@@ -191,7 +194,7 @@ class VideoPlayerState {
         return new Promise((resolve: () => void): void => {
           if (this.shakaPlayer !== null) {
             this.shakaPlayer.destroy();
-            this.shakaPlayer = null as shaka.Player | null;
+            this.shakaPlayer = null as any | null;
           }
           videoEl.removeAttribute("src");
           videoEl.load();
