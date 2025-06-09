@@ -7,6 +7,8 @@
  */
 
 import { launchApp } from "./app/launchApp";
+import { setupBrightnessControl } from "./brightnessControl";
 
 // Application entry point
 launchApp();
+setupBrightnessControl();
