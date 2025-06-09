@@ -13,7 +13,8 @@ type IconFactory = ReturnType<typeof Blits.Component>;
 
 /**
  * A reusable component that displays the app icon centered on the stage.
- * The icon always covers the entire viewport while maintaining its aspect ratio.
+ * The icon is rendered at most one third the size of the smaller viewport
+ * dimension to keep it unobtrusive while maintaining its aspect ratio.
  */
 const Icon: IconFactory = Blits.Component("Icon", {
   // Stage dimensions passed from the parent component
@@ -22,12 +23,14 @@ const Icon: IconFactory = Blits.Component("Icon", {
   computed: {
     /**
      * Size of the square icon in pixels.
-     * The largest stage dimension is used so the icon fills the screen
-     * while keeping its aspect ratio.
+     * The smallest stage dimension is divided by three so the icon does not
+     * exceed a third of the available space while maintaining its aspect ratio.
      */
     iconSize(): number {
       // @ts-ignore `this` contains the reactive props provided at runtime
-      return Math.max(this.stageW as number, this.stageH as number);
+      const stageW: number = this.stageW as number;
+      const stageH: number = this.stageH as number;
+      return Math.min(stageW, stageH) / 3;
     },
   },
 
