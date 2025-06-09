@@ -29,25 +29,23 @@ const COOL_DOWN_MS: number = 100;
 function startApp(width: number, height: number): void {
   const mount: HTMLElement = document.getElementById("app") as HTMLElement;
   const oldCanvas: HTMLCanvasElement | null = mount.querySelector("canvas");
-  const oldApp: unknown | null = videoPlayerState.getAppInstance();
+  const previousApp: unknown | null = videoPlayerState.getAppInstance();
 
   // Launch the new LightningJS canvas before destroying the previous instance
   // so the screen remains visible during the transition.
   launchLightningApp(width, height);
 
   // Clean up the old Lightning application to free its WebGL context.
-  if (oldApp !== null) {
-    const instance: any = oldApp as any;
+  if (previousApp !== null) {
+    const instance: any = previousApp as any;
     try {
-      if (typeof instance.quit === "function") {
-        instance.quit();
-      } else if (typeof instance.destroy === "function") {
+      if (typeof instance.destroy === "function") {
         instance.destroy();
       }
     } catch (error: unknown) {
       console.warn("Failed to destroy previous Lightning app", error);
     } finally {
-      // Remove reference so we don't attempt to quit again.
+      // Remove reference so we do not attempt to destroy again.
       videoPlayerState.clearAppInstance();
     }
   }
