@@ -233,8 +233,11 @@ class VideoPlayerState {
       videoElement.setAttribute("playsinline", "");
       this.applyMutedState();
 
-      // Fill the viewport while maintaining aspect ratio
+      // Fill the viewport while maintaining aspect ratio and ensure the video
+      // element appears behind the Lightning canvas so overlay components
+      // remain visible.
       videoElement.style.objectFit = "cover";
+      videoElement.style.zIndex = "-1";
     }
 
     // Ensure the video covers the viewport
