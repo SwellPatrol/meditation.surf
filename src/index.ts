@@ -7,6 +7,8 @@
  */
 
 import { launchApp } from "./app/launchApp";
+import { setupVolumeControl } from "./volumeControl";
 
 // Application entry point
 launchApp();
+setupVolumeControl();

@@ -34,6 +34,12 @@ class VideoPlayerState {
   /** True after the demo video has been opened. */
   private opened: boolean;
 
+  /** Current mute state of the video player. */
+  private muted: boolean;
+
+  /** Local storage key to persist the mute state. */
+  private static readonly STORAGE_KEY: string = "audioMuted";
+
   /** Lightning application instance provided after launch. */
   private appInstance: unknown | null;
 
@@ -44,6 +50,10 @@ class VideoPlayerState {
     this.initialized = false as boolean;
     this.appInstance = null as unknown | null;
     this.opened = false as boolean;
+    const stored: string | null = window.localStorage.getItem(
+      VideoPlayerState.STORAGE_KEY,
+    );
+    this.muted = stored === null ? true : stored === "true";
   }
 
   /**
@@ -99,6 +109,52 @@ class VideoPlayerState {
     } else {
       console.debug("Video element present in DOM");
     }
+  }
+
+  /**
+   * Apply the currently configured mute state to the video player.
+   */
+  private applyMuteState(): void {
+    this.videoPlayer.mute(this.muted);
+    const videoEl: HTMLVideoElement | undefined = (this.videoPlayer as any)
+      ._videoEl;
+    if (videoEl !== undefined) {
+      videoEl.muted = this.muted;
+    }
+    window.localStorage.setItem(
+      VideoPlayerState.STORAGE_KEY,
+      String(this.muted),
+    );
+  }
+
+  /**
+   * Retrieve the current mute state.
+   *
+   * @returns `true` when audio is muted.
+   */
+  public isMuted(): boolean {
+    return this.muted;
+  }
+
+  /**
+   * Update the mute state of the player.
+   *
+   * @param value - New mute state.
+   */
+  public setMuted(value: boolean): void {
+    this.muted = value;
+    this.applyMuteState();
+  }
+
+  /**
+   * Toggle the mute state and return the updated value.
+   *
+   * @returns The new mute state.
+   */
+  public toggleMuted(): boolean {
+    this.muted = !this.muted;
+    this.applyMuteState();
+    return this.muted;
   }
 
   /**
@@ -192,7 +248,8 @@ class VideoPlayerState {
       videoElement.setAttribute("muted", "");
       videoElement.setAttribute("autoplay", "");
       videoElement.setAttribute("playsinline", "");
-      videoElement.muted = true;
+      videoElement.muted = this.muted;
+      this.videoPlayer.mute(this.muted);
     }
 
     // Ensure the video covers the viewport
@@ -205,7 +262,7 @@ class VideoPlayerState {
     // Load and play the demo video the first time initialization runs.
     if (!this.opened) {
       const url: string = VideoPlayerState.DEMO_URL;
-      this.videoPlayer.mute(true);
+      this.applyMuteState();
       this.videoPlayer.open(url);
 
       // Attempt to start playback immediately so the demo video begins
