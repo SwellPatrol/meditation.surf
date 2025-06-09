@@ -9,6 +9,7 @@
 import { Ads, Lightning, Log, Settings, VideoPlayer } from "@lightningjs/sdk";
 import { initSettings } from "@lightningjs/sdk/src/Settings";
 import { initLightningSdkPlugin } from "@metrological/sdk";
+import Hls from "hls.js";
 
 /**
  * Wrapper holding a reference to the Lightning SDK VideoPlayer.
@@ -20,9 +21,12 @@ class VideoPlayerState {
   /** Global VideoPlayer instance from the Lightning SDK. */
   public readonly videoPlayer: typeof VideoPlayer;
 
+  /** Active hls.js instance or `null` when not using hls.js. */
+  private hls: Hls | null;
+
   /** URL of the demo video used for testing playback. */
   private static readonly DEMO_URL: string =
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+    "https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8";
 
   /** True after the video player has been configured. */
   private initialized: boolean;
@@ -36,6 +40,7 @@ class VideoPlayerState {
   constructor() {
     // The VideoPlayer plugin sets up its video tag only once.
     this.videoPlayer = VideoPlayer;
+    this.hls = null as Hls | null;
     this.initialized = false as boolean;
     this.appInstance = null as unknown | null;
     this.opened = false as boolean;
@@ -135,6 +140,39 @@ class VideoPlayerState {
 
       // Trigger the plugin's setup routine so the `<video>` element is created.
       this.videoPlayer.hide();
+      // Always use hls.js for HLS playback rather than relying on native
+      // browser support. If hls.js is not supported, playback will not start.
+      this.videoPlayer.loader(
+        (url: string, videoEl: HTMLVideoElement): Promise<void> => {
+          return new Promise((resolve: () => void): void => {
+            if (!Hls.isSupported()) {
+              console.error("hls.js is not supported in this browser");
+              resolve();
+              return;
+            }
+
+            this.hls = new Hls();
+            this.hls.on(Hls.Events.MEDIA_ATTACHED, (): void => {
+              this.hls?.loadSource(url);
+              resolve();
+            });
+            this.hls.attachMedia(videoEl);
+          });
+        },
+      );
+
+      // Tear down hls.js instances to keep resources clean.
+      this.videoPlayer.unloader((videoEl: HTMLVideoElement): Promise<void> => {
+        return new Promise((resolve: () => void): void => {
+          if (this.hls !== null) {
+            this.hls.destroy();
+            this.hls = null as Hls | null;
+          }
+          videoEl.removeAttribute("src");
+          videoEl.load();
+          resolve();
+        });
+      });
       this.logVideoElement();
       console.debug("VideoPlayer plugin initialized");
       this.initialized = true as boolean;
@@ -144,11 +182,17 @@ class VideoPlayerState {
     const videoElement: HTMLVideoElement | undefined = (this.videoPlayer as any)
       ._videoEl;
     if (videoElement !== undefined) {
-      // Ensure the tag is attached and configured for cross-origin playback.
+      // Ensure the tag is attached before configuring playback.
       if (!videoElement.isConnected) {
         document.body.appendChild(videoElement);
       }
+
+      // Allow cross-origin playback and configure autoplay settings.
       videoElement.setAttribute("crossorigin", "anonymous");
+      videoElement.setAttribute("muted", "");
+      videoElement.setAttribute("autoplay", "");
+      videoElement.setAttribute("playsinline", "");
+      videoElement.muted = true;
     }
 
     // Ensure the video covers the viewport
@@ -163,6 +207,21 @@ class VideoPlayerState {
       const url: string = VideoPlayerState.DEMO_URL;
       this.videoPlayer.mute(true);
       this.videoPlayer.open(url);
+
+      // Attempt to start playback immediately so the demo video begins
+      // without requiring user interaction. Falling back to the SDK's
+      // play() helper increases compatibility with older browsers.
+      const playerEl: HTMLVideoElement | undefined = (this.videoPlayer as any)
+        ._videoEl;
+      if (playerEl !== undefined) {
+        playerEl.play().catch((err: unknown): void => {
+          console.warn("Autoplay failed", err);
+          this.videoPlayer.play();
+        });
+      } else {
+        this.videoPlayer.play();
+      }
+
       this.videoPlayer.loop(true);
       this.opened = true as boolean;
     }
