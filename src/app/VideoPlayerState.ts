@@ -169,8 +169,21 @@ class VideoPlayerState {
       const url: string = VideoPlayerState.DEMO_URL;
       this.videoPlayer.mute(true);
       this.videoPlayer.open(url);
-      // Some browsers require an explicit play call for autoplay to succeed.
-      this.videoPlayer.play();
+
+      // Attempt to start playback immediately so the demo video begins
+      // without requiring user interaction. Falling back to the SDK's
+      // play() helper increases compatibility with older browsers.
+      const playerEl: HTMLVideoElement | undefined = (this.videoPlayer as any)
+        ._videoEl;
+      if (playerEl !== undefined) {
+        playerEl.play().catch((err: unknown): void => {
+          console.warn("Autoplay failed", err);
+          this.videoPlayer.play();
+        });
+      } else {
+        this.videoPlayer.play();
+      }
+
       this.videoPlayer.loop(true);
       this.opened = true as boolean;
     }
