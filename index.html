@@ -184,10 +184,47 @@
         height: 100%;
         fill: #ffffff;
       }
+
+      /* Top and bottom video elements */
+      .video-half {
+        position: absolute;
+        width: 100%;
+        height: 50%;
+        object-fit: cover;
+        z-index: -1;
+      }
+
+      #video-top {
+        top: 0;
+      }
+
+      #video-bottom {
+        bottom: 0;
+      }
     </style>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
+
+    <!-- Two synchronized videos -->
+    <video
+      id="video-top"
+      class="video-half"
+      autoplay
+      loop
+      muted
+      playsinline
+      src="https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8"
+    ></video>
+    <video
+      id="video-bottom"
+      class="video-half"
+      autoplay
+      loop
+      muted
+      playsinline
+      src="https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8"
+    ></video>
 
     <!-- App will attach to this div -->
     <div id="app"></div>

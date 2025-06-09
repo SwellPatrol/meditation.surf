@@ -9,7 +9,6 @@
 import Blits from "@lightningjs/blits";
 
 import Icon from "../components/Icon";
-import videoPlayerState from "./VideoPlayerState";
 
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
@@ -22,20 +21,6 @@ const LightningApp: LightningAppFactory = Blits.Application({
       stageW: window.innerWidth as number, // viewport width
       stageH: window.innerHeight as number, // viewport height
     };
-  },
-
-  // Log VideoPlayer events for debugging
-  methods: {
-    $videoPlayerEvent(
-      eventName: string,
-      details: { videoElement: HTMLVideoElement; event: Event },
-      currentTime: number,
-    ): void {
-      console.debug(
-        `VideoPlayer event: ${eventName} at ${currentTime.toFixed(2)}s`,
-        details,
-      );
-    },
   },
 
   // Register child components available in the template
@@ -58,10 +43,6 @@ const LightningApp: LightningAppFactory = Blits.Application({
       };
       self.resizeListener = listener;
       window.addEventListener("resize", listener);
-      // Share the app instance with the VideoPlayer plugin
-      videoPlayerState.setAppInstance(self);
-      // Initialize the video player once the application instance is ready
-      videoPlayerState.initialize(self.stageW as number, self.stageH as number);
     },
 
     /**

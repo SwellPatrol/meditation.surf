@@ -7,6 +7,7 @@
  */
 
 import { launchApp } from "./app/launchApp";
+import { PLAYLIST } from "./playlist";
 import { setupBrightnessButton } from "./utils/brightness";
 import { setupFullscreenButton } from "./utils/fullscreen";
 import { setupVolumeButton } from "./utils/volume";
@@ -16,3 +17,12 @@ launchApp();
 setupFullscreenButton();
 setupBrightnessButton();
 setupVolumeButton();
+
+// Assign playlist sources to video elements
+const videos: NodeListOf<HTMLVideoElement> = document.querySelectorAll("video");
+videos.forEach((videoEl: HTMLVideoElement, index: number): void => {
+  const url: string | undefined = PLAYLIST[index];
+  if (url !== undefined) {
+    videoEl.src = url;
+  }
+});
