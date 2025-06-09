@@ -193,6 +193,9 @@ class VideoPlayerState {
       videoElement.setAttribute("autoplay", "");
       videoElement.setAttribute("playsinline", "");
       videoElement.muted = true;
+
+      // Fill the viewport while maintaining aspect ratio
+      videoElement.style.objectFit = "cover";
     }
 
     // Ensure the video covers the viewport
