@@ -7,6 +7,8 @@
  */
 
 import { launchApp } from "./app/launchApp";
+import { setupFullscreenButton } from "./utils/fullscreen";
 
 // Application entry point
 launchApp();
+setupFullscreenButton();
