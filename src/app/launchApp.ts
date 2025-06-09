@@ -36,11 +36,16 @@ function startApp(width: number, height: number): void {
   launchLightningApp(width, height);
 
   // Clean up the old Lightning application to free its WebGL context.
-  if (oldApp !== null && typeof (oldApp as any).quit === "function") {
+  if (oldApp !== null) {
+    const instance: any = oldApp as any;
     try {
-      (oldApp as any).quit();
+      if (typeof instance.quit === "function") {
+        instance.quit();
+      } else if (typeof instance.destroy === "function") {
+        instance.destroy();
+      }
     } catch (error: unknown) {
-      console.warn("Failed to quit previous Lightning app", error);
+      console.warn("Failed to destroy previous Lightning app", error);
     } finally {
       // Remove reference so we don't attempt to quit again.
       videoPlayerState.clearAppInstance();
