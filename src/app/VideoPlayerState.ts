@@ -11,6 +11,8 @@ import { initSettings } from "@lightningjs/sdk/src/Settings";
 import { initLightningSdkPlugin } from "@metrological/sdk";
 import Hls from "hls.js";
 
+import VolumeControl from "../utils/volumeControl";
+
 /**
  * Wrapper holding a reference to the Lightning SDK VideoPlayer.
  * This module initializes the VideoPlayer once and exposes it
@@ -23,6 +25,9 @@ class VideoPlayerState {
 
   /** Active hls.js instance or `null` when not using hls.js. */
   private hls: Hls | null;
+
+  /** Overlay controlling the audio state. */
+  private volumeControl: VolumeControl;
 
   /** URL of the demo video used for testing playback. */
   private static readonly DEMO_URL: string =
@@ -40,6 +45,7 @@ class VideoPlayerState {
   constructor() {
     // The VideoPlayer plugin sets up its video tag only once.
     this.videoPlayer = VideoPlayer;
+    this.volumeControl = new VolumeControl(VideoPlayer);
     this.hls = null as Hls | null;
     this.initialized = false as boolean;
     this.appInstance = null as unknown | null;
@@ -192,7 +198,7 @@ class VideoPlayerState {
       videoElement.setAttribute("muted", "");
       videoElement.setAttribute("autoplay", "");
       videoElement.setAttribute("playsinline", "");
-      videoElement.muted = true;
+      this.volumeControl.attach(videoElement);
 
       // Fill the viewport while maintaining aspect ratio
       videoElement.style.objectFit = "cover";
@@ -201,6 +207,7 @@ class VideoPlayerState {
     // Ensure the video covers the viewport
     this.videoPlayer.position(0, 0);
     this.videoPlayer.size(width, height);
+    this.volumeControl.updateSize(width, height);
 
     this.videoPlayer.show();
     console.debug("VideoPlayer shown on stage");
@@ -208,7 +215,7 @@ class VideoPlayerState {
     // Load and play the demo video the first time initialization runs.
     if (!this.opened) {
       const url: string = VideoPlayerState.DEMO_URL;
-      this.videoPlayer.mute(true);
+      this.videoPlayer.mute(this.volumeControl.getMuted());
       this.videoPlayer.open(url);
 
       // Attempt to start playback immediately so the demo video begins
