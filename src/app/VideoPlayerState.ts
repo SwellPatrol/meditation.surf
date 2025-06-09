@@ -22,7 +22,7 @@ class VideoPlayerState {
 
   /** URL of the demo video used for testing playback. */
   private static readonly DEMO_URL: string =
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+    "https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8";
 
   /** True after the video player has been configured. */
   private initialized: boolean;
