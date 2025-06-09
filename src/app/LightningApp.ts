@@ -47,18 +47,14 @@ const LightningApp: LightningAppFactory = Blits.Application({
 
   hooks: {
     /**
-     * Setup the window resize handler so the app and video continue to
-     * cover the viewport when the browser size changes.
+     * Setup the window resize handler so the app continues to cover the
+     * viewport when the browser size changes.
      */
     init(): void {
       const self: any = this;
       const listener: () => void = (): void => {
         self.stageW = window.innerWidth;
         self.stageH = window.innerHeight;
-        videoPlayerState.initialize(
-          self.stageW as number,
-          self.stageH as number,
-        );
       };
       self.resizeListener = listener;
       window.addEventListener("resize", listener);
@@ -76,6 +72,25 @@ const LightningApp: LightningAppFactory = Blits.Application({
       if (self.resizeListener) {
         window.removeEventListener("resize", self.resizeListener as () => void);
       }
+    },
+  },
+
+  watch: {
+    /**
+     * Recalculate the video size whenever the viewport dimensions change.
+     */
+    stageW(): void {
+      videoPlayerState.initialize(
+        (this as any).stageW as number,
+        (this as any).stageH as number,
+      );
+    },
+
+    stageH(): void {
+      videoPlayerState.initialize(
+        (this as any).stageW as number,
+        (this as any).stageH as number,
+      );
     },
   },
 
