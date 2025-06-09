@@ -13,3 +13,7 @@
  */
 declare module "@lightningjs/sdk/src/Settings";
 declare module "@metrological/sdk";
+declare module "shaka-player/dist/shaka-player.compiled.js" {
+  const shaka: any;
+  export default shaka;
+}

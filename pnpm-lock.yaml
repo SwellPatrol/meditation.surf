@@ -20,9 +20,9 @@ importers:
       '@lightningjs/sdk':
         specifier: ^5.5.5
         version: 5.5.5
-      hls.js:
-        specifier: ^1.6.5
-        version: 1.6.5
+      shaka-player:
+        specifier: ^4.15.1
+        version: 4.15.1
     devDependencies:
       '@eslint/js':
         specifier: ^9.27.0
@@ -910,6 +910,9 @@ packages:
   email-addresses@5.0.0:
     resolution: {integrity: sha512-4OIPYlA6JXqtVn8zpHpGiI7vE6EQOAg16aGnDMIAlZVinnoZ8208tW1hAbjWydgN/4PLTT9q+O1K6AH/vALJGw==}
 
+  eme-encryption-scheme-polyfill@2.2.3:
+    resolution: {integrity: sha512-N0nlJZVaBqGWzvvFb6ZAxvTVeZ4v9cXCzrSFE0zCbNbviiygWI0gDJiRc4o5SqFrPVYBSQr5z5SzKjIvvxL+Vw==}
+
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
 
@@ -1180,9 +1183,6 @@ packages:
   hasown@2.0.2:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
     engines: {node: '>= 0.4'}
-
-  hls.js@1.6.5:
-    resolution: {integrity: sha512-KMn5n7JBK+olC342740hDPHnGWfE8FiHtGMOdJPfUjRdARTWj9OB+8c13fnsf9sk1VtpuU2fKSgUjHvg4rNbzQ==}
 
   http-cache-semantics@4.2.0:
     resolution: {integrity: sha512-dTxcvPXqPvXBQpq5dUr6mEMJX4oIEFv6bwom3FDwKRDsuIjjJGANqhBuoAn9c1RQJIdAKav33ED65E2ys+87QQ==}
@@ -1690,6 +1690,10 @@ packages:
     resolution: {integrity: sha512-RF0Fw+rO5AMf9MAyaRXI4AV0Ulj5lMHqVxxdSgiVbixSCXoEmmX/jk0CuJw4+3SqroYO9VoUh+HcuJivvtJemA==}
     engines: {node: '>=10'}
     hasBin: true
+
+  shaka-player@4.15.1:
+    resolution: {integrity: sha512-p9LpBnfp7ltOdhuu8YoxLcoVcsFV6PNi54zdP5DmmC3Xvj7/vYNhtXmbZRfTe9qD2kzlaEF+TXflgxYyFDttcQ==}
+    engines: {node: '>=18'}
 
   shebang-command@2.0.0:
     resolution: {integrity: sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==}
@@ -2868,6 +2872,8 @@ snapshots:
 
   email-addresses@5.0.0: {}
 
+  eme-encryption-scheme-polyfill@2.2.3: {}
+
   emoji-regex@8.0.0: {}
 
   es-module-lexer@1.7.0: {}
@@ -3182,8 +3188,6 @@ snapshots:
   hasown@2.0.2:
     dependencies:
       function-bind: 1.1.2
-
-  hls.js@1.6.5: {}
 
   http-cache-semantics@4.2.0: {}
 
@@ -3650,6 +3654,10 @@ snapshots:
   semver@6.3.1: {}
 
   semver@7.7.2: {}
+
+  shaka-player@4.15.1:
+    dependencies:
+      eme-encryption-scheme-polyfill: 2.2.3
 
   shebang-command@2.0.0:
     dependencies:
