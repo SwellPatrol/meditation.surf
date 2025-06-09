@@ -189,10 +189,16 @@ class VideoPlayerState {
 
       // Allow cross-origin playback and configure autoplay settings.
       videoElement.setAttribute("crossorigin", "anonymous");
-      videoElement.setAttribute("muted", "");
+      const audioEnabled: boolean =
+        window.localStorage.getItem("audio-enabled") === "true";
+      if (!audioEnabled) {
+        videoElement.setAttribute("muted", "");
+      } else {
+        videoElement.removeAttribute("muted");
+      }
       videoElement.setAttribute("autoplay", "");
       videoElement.setAttribute("playsinline", "");
-      videoElement.muted = true;
+      videoElement.muted = !audioEnabled;
 
       // Fill the viewport while maintaining aspect ratio
       videoElement.style.objectFit = "cover";
@@ -208,7 +214,9 @@ class VideoPlayerState {
     // Load and play the demo video the first time initialization runs.
     if (!this.opened) {
       const url: string = VideoPlayerState.DEMO_URL;
-      this.videoPlayer.mute(true);
+      const audioEnabled: boolean =
+        window.localStorage.getItem("audio-enabled") === "true";
+      this.videoPlayer.mute(!audioEnabled);
       this.videoPlayer.open(url);
 
       // Attempt to start playback immediately so the demo video begins

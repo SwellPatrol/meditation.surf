@@ -124,6 +124,36 @@
         height: 1.5rem;
         fill: #ffffff;
       }
+
+      /* Volume toggle button in the lower right corner */
+      #volume-button {
+        position: absolute;
+        bottom: 0.5rem;
+        right: 0.5rem;
+        width: 25vmin;
+        height: 25vmin;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: rgba(0, 0, 0, 0.6);
+        border: none;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: opacity 0.2s ease-in;
+        opacity: 1;
+        z-index: 1000;
+      }
+
+      /* Fade animations for the volume button */
+      #volume-button.fade-out {
+        opacity: 0;
+      }
+
+      #volume-button svg {
+        width: 80%;
+        height: 80%;
+        fill: #ffffff;
+      }
     </style>
   </head>
   <body>

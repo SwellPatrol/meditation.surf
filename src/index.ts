@@ -8,7 +8,9 @@
 
 import { launchApp } from "./app/launchApp";
 import { setupFullscreenButton } from "./utils/fullscreen";
+import { setupVolumeButton } from "./utils/volume";
 
 // Application entry point
 launchApp();
 setupFullscreenButton();
+setupVolumeButton();
