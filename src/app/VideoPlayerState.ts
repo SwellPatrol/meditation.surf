@@ -9,6 +9,7 @@
 import { Ads, Lightning, Log, Settings, VideoPlayer } from "@lightningjs/sdk";
 import { initSettings } from "@lightningjs/sdk/src/Settings";
 import { initLightningSdkPlugin } from "@metrological/sdk";
+import Hls from "hls.js";
 
 /**
  * Wrapper holding a reference to the Lightning SDK VideoPlayer.
@@ -19,6 +20,9 @@ import { initLightningSdkPlugin } from "@metrological/sdk";
 class VideoPlayerState {
   /** Global VideoPlayer instance from the Lightning SDK. */
   public readonly videoPlayer: typeof VideoPlayer;
+
+  /** Active hls.js instance or `null` when not using hls.js. */
+  private hls: Hls | null;
 
   /** URL of the demo video used for testing playback. */
   private static readonly DEMO_URL: string =
@@ -36,6 +40,7 @@ class VideoPlayerState {
   constructor() {
     // The VideoPlayer plugin sets up its video tag only once.
     this.videoPlayer = VideoPlayer;
+    this.hls = null as Hls | null;
     this.initialized = false as boolean;
     this.appInstance = null as unknown | null;
     this.opened = false as boolean;
@@ -135,6 +140,46 @@ class VideoPlayerState {
 
       // Trigger the plugin's setup routine so the `<video>` element is created.
       this.videoPlayer.hide();
+      // Use hls.js for HLS playback when the browser lacks native support.
+      this.videoPlayer.loader(
+        (url: string, videoEl: HTMLVideoElement): Promise<void> => {
+          return new Promise((resolve: () => void): void => {
+            if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
+              videoEl.setAttribute("src", url);
+              videoEl.load();
+              resolve();
+              return;
+            }
+
+            if (Hls.isSupported()) {
+              this.hls = new Hls();
+              this.hls.on(Hls.Events.MEDIA_ATTACHED, (): void => {
+                this.hls?.loadSource(url);
+                resolve();
+              });
+              this.hls.attachMedia(videoEl);
+              return;
+            }
+
+            videoEl.setAttribute("src", url);
+            videoEl.load();
+            resolve();
+          });
+        },
+      );
+
+      // Tear down hls.js instances to keep resources clean.
+      this.videoPlayer.unloader((videoEl: HTMLVideoElement): Promise<void> => {
+        return new Promise((resolve: () => void): void => {
+          if (this.hls !== null) {
+            this.hls.destroy();
+            this.hls = null as Hls | null;
+          }
+          videoEl.removeAttribute("src");
+          videoEl.load();
+          resolve();
+        });
+      });
       this.logVideoElement();
       console.debug("VideoPlayer plugin initialized");
       this.initialized = true as boolean;
