@@ -37,12 +37,13 @@ export function setupBrightnessButton(): void {
   let levelIndex: number = 0;
   let fadeTimer: number | undefined;
 
-  /** Apply the current brightness to the video element. */
+  /** Apply the current brightness to all video elements. */
   const applyBrightness = (): void => {
-    const videoEl: HTMLVideoElement | null = document.querySelector("video");
-    if (videoEl !== null) {
+    const videos: NodeListOf<HTMLVideoElement> =
+      document.querySelectorAll("video");
+    videos.forEach((videoEl: HTMLVideoElement): void => {
       videoEl.style.filter = `brightness(${BRIGHTNESS_LEVELS[levelIndex]})`;
-    }
+    });
   };
 
   /** Show the button and restart the fade-out timer. */

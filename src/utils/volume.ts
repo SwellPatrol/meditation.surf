@@ -6,8 +6,6 @@
  * See the file LICENSE.txt for more information.
  */
 
-import videoPlayerState from "../app/VideoPlayerState";
-
 /** Time before the volume button fades out after user interaction. */
 const VOLUME_TIMEOUT_MS: number = 4000;
 
@@ -39,18 +37,18 @@ export function setupVolumeButton(): void {
 
   let fadeTimer: number | undefined;
 
-  /** Apply the current mute state to the video element and SDK. */
+  /** Apply the current mute state to all video elements. */
   const applyMuted = (): void => {
-    const videoEl: HTMLVideoElement | null = document.querySelector("video");
-    if (videoEl !== null) {
+    const videos: NodeListOf<HTMLVideoElement> =
+      document.querySelectorAll("video");
+    videos.forEach((videoEl: HTMLVideoElement): void => {
       videoEl.muted = muted;
       if (muted) {
         videoEl.setAttribute("muted", "");
       } else {
         videoEl.removeAttribute("muted");
       }
-    }
-    videoPlayerState.videoPlayer.mute(muted);
+    });
   };
 
   /** Update the button icon and label. */
@@ -83,7 +81,7 @@ export function setupVolumeButton(): void {
   /** Toggle between muted and unmuted states. */
   const toggleMuted = (): void => {
     muted = !muted;
-    videoPlayerState.saveMutedState(muted);
+    window.localStorage.setItem(STORAGE_KEY, String(muted));
     updateIcon();
     applyMuted();
     showButton();
