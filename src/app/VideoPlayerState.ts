@@ -10,8 +10,6 @@ import { Ads, Lightning, Log, Settings, VideoPlayer } from "@lightningjs/sdk";
 import { initSettings } from "@lightningjs/sdk/src/Settings";
 import { initLightningSdkPlugin } from "@metrological/sdk";
 
-/* global shaka */
-
 /**
  * Wrapper holding a reference to the Lightning SDK VideoPlayer.
  * This module initializes the VideoPlayer once and exposes it
@@ -23,7 +21,7 @@ class VideoPlayerState {
   public readonly videoPlayer: typeof VideoPlayer;
 
   /** Active Shaka Player instance or `null` when not using Shaka. */
-  private shakaPlayer: shaka.Player | null;
+  private shakaPlayer: any | null;
 
   /** URL of the demo video used for testing playback. */
   private static readonly DEMO_URL: string =
@@ -44,7 +42,7 @@ class VideoPlayerState {
   constructor() {
     // The VideoPlayer plugin sets up its video tag only once.
     this.videoPlayer = VideoPlayer;
-    this.shakaPlayer = null as shaka.Player | null;
+    this.shakaPlayer = null as any | null;
     this.initialized = false as boolean;
     this.appInstance = null as unknown | null;
     this.opened = false as boolean;
@@ -172,7 +170,8 @@ class VideoPlayerState {
         (url: string, videoEl: HTMLVideoElement): Promise<void> => {
           return new Promise((resolve: () => void): void => {
             void import("shaka-player/dist/shaka-player.compiled.js").then(
-              (): void => {
+              (module: { default: any }): void => {
+                const shaka: any = module.default;
                 shaka.polyfill.installAll();
                 if (!shaka.Player.isBrowserSupported()) {
                   console.error(
@@ -205,7 +204,7 @@ class VideoPlayerState {
             this.shakaPlayer.destroy().catch((err: unknown): void => {
               console.error("Failed to destroy Shaka Player", err);
             });
-            this.shakaPlayer = null as shaka.Player | null;
+            this.shakaPlayer = null as any | null;
           }
           videoEl.removeAttribute("src");
           videoEl.load();

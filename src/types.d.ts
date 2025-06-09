@@ -15,4 +15,7 @@ declare module "@lightningjs/sdk/src/Settings";
 declare module "@metrological/sdk";
 // Shaka Player does not ship TypeScript module declarations.
 // Provide a minimal module definition so it can be imported.
-declare module "shaka-player/dist/shaka-player.compiled.js";
+declare module "shaka-player/dist/shaka-player.compiled.js" {
+  const shaka: any;
+  export default shaka;
+}
