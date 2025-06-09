@@ -9,7 +9,6 @@
 import Blits from "@lightningjs/blits";
 
 import Icon from "../components/Icon";
-import Volume from "../components/Volume";
 import videoPlayerState from "./VideoPlayerState";
 
 // Type alias for the factory returned by Blits.Application
@@ -42,7 +41,6 @@ const LightningApp: LightningAppFactory = Blits.Application({
   // Register child components available in the template
   components: {
     Icon,
-    Volume,
   },
 
   // No computed properties for the stage itself
@@ -80,7 +78,6 @@ const LightningApp: LightningAppFactory = Blits.Application({
   // Render the icon component centered on a black canvas
   template: `<Element :w="$stageW" :h="$stageH">
     <Icon :stageW="$stageW" :stageH="$stageH" />
-    <Volume :stageW="$stageW" :stageH="$stageH" />
     <Element ref="VideoBackground" />
   </Element>`,
 });
