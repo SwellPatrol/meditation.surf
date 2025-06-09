@@ -8,6 +8,7 @@
 
 import Blits from "@lightningjs/blits";
 
+import Brightness from "../components/Brightness";
 import Icon from "../components/Icon";
 import Volume from "../components/Volume";
 import videoPlayerState from "./VideoPlayerState";
@@ -43,6 +44,7 @@ const LightningApp: LightningAppFactory = Blits.Application({
   components: {
     Icon,
     Volume,
+    Brightness,
   },
 
   // No computed properties for the stage itself
@@ -81,6 +83,7 @@ const LightningApp: LightningAppFactory = Blits.Application({
   template: `<Element :w="$stageW" :h="$stageH">
     <Icon :stageW="$stageW" :stageH="$stageH" />
     <Volume :stageW="$stageW" :stageH="$stageH" />
+    <Brightness :stageW="$stageW" :stageH="$stageH" />
     <Element ref="VideoBackground" />
   </Element>`,
 });

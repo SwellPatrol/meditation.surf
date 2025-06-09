@@ -12,6 +12,11 @@ import { initLightningSdkPlugin } from "@metrological/sdk";
 import Hls from "hls.js";
 
 import { getAudioMuted } from "../utils/audio";
+import {
+  BrightnessLevel,
+  getBrightnessLevel,
+  setBrightnessLevel,
+} from "../utils/brightness";
 
 /**
  * Wrapper holding a reference to the Lightning SDK VideoPlayer.
@@ -42,6 +47,9 @@ class VideoPlayerState {
   /** Persisted mute state applied to the video element. */
   private audioMuted: boolean;
 
+  /** Persisted brightness level applied to the video element. */
+  private brightness: BrightnessLevel;
+
   constructor() {
     // The VideoPlayer plugin sets up its video tag only once.
     this.videoPlayer = VideoPlayer;
@@ -50,6 +58,7 @@ class VideoPlayerState {
     this.appInstance = null as unknown | null;
     this.opened = false as boolean;
     this.audioMuted = getAudioMuted();
+    this.brightness = getBrightnessLevel();
   }
 
   /**
@@ -122,6 +131,27 @@ class VideoPlayerState {
     }
   }
 
+  /** Apply the current brightness level to the video element. */
+  private applyBrightnessState(): void {
+    const videoElement: HTMLVideoElement | undefined = (this.videoPlayer as any)
+      ._videoEl;
+    if (videoElement !== undefined) {
+      let value: string;
+      switch (this.brightness) {
+        case "dim":
+          value = "0.5";
+          break;
+        case "off":
+          value = "0";
+          break;
+        default:
+          value = "1";
+          break;
+      }
+      videoElement.style.filter = `brightness(${value})`;
+    }
+  }
+
   /**
    * Update the mute state and persist it.
    *
@@ -133,12 +163,32 @@ class VideoPlayerState {
   }
 
   /**
+   * Update the brightness level and persist it.
+   *
+   * @param level - Desired brightness level.
+   */
+  public setBrightness(level: BrightnessLevel): void {
+    this.brightness = level;
+    setBrightnessLevel(level);
+    this.applyBrightnessState();
+  }
+
+  /**
    * Report whether audio is currently muted.
    *
    * @returns True when muted.
    */
   public getMuted(): boolean {
     return this.audioMuted;
+  }
+
+  /**
+   * Report the current brightness level.
+   *
+   * @returns Active brightness level.
+   */
+  public getBrightness(): BrightnessLevel {
+    return this.brightness;
   }
 
   /**
@@ -232,6 +282,7 @@ class VideoPlayerState {
       videoElement.setAttribute("autoplay", "");
       videoElement.setAttribute("playsinline", "");
       this.applyMutedState();
+      this.applyBrightnessState();
 
       // Fill the viewport while maintaining aspect ratio
       videoElement.style.objectFit = "cover";
@@ -248,6 +299,7 @@ class VideoPlayerState {
     if (!this.opened) {
       const url: string = VideoPlayerState.DEMO_URL;
       this.applyMutedState();
+      this.applyBrightnessState();
       this.videoPlayer.open(url);
 
       // Attempt to start playback immediately so the demo video begins
