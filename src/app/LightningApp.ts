@@ -9,6 +9,9 @@
 import Blits from "@lightningjs/blits";
 
 import Icon from "../components/Icon";
+import { getVideoManager, VideoManager } from "../player/VideoManager";
+import { PLAYLIST } from "../playlist";
+import videoPlayerState from "./VideoPlayerState";
 
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
@@ -37,12 +40,49 @@ const LightningApp: LightningAppFactory = Blits.Application({
      */
     init(): void {
       const self: any = this;
-      const listener: () => void = (): void => {
+      const manager: VideoManager = getVideoManager();
+
+      const onResize = (): void => {
         self.stageW = window.innerWidth;
         self.stageH = window.innerHeight;
+        manager.setStageSize(self.stageW, self.stageH);
+        videoPlayerState.initialize(self.stageW, self.stageH);
+
+        const overlayEl: any = self.tag("OverlayShot");
+        if (overlayEl) {
+          overlayEl.patch({
+            w: self.stageW / 2,
+            h: self.stageH / 2,
+            x: self.stageW / 2,
+            y: self.stageH / 2,
+          });
+        }
+
+        const bgEl: any = self.tag("BgShot");
+        if (bgEl) {
+          bgEl.patch({ w: self.stageW, h: self.stageH });
+        }
       };
-      self.resizeListener = listener;
-      window.addEventListener("resize", listener);
+
+      self.resizeListener = onResize;
+      window.addEventListener("resize", onResize);
+
+      videoPlayerState.setAppInstance(self);
+      videoPlayerState.initialize(self.stageW, self.stageH);
+
+      const texture: any = self.tag("VideoTexture");
+      const bg: any = self.tag("BgShot");
+      const overlay: any = self.tag("OverlayShot");
+      manager.setComponents(texture, bg, overlay);
+      manager.setStageSize(self.stageW, self.stageH);
+
+      let index: number = 0;
+      void manager.play(PLAYLIST[index], false);
+      window.setInterval((): void => {
+        index = (index + 1) % PLAYLIST.length;
+        const overlayMode: boolean = index === 1;
+        void manager.play(PLAYLIST[index], overlayMode);
+      }, 5000);
     },
 
     /**
@@ -53,12 +93,15 @@ const LightningApp: LightningAppFactory = Blits.Application({
       if (self.resizeListener) {
         window.removeEventListener("resize", self.resizeListener as () => void);
       }
+      videoPlayerState.clearAppInstance();
     },
   },
 
   // Render the icon component centered on a black canvas
   template: `<Element :w="$stageW" :h="$stageH">
     <Icon :stageW="$stageW" :stageH="$stageH" />
+    <Element ref="BgShot" :w="$stageW" :h="$stageH" zIndex="1" />
+    <Element ref="OverlayShot" :w="$stageW / 2" :h="$stageH / 2" zIndex="3" :x="$stageW / 2" :y="$stageH / 2" />
   </Element>`,
 });
 

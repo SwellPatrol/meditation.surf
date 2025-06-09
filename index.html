@@ -184,49 +184,11 @@
         height: 100%;
         fill: #ffffff;
       }
-
-      /* Containers for video playback */
-      #background-container,
-      #overlay-container {
-        position: absolute;
-        overflow: hidden;
-      }
-
-      /* Fullscreen background video */
-      #background-container {
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 1;
-      }
-
-      /* Overlay video positioned dynamically */
-      #overlay-container {
-        z-index: 10;
-      }
-
-      /* Videos and screenshots fill their containers */
-      #background-container video,
-      #overlay-container video,
-      #background-container img,
-      #overlay-container img {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
     </style>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
 
-    <!-- Background video container -->
-    <div id="background-container"></div>
-    <!-- Overlay video container -->
-    <div id="overlay-container"></div>
     <!-- App will attach to this div -->
     <div id="app"></div>
 
