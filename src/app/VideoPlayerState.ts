@@ -28,9 +28,6 @@ class VideoPlayerState {
   private static readonly DEMO_URL: string =
     "https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8";
 
-  /** Storage key for the persisted mute state. */
-  private static readonly STORAGE_KEY: string = "audio-muted";
-
   /** True after the video player has been configured. */
   private initialized: boolean;
 
@@ -47,28 +44,6 @@ class VideoPlayerState {
     this.initialized = false as boolean;
     this.appInstance = null as unknown | null;
     this.opened = false as boolean;
-  }
-
-  /**
-   * Load the persisted mute state from local storage, defaulting to muted.
-   */
-  private loadMutedState(): boolean {
-    const value: string | null = window.localStorage.getItem(
-      VideoPlayerState.STORAGE_KEY,
-    );
-    if (value === null) {
-      return true;
-    }
-    return value === "true";
-  }
-
-  /**
-   * Persist the mute state to local storage.
-   *
-   * @param muted - True to mute, false to unmute.
-   */
-  public saveMutedState(muted: boolean): void {
-    window.localStorage.setItem(VideoPlayerState.STORAGE_KEY, String(muted));
   }
 
   /**
@@ -206,7 +181,6 @@ class VideoPlayerState {
     // Ensure the SDK's `<video>` tag is attached to the DOM
     const videoElement: HTMLVideoElement | undefined = (this.videoPlayer as any)
       ._videoEl;
-    const startMuted: boolean = this.loadMutedState();
     if (videoElement !== undefined) {
       // Ensure the tag is attached before configuring playback.
       if (!videoElement.isConnected) {
@@ -215,14 +189,10 @@ class VideoPlayerState {
 
       // Allow cross-origin playback and configure autoplay settings.
       videoElement.setAttribute("crossorigin", "anonymous");
-      if (startMuted) {
-        videoElement.setAttribute("muted", "");
-      } else {
-        videoElement.removeAttribute("muted");
-      }
+      videoElement.setAttribute("muted", "");
       videoElement.setAttribute("autoplay", "");
       videoElement.setAttribute("playsinline", "");
-      videoElement.muted = startMuted;
+      videoElement.muted = true;
 
       // Fill the viewport while maintaining aspect ratio
       videoElement.style.objectFit = "cover";
@@ -238,7 +208,7 @@ class VideoPlayerState {
     // Load and play the demo video the first time initialization runs.
     if (!this.opened) {
       const url: string = VideoPlayerState.DEMO_URL;
-      this.videoPlayer.mute(startMuted);
+      this.videoPlayer.mute(true);
       this.videoPlayer.open(url);
 
       // Attempt to start playback immediately so the demo video begins
