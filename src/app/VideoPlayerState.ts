@@ -224,7 +224,14 @@ class VideoPlayerState {
     if (videoElement !== undefined) {
       // Ensure the tag is attached before configuring playback.
       if (!videoElement.isConnected) {
-        document.body.appendChild(videoElement);
+        const appContainer: HTMLElement | null = document.getElementById("app");
+        if (appContainer !== null) {
+          // Place the video beneath the Lightning canvas so overlay
+          // components remain visible while the video stays on screen.
+          appContainer.insertBefore(videoElement, appContainer.firstChild);
+        } else {
+          document.body.appendChild(videoElement);
+        }
       }
 
       // Allow cross-origin playback and configure autoplay settings.
@@ -237,7 +244,8 @@ class VideoPlayerState {
       // element appears behind the Lightning canvas so overlay components
       // remain visible.
       videoElement.style.objectFit = "cover";
-      videoElement.style.zIndex = "-1";
+      videoElement.style.zIndex = "0";
+      videoElement.style.pointerEvents = "none";
     }
 
     // Ensure the video covers the viewport
