@@ -206,6 +206,8 @@ export class VideoPlayerState {
 
       // Fill the viewport while maintaining aspect ratio
       videoElement.style.objectFit = "cover";
+      // Ensure the video element renders behind the Lightning canvas
+      videoElement.style.zIndex = "0";
     }
 
     // Ensure the video covers the viewport
