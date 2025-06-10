@@ -67,23 +67,6 @@ export class VideoPlayerState {
         component.$emit(eventName, ...args);
       };
     }
-    if (
-      component.tag === undefined &&
-      (component.$select !== undefined || component.select !== undefined)
-    ) {
-      /**
-       * Provide a `tag()` shim so Metrological's VideoPlayer can look up
-       * Lightning elements by reference. Blits exposes `$select()` for this
-       * purpose which behaves similarly to `tag()` in Lightning.
-       */
-      // Bind the Blits `$select` method so it behaves like Lightning's `tag()`.
-      const selector: any = (component.$select ?? component.select).bind(
-        component,
-      );
-      component.tag = (ref: string): unknown => {
-        return selector(ref) as unknown;
-      };
-    }
     if (this.initialized) {
       this.videoPlayer.consumer(component);
     }
@@ -129,8 +112,8 @@ export class VideoPlayerState {
     // Lazily initialize the plugin by configuring the SDK on first use.
     if (!this.initialized) {
       // The plugin needs Settings, Logging, and the Lightning instance.
-      // Enable texture mode so the video is rendered using a WebGL texture.
-      initSettings({}, { width, height, textureMode: true });
+      // Disable texture mode so the HTML video element is used directly.
+      initSettings({}, { width, height, textureMode: false });
       initLightningSdkPlugin.log = Log;
       initLightningSdkPlugin.settings = Settings;
       initLightningSdkPlugin.ads = Ads;
@@ -197,14 +180,21 @@ export class VideoPlayerState {
       this.initialized = true as boolean;
     }
 
-    // Reference to the underlying `<video>` element created by the SDK
+    // Ensure the SDK's `<video>` tag is attached to the DOM
     const videoElement: HTMLVideoElement | undefined = (this.videoPlayer as any)
       ._videoEl;
     if (videoElement !== undefined) {
-      // Configure autoplay behavior and allow cross-origin playback
+      // Ensure the tag is attached before configuring playback
+      if (!videoElement.isConnected) {
+        document.body.appendChild(videoElement);
+      }
+
+      // Allow cross-origin playback and configure autoplay settings
       videoElement.setAttribute("crossorigin", "anonymous");
       videoElement.setAttribute("autoplay", "");
       videoElement.setAttribute("playsinline", "");
+      videoElement.setAttribute("controls", "");
+      videoElement.controls = true;
 
       // Mute by default so autoplay is more likely to succeed
       this.setMuted(true);
@@ -214,6 +204,9 @@ export class VideoPlayerState {
         AudioState.setMuted(videoElement.muted);
         AudioState.setVolume(videoElement.volume);
       });
+
+      // Fill the viewport while maintaining aspect ratio
+      videoElement.style.objectFit = "cover";
     }
 
     // Ensure the video covers the viewport
@@ -221,8 +214,6 @@ export class VideoPlayerState {
     this.videoPlayer.size(width, height);
 
     this.videoPlayer.show();
-    // Raise the video texture above the background icon
-    this.setVideoZIndex(1);
     console.debug("VideoPlayer shown on stage");
 
     console.debug("VideoPlayer initialization complete");
@@ -307,21 +298,6 @@ export class VideoPlayerState {
     if (videoElement !== undefined) {
       const clamped: number = Math.min(Math.max(volume, 0), 1);
       videoElement.volume = clamped;
-    }
-  }
-
-  /**
-   * Adjust the z-index of the WebGL video texture so it layers correctly.
-   *
-   * @param zIndex - Desired stacking order for the video texture.
-   */
-  public setVideoZIndex(zIndex: number): void {
-    const app: any = this.appInstance as any;
-    if (app !== null && typeof app.tag === "function") {
-      const texture: unknown = app.tag("VideoTexture");
-      if (texture !== undefined && texture !== null) {
-        (texture as any).patch({ zIndex });
-      }
     }
   }
 }
