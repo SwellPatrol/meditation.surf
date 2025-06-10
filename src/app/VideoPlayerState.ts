@@ -67,6 +67,11 @@ export class VideoPlayerState {
         component.$emit(eventName, ...args);
       };
     }
+    if (component.tag === undefined && component.getByRef !== undefined) {
+      component.tag = (ref: string): unknown => {
+        return component.getByRef(ref);
+      };
+    }
     if (this.initialized) {
       this.videoPlayer.consumer(component);
     }
@@ -112,9 +117,8 @@ export class VideoPlayerState {
     // Lazily initialize the plugin by configuring the SDK on first use.
     if (!this.initialized) {
       // The plugin needs Settings, Logging, and the Lightning instance.
-      // Disable texture mode because Blits does not expose the old Lightning
-      // Application APIs required by the VideoTexture integration.
-      initSettings({}, { width, height, textureMode: false });
+      // Enable texture mode so the video is rendered using a WebGL texture.
+      initSettings({}, { width, height, textureMode: true });
       initLightningSdkPlugin.log = Log;
       initLightningSdkPlugin.settings = Settings;
       initLightningSdkPlugin.ads = Ads;
@@ -181,33 +185,23 @@ export class VideoPlayerState {
       this.initialized = true as boolean;
     }
 
-    // Ensure the SDK's `<video>` tag is attached to the DOM
+    // Reference to the underlying `<video>` element created by the SDK
     const videoElement: HTMLVideoElement | undefined = (this.videoPlayer as any)
       ._videoEl;
     if (videoElement !== undefined) {
-      // Ensure the tag is attached before configuring playback.
-      if (!videoElement.isConnected) {
-        document.body.appendChild(videoElement);
-      }
-
-      // Allow cross-origin playback and configure autoplay settings.
+      // Configure autoplay behavior and allow cross-origin playback
       videoElement.setAttribute("crossorigin", "anonymous");
       videoElement.setAttribute("autoplay", "");
       videoElement.setAttribute("playsinline", "");
-      videoElement.setAttribute("controls", "");
-      videoElement.controls = true;
 
-      // Mute by default so autoplay is more likely to succeed.
+      // Mute by default so autoplay is more likely to succeed
       this.setMuted(true);
 
-      // Save audio changes so user preferences persist across sessions.
+      // Save audio changes so user preferences persist across sessions
       videoElement.addEventListener("volumechange", (): void => {
         AudioState.setMuted(videoElement.muted);
         AudioState.setVolume(videoElement.volume);
       });
-
-      // Fill the viewport while maintaining aspect ratio
-      videoElement.style.objectFit = "cover";
     }
 
     // Ensure the video covers the viewport
@@ -215,6 +209,8 @@ export class VideoPlayerState {
     this.videoPlayer.size(width, height);
 
     this.videoPlayer.show();
+    // Raise the video texture above the background icon
+    this.setVideoZIndex(1);
     console.debug("VideoPlayer shown on stage");
 
     console.debug("VideoPlayer initialization complete");
@@ -302,8 +298,20 @@ export class VideoPlayerState {
     }
   }
 
-  // No helper for adjusting the WebGL texture layer is provided because Blits
-  // does not expose the APIs needed to manipulate the z-index.
+  /**
+   * Adjust the z-index of the WebGL video texture so it layers correctly.
+   *
+   * @param zIndex - Desired stacking order for the video texture.
+   */
+  public setVideoZIndex(zIndex: number): void {
+    const app: any = this.appInstance as any;
+    if (app !== null && typeof app.tag === "function") {
+      const texture: unknown = app.tag("VideoTexture");
+      if (texture !== undefined && texture !== null) {
+        (texture as any).patch({ zIndex });
+      }
+    }
+  }
 }
 
 /** Singleton instance of the video player state. */
