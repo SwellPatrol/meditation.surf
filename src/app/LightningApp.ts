@@ -69,6 +69,7 @@ const LightningApp: LightningAppFactory = Blits.Application({
       const unmute: () => void = (): void => {
         videoPlayerState.unmute();
       };
+      window.addEventListener("pointerdown", unmute, { once: true });
       window.addEventListener("click", unmute, { once: true });
     },
 

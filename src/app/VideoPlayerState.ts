@@ -272,6 +272,11 @@ export class VideoPlayerState {
     if (videoElement !== undefined) {
       videoElement.muted = false;
       videoElement.removeAttribute("muted");
+      videoElement.volume = 1.0;
+      videoElement.play().catch((err: unknown): void => {
+        console.warn("Failed to resume playback after unmute", err);
+        this.videoPlayer.play();
+      });
     }
   }
 }
