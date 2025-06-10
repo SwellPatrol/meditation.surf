@@ -189,12 +189,19 @@ export class VideoPlayerState {
 
       // Allow cross-origin playback and configure autoplay settings.
       videoElement.setAttribute("crossorigin", "anonymous");
-      videoElement.setAttribute("muted", "");
       videoElement.setAttribute("autoplay", "");
       videoElement.setAttribute("playsinline", "");
       videoElement.setAttribute("controls", "");
-      videoElement.muted = true;
       videoElement.controls = true;
+
+      // Preserve the user's mute preference across app reloads.
+      const wasMuted: boolean = videoElement.muted;
+      if (wasMuted) {
+        videoElement.setAttribute("muted", "");
+      } else {
+        videoElement.removeAttribute("muted");
+      }
+      videoElement.muted = wasMuted;
 
       // Fill the viewport while maintaining aspect ratio
       videoElement.style.objectFit = "cover";
