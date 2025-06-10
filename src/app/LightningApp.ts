@@ -64,9 +64,6 @@ const LightningApp: LightningAppFactory = Blits.Application({
       videoPlayerState.setAppInstance(self);
       // Initialize the video player once the application instance is ready
       videoPlayerState.initialize(self.stageW as number, self.stageH as number);
-
-      // Raise the video plane above the background icon
-      videoPlayerState.setVideoZIndex(1);
     },
 
     /**

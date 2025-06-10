@@ -112,9 +112,9 @@ export class VideoPlayerState {
     // Lazily initialize the plugin by configuring the SDK on first use.
     if (!this.initialized) {
       // The plugin needs Settings, Logging, and the Lightning instance.
-      // Enable texture mode so the video is drawn using WebGL
-      // instead of an overlaid HTML element.
-      initSettings({}, { width, height, textureMode: true });
+      // Disable texture mode because Blits does not expose the old Lightning
+      // Application APIs required by the VideoTexture integration.
+      initSettings({}, { width, height, textureMode: false });
       initLightningSdkPlugin.log = Log;
       initLightningSdkPlugin.settings = Settings;
       initLightningSdkPlugin.ads = Ads;
@@ -194,6 +194,8 @@ export class VideoPlayerState {
       videoElement.setAttribute("crossorigin", "anonymous");
       videoElement.setAttribute("autoplay", "");
       videoElement.setAttribute("playsinline", "");
+      videoElement.setAttribute("controls", "");
+      videoElement.controls = true;
 
       // Mute by default so autoplay is more likely to succeed.
       this.setMuted(true);
@@ -203,6 +205,9 @@ export class VideoPlayerState {
         AudioState.setMuted(videoElement.muted);
         AudioState.setVolume(videoElement.volume);
       });
+
+      // Fill the viewport while maintaining aspect ratio
+      videoElement.style.objectFit = "cover";
     }
 
     // Ensure the video covers the viewport
@@ -297,17 +302,8 @@ export class VideoPlayerState {
     }
   }
 
-  /**
-   * Adjust the z-index of the video texture on the Lightning stage.
-   *
-   * @param zIndex - Desired layer order for the video.
-   */
-  public setVideoZIndex(zIndex: number): void {
-    const texture: unknown = (this.videoPlayer as any).tag("VideoTexture");
-    if (texture !== undefined && texture !== null) {
-      (texture as any).zIndex = zIndex;
-    }
-  }
+  // No helper for adjusting the WebGL texture layer is provided because Blits
+  // does not expose the APIs needed to manipulate the z-index.
 }
 
 /** Singleton instance of the video player state. */
