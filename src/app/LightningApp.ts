@@ -10,7 +10,8 @@ import Blits from "@lightningjs/blits";
 
 import AudioToggle from "../components/AudioToggle";
 import Icon from "../components/Icon";
-import videoPlayerState, { VideoPlayerState } from "./VideoPlayerState";
+import { clearAppInstance, setAppInstance } from "./AppState";
+import shakaVideo, { ShakaVideo } from "./ShakaVideo";
 
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
@@ -25,19 +26,7 @@ const LightningApp: LightningAppFactory = Blits.Application({
     };
   },
 
-  // Log VideoPlayer events for debugging
-  methods: {
-    $videoPlayerEvent(
-      eventName: string,
-      details: { videoElement: HTMLVideoElement; event: Event },
-      currentTime: number,
-    ): void {
-      console.debug(
-        `VideoPlayer event: ${eventName} at ${currentTime.toFixed(2)}s`,
-        details,
-      );
-    },
-  },
+  // No custom methods for the stage itself
 
   // Register child components available in the template
   components: {
@@ -69,9 +58,9 @@ const LightningApp: LightningAppFactory = Blits.Application({
      */
     ready(): void {
       const self: any = this;
-      videoPlayerState.setAppInstance(self);
-      videoPlayerState.initialize(self.stageW as number, self.stageH as number);
-      videoPlayerState.playUrl(VideoPlayerState.DEMO_URL);
+      setAppInstance(self);
+      void shakaVideo.initialize();
+      void shakaVideo.playUrl(ShakaVideo.DEMO_URL);
     },
 
     /**
@@ -82,7 +71,7 @@ const LightningApp: LightningAppFactory = Blits.Application({
       if (self.resizeListener) {
         window.removeEventListener("resize", self.resizeListener as () => void);
       }
-      videoPlayerState.clearAppInstance();
+      clearAppInstance();
     },
   },
 

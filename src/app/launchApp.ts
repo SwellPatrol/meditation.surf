@@ -9,8 +9,8 @@
 import Blits from "@lightningjs/blits";
 
 import { debounce } from "../utils/debounce";
+import { clearAppInstance, getAppInstance } from "./AppState";
 import LightningApp from "./LightningApp";
-import videoPlayerState from "./VideoPlayerState";
 
 /**
  * Milliseconds to wait before applying the final size after a resize
@@ -33,7 +33,7 @@ function launchLightningApp(width: number, height: number): void {
 function startApp(width: number, height: number): void {
   const mount: HTMLElement = document.getElementById("app") as HTMLElement;
   const oldCanvas: HTMLCanvasElement | null = mount.querySelector("canvas");
-  const previousApp: unknown | null = videoPlayerState.getAppInstance();
+  const previousApp: unknown | null = getAppInstance();
 
   // Clean up the old Lightning application to free its WebGL context before
   // launching a new one. This avoids accumulating WebGL contexts if the
@@ -52,7 +52,7 @@ function startApp(width: number, height: number): void {
       console.warn("Failed to destroy previous Lightning app", error);
     } finally {
       // Remove reference so we do not attempt to destroy again.
-      videoPlayerState.clearAppInstance();
+      clearAppInstance();
     }
 
     if (oldCanvas !== null) {
@@ -64,6 +64,19 @@ function startApp(width: number, height: number): void {
   // destroyed. This prevents WebGL context leakage and the associated console
   // warnings.
   launchLightningApp(width, height);
+
+  const positionCanvas = (): void => {
+    const canvas: HTMLCanvasElement | null = mount.querySelector("canvas");
+    if (canvas !== null) {
+      canvas.style.position = "absolute";
+      canvas.style.top = "0";
+      canvas.style.left = "0";
+      canvas.style.width = "100%";
+      canvas.style.height = "100%";
+      canvas.style.zIndex = "1";
+    }
+  };
+  window.setTimeout(positionCanvas, 0);
 }
 
 /**
