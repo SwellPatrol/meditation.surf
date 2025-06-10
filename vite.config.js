@@ -6,11 +6,11 @@
  * See the file LICENSE.txt for more information.
  */
 
-import blitsVitePlugins from "@lightningjs/blits/vite";
+import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-// Vite configuration for the LightningJS-based application. The configuration
-// is intentionally simple and primarily enables the Blits plugin along with the
+// Vite configuration for the React-based application. The configuration is
+// intentionally simple and primarily enables the React plugin along with the
 // cross-origin headers required for certain browser APIs.
 
 export default defineConfig({
@@ -18,8 +18,8 @@ export default defineConfig({
   // site is deployed under a subdirectory.
   base: "/",
 
-  // Use the Blits plugin to add LightningJS support during build and dev
-  plugins: [...blitsVitePlugins],
+  // Use the React plugin to add React support during build and dev
+  plugins: [react()],
 
   server: {
     headers: {
