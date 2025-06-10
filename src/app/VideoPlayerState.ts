@@ -31,9 +31,6 @@ export class VideoPlayerState {
   /** True after the video player has been configured. */
   private initialized: boolean;
 
-  /** True after the demo video has been opened. */
-  private opened: boolean;
-
   /** Lightning application instance provided after launch. */
   private appInstance: unknown | null;
 
@@ -43,7 +40,6 @@ export class VideoPlayerState {
     this.shakaPlayer = null as shaka.Player | null;
     this.initialized = false as boolean;
     this.appInstance = null as unknown | null;
-    this.opened = false as boolean;
   }
 
   /**
@@ -245,7 +241,6 @@ export class VideoPlayerState {
     }
 
     this.videoPlayer.loop(true);
-    this.opened = true as boolean;
   }
 }
 
