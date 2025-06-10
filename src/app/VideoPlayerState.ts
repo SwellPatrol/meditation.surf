@@ -259,7 +259,11 @@ export class VideoPlayerState {
    * @param url - Media URL to play.
    */
   public playUrl(url: string): void {
-    this.videoPlayer.mute(true);
+    // Preserve the user's mute preference so that audio state does not reset
+    // whenever a new stream is opened. Without this, playback always starts
+    // muted which can be confusing when switching from hls.js to Shaka Player.
+    const startMuted: boolean = this.loadMutedState();
+    this.videoPlayer.mute(startMuted);
     this.videoPlayer.open(url);
 
     const playerEl: HTMLVideoElement | undefined = (this.videoPlayer as any)
