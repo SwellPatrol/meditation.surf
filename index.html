@@ -94,6 +94,13 @@
         overflow: hidden;
         background-color: #000000;
       }
+
+      /* Hide the video element's built-in volume controls */
+      video::-webkit-media-controls-mute-button,
+      video::-webkit-media-controls-volume-slider,
+      video::-webkit-media-controls-volume-control-container {
+        display: none !important;
+      }
     </style>
   </head>
   <body>

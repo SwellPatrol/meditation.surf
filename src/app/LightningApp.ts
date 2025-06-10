@@ -8,6 +8,7 @@
 
 import Blits from "@lightningjs/blits";
 
+import AudioToggle from "../components/AudioToggle";
 import Icon from "../components/Icon";
 import videoPlayerState from "./VideoPlayerState";
 
@@ -41,6 +42,7 @@ const LightningApp: LightningAppFactory = Blits.Application({
   // Register child components available in the template
   components: {
     Icon,
+    AudioToggle,
   },
 
   // No computed properties for the stage itself
@@ -78,6 +80,7 @@ const LightningApp: LightningAppFactory = Blits.Application({
   // Render the icon component centered on a black canvas
   template: `<Element :w="$stageW" :h="$stageH">
     <Icon :stageW="$stageW" :stageH="$stageH" />
+    <AudioToggle :stageW="$stageW" :stageH="$stageH" />
   </Element>`,
 });
 
