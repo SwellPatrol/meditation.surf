@@ -10,8 +10,7 @@ import Blits from "@lightningjs/blits";
 
 import AudioToggle from "../components/AudioToggle";
 import Icon from "../components/Icon";
-import { clearAppInstance, setAppInstance } from "./AppState";
-import shakaVideo, { ShakaVideo } from "./ShakaVideo";
+import videoPlayerState, { VideoPlayerState } from "./VideoPlayerState";
 
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
@@ -58,9 +57,9 @@ const LightningApp: LightningAppFactory = Blits.Application({
      */
     ready(): void {
       const self: any = this;
-      setAppInstance(self);
-      void shakaVideo.initialize();
-      void shakaVideo.playUrl(ShakaVideo.DEMO_URL);
+      videoPlayerState.setAppInstance(self);
+      videoPlayerState.initialize(self.stageW as number, self.stageH as number);
+      videoPlayerState.playUrl(VideoPlayerState.DEMO_URL);
     },
 
     /**
@@ -71,7 +70,7 @@ const LightningApp: LightningAppFactory = Blits.Application({
       if (self.resizeListener) {
         window.removeEventListener("resize", self.resizeListener as () => void);
       }
-      clearAppInstance();
+      videoPlayerState.clearAppInstance();
     },
   },
 
