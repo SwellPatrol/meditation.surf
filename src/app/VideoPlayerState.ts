@@ -112,9 +112,9 @@ export class VideoPlayerState {
     // Lazily initialize the plugin by configuring the SDK on first use.
     if (!this.initialized) {
       // The plugin needs Settings, Logging, and the Lightning instance.
-      // Disable texture mode because Blits does not expose the old Lightning
-      // Application APIs required by the VideoTexture integration.
-      initSettings({}, { width, height, textureMode: false });
+      // Enable texture mode so the video is drawn using WebGL
+      // instead of an overlaid HTML element.
+      initSettings({}, { width, height, textureMode: true });
       initLightningSdkPlugin.log = Log;
       initLightningSdkPlugin.settings = Settings;
       initLightningSdkPlugin.ads = Ads;
@@ -194,8 +194,6 @@ export class VideoPlayerState {
       videoElement.setAttribute("crossorigin", "anonymous");
       videoElement.setAttribute("autoplay", "");
       videoElement.setAttribute("playsinline", "");
-      videoElement.setAttribute("controls", "");
-      videoElement.controls = true;
 
       // Mute by default so autoplay is more likely to succeed.
       this.setMuted(true);
@@ -205,9 +203,6 @@ export class VideoPlayerState {
         AudioState.setMuted(videoElement.muted);
         AudioState.setVolume(videoElement.volume);
       });
-
-      // Fill the viewport while maintaining aspect ratio
-      videoElement.style.objectFit = "cover";
     }
 
     // Ensure the video covers the viewport
@@ -303,36 +298,14 @@ export class VideoPlayerState {
   }
 
   /**
-   * Attach the video element to the given container and apply layering styles.
+   * Adjust the z-index of the video texture on the Lightning stage.
    *
-   * @param container - DOM element that should contain the player.
+   * @param zIndex - Desired layer order for the video.
    */
-  public positionVideoElement(container: HTMLElement): void {
-    const videoElement: HTMLVideoElement | undefined = (this.videoPlayer as any)
-      ._videoEl;
-    if (videoElement === undefined) {
-      return;
-    }
-
-    if (!container.contains(videoElement)) {
-      container.appendChild(videoElement);
-    }
-
-    videoElement.style.position = "absolute";
-    videoElement.style.top = "0";
-    videoElement.style.left = "0";
-    videoElement.style.width = "100%";
-    videoElement.style.height = "100%";
-    videoElement.style.objectFit = "cover";
-    videoElement.style.zIndex = "1";
-
-    const styleId: string = "video-volume-hide";
-    if (document.getElementById(styleId) === null) {
-      const style: HTMLStyleElement = document.createElement("style");
-      style.id = styleId;
-      style.textContent =
-        "video::-webkit-media-controls-mute-button, video::-webkit-media-controls-volume-slider, video::-webkit-media-controls-volume-control-container { display: none !important; }";
-      document.head.appendChild(style);
+  public setVideoZIndex(zIndex: number): void {
+    const texture: unknown = (this.videoPlayer as any).tag("VideoTexture");
+    if (texture !== undefined && texture !== null) {
+      (texture as any).zIndex = zIndex;
     }
   }
 }

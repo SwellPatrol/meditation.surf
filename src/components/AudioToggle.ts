@@ -86,6 +86,7 @@ const AudioToggle: AudioToggleFactory = Blits.Component("AudioToggle", {
       :src="$iconSrc"
       :w="$iconW" :h="$iconH"
       :x="$iconX" :y="$iconY"
+      :zIndex="2"
       :mount="1"
       @click="toggle"
     />`,
