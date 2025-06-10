@@ -33,14 +33,15 @@ function launchLightningApp(width: number, height: number): void {
 function startApp(width: number, height: number): void {
   const mount: HTMLElement = document.getElementById("app") as HTMLElement;
   const oldCanvas: HTMLCanvasElement | null = mount.querySelector("canvas");
-  const previousApp: unknown | null = videoPlayerState.getAppInstance();
+  const previousApp: unknown | null | undefined =
+    videoPlayerState.getAppInstance();
 
   // Launch the new LightningJS canvas before destroying the previous instance
   // so the screen remains visible during the transition.
   launchLightningApp(width, height);
 
   // Clean up the old Lightning application to free its WebGL context.
-  if (previousApp !== null) {
+  if (previousApp !== null && previousApp !== undefined) {
     const instance: any = previousApp as any;
     try {
       if (typeof instance.quit === "function") {

@@ -230,6 +230,12 @@ export class VideoPlayerState {
    * @param url - Media URL to play.
    */
   public playUrl(url: string): void {
+    if (this.opened) {
+      // If a stream is already loaded, resume playback without reloading.
+      this.videoPlayer.play();
+      return;
+    }
+
     this.videoPlayer.mute(true);
     this.videoPlayer.open(url);
 
