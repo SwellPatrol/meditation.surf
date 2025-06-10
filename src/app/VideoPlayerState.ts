@@ -219,7 +219,9 @@ export class VideoPlayerState {
       } else {
         videoElement.removeAttribute("muted");
       }
+      videoElement.autoplay = true;
       videoElement.setAttribute("autoplay", "");
+      videoElement.playsInline = true;
       videoElement.setAttribute("playsinline", "");
       videoElement.muted = startMuted;
 
@@ -265,6 +267,8 @@ export class VideoPlayerState {
     const playerEl: HTMLVideoElement | undefined = (this.videoPlayer as any)
       ._videoEl;
     if (playerEl !== undefined) {
+      playerEl.autoplay = true;
+      playerEl.playsInline = true;
       playerEl.play().catch((err: unknown): void => {
         console.warn("Autoplay failed", err);
         this.videoPlayer.play();
