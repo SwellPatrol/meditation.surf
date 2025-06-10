@@ -10,7 +10,7 @@ import Blits from "@lightningjs/blits";
 
 import { debounce } from "../utils/debounce";
 import LightningApp from "./LightningApp";
-import videoPlayerState, { VideoPlayerState } from "./VideoPlayerState";
+import videoPlayerState from "./VideoPlayerState";
 
 /**
  * Milliseconds to wait before applying the final size after a resize
@@ -78,7 +78,4 @@ export function launchApp(): void {
   });
 
   startApp(window.innerWidth, window.innerHeight);
-
-  // Begin playback once the video player is initialized by the Lightning app.
-  videoPlayerState.playUrl(VideoPlayerState.DEMO_URL);
 }

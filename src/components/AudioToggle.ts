@@ -23,7 +23,7 @@ const AudioToggle: AudioToggleFactory = Blits.Component("AudioToggle", {
   props: ["stageW", "stageH"],
 
   // Maintain local mute state in sync with AudioState
-  state() {
+  state(): { muted: boolean } {
     return {
       muted: AudioState.isMuted() as boolean,
     };
