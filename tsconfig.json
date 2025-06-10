@@ -11,7 +11,8 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "esnext",
-    "types": ["node", "vite/client"]
+    "types": ["node", "vite/client"],
+    "jsx": "react-jsx"
   },
   "exclude": ["dist", "node_modules"],
   "include": ["src/**/*", "test/**/*"]
