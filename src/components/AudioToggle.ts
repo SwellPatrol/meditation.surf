@@ -53,24 +53,38 @@ const AudioToggle: AudioToggleFactory = Blits.Component("AudioToggle", {
       return muted ? "assets/audio-off.svg" : "assets/audio-on.svg";
     },
 
-    /** X coordinate of the icon anchored to the right edge. */
+    /** Width of the icon occupying a third of the viewport width. */
+    iconW(): number {
+      // @ts-ignore `this` contains the reactive props provided at runtime
+      const stageW: number = this.stageW as number;
+      return stageW / 3;
+    },
+
+    /** Height of the icon occupying a third of the viewport height. */
+    iconH(): number {
+      // @ts-ignore `this` contains the reactive props provided at runtime
+      const stageH: number = this.stageH as number;
+      return stageH / 3;
+    },
+
+    /** X coordinate of the icon anchored to the bottom-right. */
     iconX(): number {
       // @ts-ignore `this` contains the reactive props provided at runtime
       const stageW: number = this.stageW as number;
-      return stageW - 20;
+      return stageW;
     },
 
-    /** Y coordinate of the icon anchored to the bottom edge. */
+    /** Y coordinate of the icon anchored to the bottom-right. */
     iconY(): number {
       // @ts-ignore `this` contains the reactive props provided at runtime
       const stageH: number = this.stageH as number;
-      return stageH - 20;
+      return stageH;
     },
   },
 
   template: `<Element
       :src="$iconSrc"
-      w="32" h="32"
+      :w="$iconW" :h="$iconH"
       :x="$iconX" :y="$iconY"
       :mount="1"
       @click="toggle"
