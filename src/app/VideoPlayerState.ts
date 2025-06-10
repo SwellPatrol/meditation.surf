@@ -67,9 +67,21 @@ export class VideoPlayerState {
         component.$emit(eventName, ...args);
       };
     }
-    if (component.tag === undefined && component.getByRef !== undefined) {
+    if (
+      component.tag === undefined &&
+      (component.$select !== undefined || component.select !== undefined)
+    ) {
+      /**
+       * Provide a `tag()` shim so Metrological's VideoPlayer can look up
+       * Lightning elements by reference. Blits exposes `$select()` for this
+       * purpose which behaves similarly to `tag()` in Lightning.
+       */
+      // Bind the Blits `$select` method so it behaves like Lightning's `tag()`.
+      const selector: any = (component.$select ?? component.select).bind(
+        component,
+      );
       component.tag = (ref: string): unknown => {
-        return component.getByRef(ref);
+        return selector(ref) as unknown;
       };
     }
     if (this.initialized) {
