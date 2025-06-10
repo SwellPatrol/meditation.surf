@@ -220,6 +220,8 @@ export class VideoPlayerState {
         videoElement.removeAttribute("muted");
       }
       videoElement.setAttribute("autoplay", "");
+      // Display the browser's default video controls
+      videoElement.setAttribute("controls", "");
       videoElement.setAttribute("playsinline", "");
       videoElement.muted = startMuted;
 

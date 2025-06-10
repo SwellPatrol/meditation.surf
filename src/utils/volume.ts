@@ -8,9 +8,6 @@
 
 import videoPlayerState from "../app/VideoPlayerState";
 
-/** Time before the volume button fades out after user interaction. */
-const VOLUME_TIMEOUT_MS: number = 4000;
-
 /** Storage key for persisting the muted state. */
 const STORAGE_KEY: string = "audio-muted";
 
@@ -23,9 +20,8 @@ const VOLUME_OFF_ICON: string =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
 
 /**
- * Create and attach a volume toggle button. The button fades out after a short
- * delay and reappears on user interaction. The muted state is persisted in
- * local storage.
+ * Create and attach a volume toggle button. The button remains visible and the
+ * muted state is persisted in local storage.
  */
 export function setupVolumeButton(): void {
   const button: HTMLButtonElement = document.createElement("button");
@@ -36,8 +32,6 @@ export function setupVolumeButton(): void {
   if (saved !== null) {
     muted = saved === "true";
   }
-
-  let fadeTimer: number | undefined;
 
   /** Apply the current mute state to the video element and SDK. */
   const applyMuted = (): void => {
@@ -71,13 +65,9 @@ export function setupVolumeButton(): void {
     button.style.height = `${size}px`;
   };
 
-  /** Show the button and restart the fade-out timer. */
+  /** Show the button without fading out. */
   const showButton = (): void => {
     button.classList.remove("fade-out");
-    window.clearTimeout(fadeTimer);
-    fadeTimer = window.setTimeout((): void => {
-      button.classList.add("fade-out");
-    }, VOLUME_TIMEOUT_MS);
   };
 
   /** Toggle between muted and unmuted states. */
