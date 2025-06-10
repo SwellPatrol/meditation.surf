@@ -94,30 +94,6 @@
         overflow: hidden;
         background-color: #000000;
       }
-
-      /* Position the canvas above the video element */
-      #app {
-        position: relative;
-      }
-
-      #app > canvas {
-        position: absolute;
-        top: 0;
-        left: 0;
-        z-index: 2;
-      }
-
-      /* Ensure the video stays underneath Lightning elements */
-      #video-player {
-        z-index: 1;
-      }
-
-      /* Hide the video element's built-in volume controls */
-      video::-webkit-media-controls-mute-button,
-      video::-webkit-media-controls-volume-slider,
-      video::-webkit-media-controls-volume-control-container {
-        display: none !important;
-      }
     </style>
   </head>
   <body>

@@ -64,6 +64,19 @@ const LightningApp: LightningAppFactory = Blits.Application({
       videoPlayerState.setAppInstance(self);
       // Initialize the video player once the application instance is ready
       videoPlayerState.initialize(self.stageW as number, self.stageH as number);
+
+      const mount: HTMLElement = document.getElementById("app") as HTMLElement;
+      mount.style.position = "relative";
+
+      const canvas: HTMLCanvasElement | null = mount.querySelector("canvas");
+      if (canvas !== null) {
+        canvas.style.position = "absolute";
+        canvas.style.top = "0";
+        canvas.style.left = "0";
+        canvas.style.zIndex = "2";
+      }
+
+      videoPlayerState.positionVideoElement(mount);
     },
 
     /**

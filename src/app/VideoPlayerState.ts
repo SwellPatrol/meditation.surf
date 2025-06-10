@@ -301,6 +301,40 @@ export class VideoPlayerState {
       videoElement.volume = clamped;
     }
   }
+
+  /**
+   * Attach the video element to the given container and apply layering styles.
+   *
+   * @param container - DOM element that should contain the player.
+   */
+  public positionVideoElement(container: HTMLElement): void {
+    const videoElement: HTMLVideoElement | undefined = (this.videoPlayer as any)
+      ._videoEl;
+    if (videoElement === undefined) {
+      return;
+    }
+
+    if (!container.contains(videoElement)) {
+      container.appendChild(videoElement);
+    }
+
+    videoElement.style.position = "absolute";
+    videoElement.style.top = "0";
+    videoElement.style.left = "0";
+    videoElement.style.width = "100%";
+    videoElement.style.height = "100%";
+    videoElement.style.objectFit = "cover";
+    videoElement.style.zIndex = "1";
+
+    const styleId: string = "video-volume-hide";
+    if (document.getElementById(styleId) === null) {
+      const style: HTMLStyleElement = document.createElement("style");
+      style.id = styleId;
+      style.textContent =
+        "video::-webkit-media-controls-mute-button, video::-webkit-media-controls-volume-slider, video::-webkit-media-controls-volume-control-container { display: none !important; }";
+      document.head.appendChild(style);
+    }
+  }
 }
 
 /** Singleton instance of the video player state. */
