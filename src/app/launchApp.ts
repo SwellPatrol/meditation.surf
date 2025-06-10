@@ -10,7 +10,7 @@ import Blits from "@lightningjs/blits";
 
 import { debounce } from "../utils/debounce";
 import LightningApp from "./LightningApp";
-import videoPlayerState, { VideoPlayerState } from "./VideoPlayerState";
+import videoPlayerState from "./VideoPlayerState";
 
 /**
  * Milliseconds to wait before applying the final size after a resize
@@ -64,6 +64,19 @@ function startApp(width: number, height: number): void {
   // destroyed. This prevents WebGL context leakage and the associated console
   // warnings.
   launchLightningApp(width, height);
+
+  const positionCanvas = (): void => {
+    const canvas: HTMLCanvasElement | null = mount.querySelector("canvas");
+    if (canvas !== null) {
+      canvas.style.position = "absolute";
+      canvas.style.top = "0";
+      canvas.style.left = "0";
+      canvas.style.width = "100%";
+      canvas.style.height = "100%";
+      canvas.style.zIndex = "1";
+    }
+  };
+  window.setTimeout(positionCanvas, 0);
 }
 
 /**
@@ -78,7 +91,4 @@ export function launchApp(): void {
   });
 
   startApp(window.innerWidth, window.innerHeight);
-
-  // Begin playback once the video player is initialized by the Lightning app.
-  videoPlayerState.playUrl(VideoPlayerState.DEMO_URL);
 }

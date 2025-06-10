@@ -8,8 +8,9 @@
 
 import Blits from "@lightningjs/blits";
 
+import AudioToggle from "../components/AudioToggle";
 import Icon from "../components/Icon";
-import videoPlayerState from "./VideoPlayerState";
+import videoPlayerState, { VideoPlayerState } from "./VideoPlayerState";
 
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
@@ -17,30 +18,19 @@ type LightningAppFactory = ReturnType<typeof Blits.Application>;
 // Minimal LightningJS app displaying a full-screen icon
 const LightningApp: LightningAppFactory = Blits.Application({
   // Track viewport dimensions for the root stage
-  state() {
+  state(): { stageW: number; stageH: number } {
     return {
       stageW: window.innerWidth as number, // viewport width
       stageH: window.innerHeight as number, // viewport height
     };
   },
 
-  // Log VideoPlayer events for debugging
-  methods: {
-    $videoPlayerEvent(
-      eventName: string,
-      details: { videoElement: HTMLVideoElement; event: Event },
-      currentTime: number,
-    ): void {
-      console.debug(
-        `VideoPlayer event: ${eventName} at ${currentTime.toFixed(2)}s`,
-        details,
-      );
-    },
-  },
+  // No custom methods for the stage itself
 
   // Register child components available in the template
   components: {
     Icon,
+    AudioToggle,
   },
 
   // No computed properties for the stage itself
@@ -58,10 +48,18 @@ const LightningApp: LightningAppFactory = Blits.Application({
       };
       self.resizeListener = listener;
       window.addEventListener("resize", listener);
-      // Share the app instance with the VideoPlayer plugin
+    },
+
+    /**
+     * The application is fully rendered and ready. Configure the video
+     * player only after the stage is available so the plugin can find
+     * the VideoTexture element correctly.
+     */
+    ready(): void {
+      const self: any = this;
       videoPlayerState.setAppInstance(self);
-      // Initialize the video player once the application instance is ready
       videoPlayerState.initialize(self.stageW as number, self.stageH as number);
+      videoPlayerState.playUrl(VideoPlayerState.DEMO_URL);
     },
 
     /**
@@ -72,12 +70,14 @@ const LightningApp: LightningAppFactory = Blits.Application({
       if (self.resizeListener) {
         window.removeEventListener("resize", self.resizeListener as () => void);
       }
+      videoPlayerState.clearAppInstance();
     },
   },
 
   // Render the icon component centered on a black canvas
   template: `<Element :w="$stageW" :h="$stageH">
     <Icon :stageW="$stageW" :stageH="$stageH" />
+    <AudioToggle :stageW="$stageW" :stageH="$stageH" />
   </Element>`,
 });
 

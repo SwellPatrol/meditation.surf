@@ -194,8 +194,6 @@ export class VideoPlayerState {
       videoElement.setAttribute("crossorigin", "anonymous");
       videoElement.setAttribute("autoplay", "");
       videoElement.setAttribute("playsinline", "");
-      videoElement.setAttribute("controls", "");
-      videoElement.controls = true;
 
       // Mute by default so autoplay is more likely to succeed.
       this.setMuted(true);
@@ -208,6 +206,8 @@ export class VideoPlayerState {
 
       // Fill the viewport while maintaining aspect ratio
       videoElement.style.objectFit = "cover";
+      // Ensure the video element renders behind the Lightning canvas
+      videoElement.style.zIndex = "0";
     }
 
     // Ensure the video covers the viewport
