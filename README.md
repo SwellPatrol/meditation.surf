@@ -1,102 +1,50 @@
-# meditation.surf
+# Welcome to your Expo app 👋
 
-Welcome to the _meditation.surf_ Lightning 3 Blits App!
+This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
-### Getting started
+## Get started
 
-Follow the steps below to get the app up and running in no time.
+1. Install dependencies
 
-#### IDE setup
+   ```bash
+   npm install
+   ```
 
-It is highly recommended to install the Blits [VS Code extension](https://marketplace.visualstudio.com/items?itemName=LightningJS.lightning-blits) which will give you template highlighting and improved autocompletion.
+2. Start the app
 
-#### Node setup (NVM and npm)
+   ```bash
+   npx expo start
+   ```
 
-Install [nvm](https://github.com/nvm-sh/nvm) to manage Node versions:
+In the output, you'll find options to open the app in a
 
-```sh
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.4/install.sh | bash
+- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
+- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
+- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
+- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+
+You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+
+## Get a fresh project
+
+When you're ready, run:
+
+```bash
+npm run reset-project
 ```
 
-Then install the required Node version and set it as the default:
+This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
 
-```sh
-nvm install 24
-nvm use 24
-```
+## Learn more
 
-npm is installed with Node and is only used to install pnpm globally.
+To learn more about developing your project with Expo, look at the following resources:
 
-#### pnpm setup
+- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
+- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
 
-This project uses [pnpm](https://pnpm.io/) as a package manager. If you don't have it installed, you can install it globally with:
+## Join the community
 
-```sh
-npm install -g pnpm
-```
+Join our community of developers creating universal apps.
 
-#### Project setup
-
-Run the following command to install the dependencies of the app:
-
-```sh
-pnpm install
-```
-
-#### Build and run in development mode
-
-Run the app in development mode, and listen on all network interfaces:
-
-```sh
-pnpm dev
-```
-
-This command uses Vite to fire up a local server, with Hot Reloading support. Visit the provided link in your web browser to see the app in action.
-
-#### Build the app for production
-
-Create an optimized and minified version of the app:
-
-```sh
-pnpm build
-```
-
-This will create a production version of the app in the `dist` folder.
-
-#### Run test cases
-
-Run the test cases to ensure everything is working as expected:
-
-```sh
-pnpm test
-```
-
-#### Run the linter
-
-Run the linter to check for code quality and style issues:
-
-```sh
-pnpm lint
-```
-
-#### Run the formatter
-
-Run the formatter to ensure code is formatted consistently:
-
-```sh
-pnpm format
-```
-
-#### Audit new dependencies
-
-After adding new dependencies, check for security issues with:
-
-```sh
-pnpm audit-ci
-```
-
-### Resources
-
-- [Blits documentation](https://lightningjs.io/v3-docs/blits/getting_started/intro.html) - official documentation
-- [Blits Example App](https://blits-demo.lightningjs.io/?source=true) - a great reference to learn by example
-- [Blits Components](https://lightningjs.io/blits-components.html) - off-the-shelf, basic and performant reference components
+- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
+- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
