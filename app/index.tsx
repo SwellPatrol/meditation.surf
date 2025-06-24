@@ -8,7 +8,9 @@
 
 import { ResizeMode, Video } from "expo-av";
 import React, { useRef } from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { Image, Platform, StyleSheet, View } from "react-native";
+
+import ShakaVideo from "@/components/ShakaVideo";
 
 export default function HomeScreen(): JSX.Element {
   const videoRef: React.RefObject<Video> = useRef<Video>(null);
@@ -16,17 +18,21 @@ export default function HomeScreen(): JSX.Element {
   return (
     <View style={styles.container}>
       <Image source={require("@/assets/images/icon.png")} style={styles.icon} />
-      <Video
-        ref={videoRef}
-        style={styles.video}
-        source={{
-          uri: "https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8",
-        }}
-        resizeMode={ResizeMode.COVER}
-        shouldPlay
-        isLooping
-        useNativeControls={false}
-      />
+      {Platform.OS === "web" ? (
+        <ShakaVideo uri="https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8" />
+      ) : (
+        <Video
+          ref={videoRef}
+          style={styles.video}
+          source={{
+            uri: "https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8",
+          }}
+          resizeMode={ResizeMode.COVER}
+          shouldPlay
+          isLooping
+          useNativeControls={false}
+        />
+      )}
     </View>
   );
 }
