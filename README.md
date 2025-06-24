@@ -41,6 +41,12 @@ pnpm install
 pnpm start
 ```
 
+### Bundle the app for the web
+
+```bash
+pnpm build
+```
+
 In the output, you'll find options to open the app:
 
 - [development build](https://docs.expo.dev/develop/development-builds/introduction/)
