@@ -62,6 +62,11 @@ const styles = StyleSheet.create({
     // placeholders such as the application icon. This mirrors the
     // behavior of the native <Video> component used on mobile.
     ...StyleSheet.absoluteFillObject,
+    // Explicit dimensions ensure the video fills the viewport on web.
+    width: "100%",
+    height: "100%",
+    // Place the video above the icon placeholder.
+    zIndex: 1,
     // Ensure the video covers the entire area without distortion.
     objectFit: "cover",
   },
