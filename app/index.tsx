@@ -6,14 +6,22 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { ResizeMode, Video } from "expo-av";
-import React, { useRef } from "react";
+import type { VideoPlayer } from "expo-video";
+import { useVideoPlayer, VideoView } from "expo-video";
+import React from "react";
 import { Image, Platform, StyleSheet, View } from "react-native";
 
 import ShakaVideo from "@/components/ShakaVideo";
 
 export default function HomeScreen(): JSX.Element {
-  const videoRef: React.RefObject<Video> = useRef<Video>(null);
+  // Create a video player for the native <VideoView> component.
+  const player: VideoPlayer = useVideoPlayer(
+    "https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8",
+    (instance: VideoPlayer): void => {
+      instance.loop = true;
+      void instance.play();
+    },
+  );
 
   return (
     <View style={styles.container}>
@@ -21,16 +29,11 @@ export default function HomeScreen(): JSX.Element {
       {Platform.OS === "web" ? (
         <ShakaVideo uri="https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8" />
       ) : (
-        <Video
-          ref={videoRef}
+        <VideoView
           style={styles.video}
-          source={{
-            uri: "https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8",
-          }}
-          resizeMode={ResizeMode.COVER}
-          shouldPlay
-          isLooping
-          useNativeControls={false}
+          player={player}
+          contentFit="cover"
+          nativeControls={false}
         />
       )}
     </View>
