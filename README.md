@@ -1,22 +1,47 @@
-# Welcome to your Expo app 👋
+# meditation.surf
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
 ## Get started
 
-1. Install dependencies
+### Node setup (NVM and npm)
 
-   ```bash
-   npm install
-   ```
+Install [nvm](https://github.com/nvm-sh/nvm) to manage Node versions:
 
-2. Start the app
+```sh
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.4/install.sh | bash
+```
 
-   ```bash
-   npx expo start
-   ```
+Then install the required Node version and set it as the default:
 
-In the output, you'll find options to open the app in a
+```sh
+nvm install 24
+nvm use 24
+```
+
+npm is installed with Node and is only used to install pnpm globally.
+
+### pnpm setup
+
+This project uses [pnpm](https://pnpm.io/) as a package manager. If you don't have it installed, you can install it globally with:
+
+```sh
+npm install -g pnpm
+```
+
+### Install dependencies
+
+```bash
+pnpm install
+```
+
+### Start the app
+
+```bash
+pnpm start
+```
+
+In the output, you'll find options to open the app:
 
 - [development build](https://docs.expo.dev/develop/development-builds/introduction/)
 - [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
@@ -24,16 +49,6 @@ In the output, you'll find options to open the app in a
 - [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
 
 ## Learn more
 
