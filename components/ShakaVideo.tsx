@@ -35,9 +35,15 @@ export default function ShakaVideo({
 
     void import("shaka-player/dist/shaka-player.compiled.js")
       .then((shaka: typeof shakaNamespace) => {
-        player = new shaka.Player(video);
-
-        return player.load(uri);
+        // Create the Shaka Player without attaching it to a media element.
+        player = new shaka.Player();
+        // Attach the video element to the player. This returns a Promise
+        // that resolves when the player is ready to load content.
+        return player.attach(video);
+      })
+      .then(() => {
+        // Load the media once the player has been attached to the element.
+        return player!.load(uri);
       })
       .catch((error: Error) => {
         console.error("Shaka Player error", error);
