@@ -8,7 +8,7 @@
 
 import type { VideoPlayer } from "expo-video";
 import { useVideoPlayer, VideoView } from "expo-video";
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Image,
   type ImageStyle,
@@ -29,6 +29,35 @@ export default function HomeScreen(): JSX.Element {
       void instance.play();
     },
   );
+
+  // Request fullscreen mode on Android web after the first user interaction.
+  useEffect((): void => {
+    if (Platform.OS !== "web") {
+      return;
+    }
+
+    // Only attempt fullscreen on Android browsers.
+    const isAndroid: boolean = /Android/i.test(navigator.userAgent);
+    if (!isAndroid) {
+      return;
+    }
+
+    const requestFullscreen: () => void = (): void => {
+      const element: HTMLElement | null = document.documentElement;
+      const request: (() => Promise<void>) | undefined =
+        element.requestFullscreen?.bind(element);
+      if (request) {
+        void request().catch(() => {
+          // Ignore errors from unsupported browsers or user rejection.
+        });
+      }
+      document.removeEventListener("touchstart", requestFullscreen);
+      document.removeEventListener("click", requestFullscreen);
+    };
+
+    document.addEventListener("touchstart", requestFullscreen, { once: true });
+    document.addEventListener("click", requestFullscreen, { once: true });
+  }, []);
 
   return (
     <View style={styles.container}>
