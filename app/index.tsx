@@ -12,6 +12,7 @@ import React from "react";
 import {
   Image,
   type ImageStyle,
+  LogBox,
   Platform,
   StyleSheet,
   View,
@@ -19,6 +20,11 @@ import {
 } from "react-native";
 
 import ShakaVideo from "@/components/ShakaVideo";
+
+// Ignore warnings from React Native LogBox about deprecated shadow style props.
+// These warnings originate in React Native's built-in development overlay and
+// cannot be resolved within this project. They do not impact functionality.
+LogBox.ignoreLogs(["shadow* style props are deprecated"]);
 
 export default function HomeScreen(): JSX.Element {
   // Create a video player for the native <VideoView> component.
