@@ -8,6 +8,7 @@
 
 import { Stack } from "expo-router";
 import React from "react";
+import { JSX } from "react/jsx-runtime";
 
 export default function RootLayout(): JSX.Element {
   return (

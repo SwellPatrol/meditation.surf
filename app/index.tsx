@@ -9,6 +9,7 @@
 import type { VideoPlayer } from "expo-video";
 import { useVideoPlayer, VideoView } from "expo-video";
 import React from "react";
+import { JSX } from "react/jsx-runtime";
 import {
   Image,
   type ImageStyle,
@@ -29,19 +30,18 @@ export default function HomeScreen(): JSX.Element {
       void instance.play();
     },
   );
-
   return (
-    <View style={styles.container}>
+    <View style={styles.container as ViewStyle}>
       <Image
         source={require("@/assets/images/icon.png")}
         resizeMode="contain"
-        style={styles.icon}
+        style={styles.icon as ImageStyle}
       />
       {Platform.OS === "web" ? (
         <ShakaVideo uri="https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8" />
       ) : (
         <VideoView
-          style={styles.video}
+          style={styles.video as ViewStyle}
           player={player}
           contentFit="cover"
           nativeControls={false}
