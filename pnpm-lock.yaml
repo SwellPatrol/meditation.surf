@@ -89,6 +89,9 @@ importers:
       react-native-webview:
         specifier: 13.13.5
         version: 13.13.5(react-native@0.79.3(@babel/core@7.27.4)(@types/react@19.0.14)(react@19.0.0))(react@19.0.0)
+      shaka-player:
+        specifier: ^4.15.4
+        version: 4.15.4
     devDependencies:
       '@babel/core':
         specifier: ^7.25.2
@@ -1776,6 +1779,9 @@ packages:
 
   electron-to-chromium@1.5.172:
     resolution: {integrity: sha512-fnKW9dGgmBfsebbYognQSv0CGGLFH1a5iV9EDYTBwmAQn+whbzHbLFlC+3XbHc8xaNtpO0etm8LOcRXs1qMRkQ==}
+
+  eme-encryption-scheme-polyfill@2.2.3:
+    resolution: {integrity: sha512-N0nlJZVaBqGWzvvFb6ZAxvTVeZ4v9cXCzrSFE0zCbNbviiygWI0gDJiRc4o5SqFrPVYBSQr5z5SzKjIvvxL+Vw==}
 
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
@@ -3547,6 +3553,10 @@ packages:
   sf-symbols-typescript@2.1.0:
     resolution: {integrity: sha512-ezT7gu/SHTPIOEEoG6TF+O0m5eewl0ZDAO4AtdBi5HjsrUI6JdCG17+Q8+aKp0heM06wZKApRCn5olNbs0Wb/A==}
     engines: {node: '>=10'}
+
+  shaka-player@4.15.4:
+    resolution: {integrity: sha512-kZuf5IfQ8W6Qir0lITW1g84GfTRUnZD1o94FT32OJkGmt1KU2CscvRR/jyYcYKueCPyZnmiw13q3s7rOHMlYLA==}
+    engines: {node: '>=18'}
 
   shallowequal@1.1.0:
     resolution: {integrity: sha512-y0m1JoUZSlPAjXVtPPW70aZWfIL/dSP7AFkRnniLCrK/8MDKog3TySTBmckD+RObVxH0v4Tox67+F14PdED2oQ==}
@@ -6238,6 +6248,8 @@ snapshots:
 
   electron-to-chromium@1.5.172: {}
 
+  eme-encryption-scheme-polyfill@2.2.3: {}
+
   emoji-regex@8.0.0: {}
 
   emoji-regex@9.2.2: {}
@@ -8341,6 +8353,10 @@ snapshots:
   setprototypeof@1.2.0: {}
 
   sf-symbols-typescript@2.1.0: {}
+
+  shaka-player@4.15.4:
+    dependencies:
+      eme-encryption-scheme-polyfill: 2.2.3
 
   shallowequal@1.1.0: {}
 
