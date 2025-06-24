@@ -10,5 +10,15 @@ import { Stack } from "expo-router";
 import React from "react";
 
 export default function RootLayout(): JSX.Element {
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        // Hide the status bar for a full-screen experience. This option
+        // only works on iOS when the Info.plist key
+        // `UIViewControllerBasedStatusBarAppearance` is set to YES.
+        statusBarHidden: true,
+      }}
+    />
+  );
 }
