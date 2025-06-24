@@ -58,8 +58,11 @@ export default function ShakaVideo({
 
 const styles = StyleSheet.create({
   video: {
-    width: "100%",
-    height: "100%",
+    // Position the video absolutely so that it layers above any
+    // placeholders such as the application icon. This mirrors the
+    // behavior of the native <Video> component used on mobile.
+    ...StyleSheet.absoluteFillObject,
+    // Ensure the video covers the entire area without distortion.
     objectFit: "cover",
   },
 });
