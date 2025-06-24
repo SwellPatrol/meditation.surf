@@ -44,6 +44,7 @@
     "audit-ci": "audit-ci --config audit-ci.json",
     "build": "pnpm build:web",
     "build:web": "expo export --platform web && cp -r public/* dist/",
+    "clean": "rm -rf dist node_modules",
     "deploy": "pnpm build && gh-pages --branch main --repo git@github.com-eigendude:SwellPatrol/swellpatrol.github.io.git --dist dist --dotfiles",
     "format": "pnpm format:prettier && pnpm format:eslint",
     "format:eslint": "eslint --fix .",
