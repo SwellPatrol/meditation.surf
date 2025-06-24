@@ -8,7 +8,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { Platform, StyleSheet } from "react-native";
-import shaka from "shaka-player/dist/shaka-player.compiled.js";
+import type * as shakaNamespace from "shaka-player/dist/shaka-player.compiled.js";
 
 export interface ShakaVideoProps {
   readonly uri: string;
@@ -30,14 +30,22 @@ export default function ShakaVideo({
       return;
     }
 
-    const player: shaka.Player = new shaka.Player(video);
+    let player: shakaNamespace.Player | null = null;
 
-    player.load(uri).catch((error: Error) => {
-      console.error("Shaka Player error", error);
-    });
+    void import("shaka-player/dist/shaka-player.compiled.js")
+      .then((shaka: typeof shakaNamespace) => {
+        player = new shaka.Player(video);
+
+        return player.load(uri);
+      })
+      .catch((error: Error) => {
+        console.error("Shaka Player error", error);
+      });
 
     return () => {
-      void player.destroy();
+      if (player) {
+        void player.destroy();
+      }
     };
   }, [uri]);
 
