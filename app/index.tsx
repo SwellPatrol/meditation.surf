@@ -9,7 +9,14 @@
 import type { VideoPlayer } from "expo-video";
 import { useVideoPlayer, VideoView } from "expo-video";
 import React from "react";
-import { Image, Platform, StyleSheet, View } from "react-native";
+import {
+  Image,
+  type ImageStyle,
+  Platform,
+  StyleSheet,
+  View,
+  type ViewStyle,
+} from "react-native";
 
 import ShakaVideo from "@/components/ShakaVideo";
 
@@ -25,7 +32,11 @@ export default function HomeScreen(): JSX.Element {
 
   return (
     <View style={styles.container}>
-      <Image source={require("@/assets/images/icon.png")} style={styles.icon} />
+      <Image
+        source={require("@/assets/images/icon.png")}
+        resizeMode="contain"
+        style={styles.icon}
+      />
       {Platform.OS === "web" ? (
         <ShakaVideo uri="https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8" />
       ) : (
@@ -40,7 +51,13 @@ export default function HomeScreen(): JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+interface Styles {
+  readonly container: ViewStyle;
+  readonly icon: ImageStyle;
+  readonly video: ViewStyle;
+}
+
+const styles: StyleSheet.NamedStyles<Styles> = StyleSheet.create<Styles>({
   container: {
     flex: 1,
     backgroundColor: "#000000",
@@ -51,7 +68,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: "100%",
     height: "100%",
-    resizeMode: "contain",
   },
   video: StyleSheet.absoluteFillObject,
 });
