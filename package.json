@@ -42,6 +42,8 @@
   "scripts": {
     "android": "expo start --android",
     "audit-ci": "audit-ci --config audit-ci.json",
+    "build": "expo export && cp -r public/* dist/",
+    "deploy": "pnpm build && gh-pages --branch main --repo git@github.com-eigendude:SwellPatrol/swellpatrol.github.io.git --dist dist --dotfiles",
     "format": "pnpm format:prettier && pnpm format:eslint",
     "format:eslint": "eslint --fix .",
     "format:prettier": "prettier --write .",

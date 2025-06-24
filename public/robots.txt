@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://meditation.surf/sitemap.xml
