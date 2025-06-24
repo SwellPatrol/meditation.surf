@@ -30,33 +30,39 @@ export default function HomeScreen(): JSX.Element {
     },
   );
 
-  // Request fullscreen mode on Android web after the first user interaction.
+  // Toggle fullscreen mode whenever the user interacts with the page on web.
   useEffect((): void => {
     if (Platform.OS !== "web") {
       return;
     }
 
-    // Only attempt fullscreen on Android browsers.
-    const isAndroid: boolean = /Android/i.test(navigator.userAgent);
-    if (!isAndroid) {
-      return;
-    }
-
-    const requestFullscreen: () => void = (): void => {
+    const toggleFullscreen: () => void = (): void => {
       const element: HTMLElement | null = document.documentElement;
       const request: (() => Promise<void>) | undefined =
         element.requestFullscreen?.bind(element);
-      if (request) {
+      const exit: (() => Promise<void>) | undefined =
+        document.exitFullscreen?.bind(document);
+
+      if (document.fullscreenElement) {
+        if (exit) {
+          void exit().catch(() => {
+            // Ignore errors from unsupported browsers or user rejection.
+          });
+        }
+      } else if (request) {
         void request().catch(() => {
           // Ignore errors from unsupported browsers or user rejection.
         });
       }
-      document.removeEventListener("touchstart", requestFullscreen);
-      document.removeEventListener("click", requestFullscreen);
     };
 
-    document.addEventListener("touchstart", requestFullscreen, { once: true });
-    document.addEventListener("click", requestFullscreen, { once: true });
+    document.addEventListener("touchstart", toggleFullscreen);
+    document.addEventListener("click", toggleFullscreen);
+
+    return (): void => {
+      document.removeEventListener("touchstart", toggleFullscreen);
+      document.removeEventListener("click", toggleFullscreen);
+    };
   }, []);
 
   return (
