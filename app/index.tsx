@@ -8,7 +8,7 @@
 
 import type { VideoPlayer } from "expo-video";
 import { useVideoPlayer, VideoView } from "expo-video";
-import React from "react";
+import React, { useState } from "react";
 import { JSX } from "react/jsx-runtime";
 import {
   type GestureResponderEvent,
@@ -23,6 +23,11 @@ import {
 import ShakaVideo from "@/components/ShakaVideo";
 
 export default function HomeScreen(): JSX.Element {
+  // Track whether the player is currently in fullscreen mode. This
+  // is needed so that we can toggle fullscreen behavior on user
+  // interactions.
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
   // Create a video player for the native <VideoView> component.
   const player: VideoPlayer = useVideoPlayer(
     "https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8",
@@ -33,8 +38,19 @@ export default function HomeScreen(): JSX.Element {
     },
   );
   const handleTouchStart = (event: GestureResponderEvent): void => {
+    // Prevent the default touch behavior so that the
+    // interaction is clean on all platforms.
     event.preventDefault();
+
+    // Start playback in response to the user interaction.
     void player.play();
+
+    // Toggle fullscreen based on the current fullscreen state.
+    if (isFullscreen) {
+      void player.exitFullscreen();
+    } else {
+      void player.enterFullscreen();
+    }
   };
 
   return (
@@ -52,6 +68,13 @@ export default function HomeScreen(): JSX.Element {
           player={player}
           contentFit="cover"
           nativeControls={false}
+          allowsFullscreen
+          onFullscreenEnter={(): void => {
+            setIsFullscreen(true);
+          }}
+          onFullscreenExit={(): void => {
+            setIsFullscreen(false);
+          }}
         />
       )}
     </View>
