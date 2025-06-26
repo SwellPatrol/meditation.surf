@@ -75,9 +75,26 @@ export default function ShakaVideo({
       loop
       muted
       onClick={(): void => {
-        videoRef.current?.play().catch(() => {
+        const video: HTMLVideoElement | null = videoRef.current;
+        if (!video) {
+          return;
+        }
+
+        // Begin playback when the user interacts with the video.
+        video.play().catch(() => {
           // Ignore playback errors triggered before user interaction
         });
+
+        // Toggle fullscreen mode when the video is tapped/clicked.
+        if (document.fullscreenElement === video) {
+          void document.exitFullscreen().catch(() => {
+            // Ignore errors if exiting fullscreen fails
+          });
+        } else {
+          void video.requestFullscreen().catch(() => {
+            // Ignore errors if entering fullscreen fails
+          });
+        }
       }}
     />
   );
