@@ -46,6 +46,13 @@ export default function ShakaVideo({
         // Load the media once the player has been attached to the element.
         return player!.load(uri);
       })
+      .then(() => {
+        // Attempt to autoplay the video. This may fail if user interaction is
+        // required by the browser.
+        void video.play().catch(() => {
+          // Autoplay was blocked; playback will require user interaction.
+        });
+      })
       .catch((error: Error) => {
         console.error("Shaka Player error", error);
       });
@@ -61,7 +68,19 @@ export default function ShakaVideo({
     return null;
   }
 
-  return <video ref={videoRef} style={styles.video} autoPlay loop muted />;
+  return (
+    <video
+      ref={videoRef}
+      style={styles.video}
+      autoPlay
+      loop
+      muted
+      playsInline
+      onClick={(): void => {
+        void videoRef.current?.play();
+      }}
+    />
+  );
 }
 
 const styles = StyleSheet.create({
