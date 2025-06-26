@@ -14,6 +14,7 @@ import {
   Image,
   type ImageStyle,
   Platform,
+  Pressable,
   StyleSheet,
   View,
   type ViewStyle,
@@ -27,7 +28,10 @@ export default function HomeScreen(): JSX.Element {
     "https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8",
     (instance: VideoPlayer): void => {
       instance.loop = true;
-      void instance.play();
+      instance.muted = true;
+      void instance.play().catch(() => {
+        // Autoplay may fail due to user gesture requirements.
+      });
     },
   );
   return (
@@ -40,12 +44,23 @@ export default function HomeScreen(): JSX.Element {
       {Platform.OS === "web" ? (
         <ShakaVideo uri="https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8" />
       ) : (
-        <VideoView
-          style={styles.video as ViewStyle}
-          player={player}
-          contentFit="cover"
-          nativeControls={false}
-        />
+        <Pressable
+          onPress={(): void => {
+            if (!player.playing) {
+              void player.play().catch(() => {
+                // Still unable to play without user interaction
+              });
+            }
+          }}
+          style={styles.pressable as ViewStyle}
+        >
+          <VideoView
+            style={styles.video as ViewStyle}
+            player={player}
+            contentFit="cover"
+            nativeControls={false}
+          />
+        </Pressable>
       )}
     </View>
   );
@@ -54,6 +69,7 @@ export default function HomeScreen(): JSX.Element {
 interface Styles {
   readonly container: ViewStyle;
   readonly icon: ImageStyle;
+  readonly pressable: ViewStyle;
   readonly video: ViewStyle;
 }
 
@@ -69,5 +85,6 @@ const styles: StyleSheet.NamedStyles<Styles> = StyleSheet.create<Styles>({
     width: "100%",
     height: "100%",
   },
+  pressable: StyleSheet.absoluteFillObject,
   video: StyleSheet.absoluteFillObject,
 });
