@@ -74,7 +74,6 @@ export default function ShakaVideo({
       autoPlay
       loop
       muted
-      playsInline
       onClick={(): void => {
         videoRef.current?.play().catch(() => {
           // Ignore playback errors triggered before user interaction
