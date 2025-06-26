@@ -67,6 +67,10 @@ interface Styles {
 const styles: StyleSheet.NamedStyles<Styles> = StyleSheet.create<Styles>({
   container: {
     flex: 1,
+    // Ensure the container always fills the viewport, even when browser
+    // UI elements like the address bar dynamically show or hide.
+    // Use `dvh` units so the value adjusts with viewport changes.
+    minHeight: "100dvh",
     backgroundColor: "#000000",
     justifyContent: "center",
     alignItems: "center",
