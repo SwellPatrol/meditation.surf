@@ -43,8 +43,14 @@ export default function ShakaVideo({
         return player.attach(video);
       })
       .then(() => {
-        // Load the media once the player has been attached to the element.
-        return player!.load(uri);
+        // Load the media once the player has been attached to the element and
+        // begin playback.
+        return player!.load(uri).then(() => {
+          return video.play().catch(() => {
+            // Safely ignore autoplay errors which often occur on iOS
+            // if the user hasn't interacted with the page yet.
+          });
+        });
       })
       .catch((error: Error) => {
         console.error("Shaka Player error", error);
@@ -61,7 +67,21 @@ export default function ShakaVideo({
     return null;
   }
 
-  return <video ref={videoRef} style={styles.video} autoPlay loop muted />;
+  return (
+    <video
+      ref={videoRef}
+      style={styles.video}
+      autoPlay
+      loop
+      muted
+      playsInline
+      onClick={(): void => {
+        videoRef.current?.play().catch(() => {
+          // Ignore playback errors triggered before user interaction
+        });
+      }}
+    />
+  );
 }
 
 const styles = StyleSheet.create({
