@@ -27,16 +27,18 @@ export default function ShakaVideo({ uri }: ShakaVideoProps): JSX.Element {
     void player.play();
   }, [player]);
 
-  const toggleControls = (): void => {
-    setShowControls((visible: boolean): boolean => !visible);
+  const handlePress = (): void => {
+    // Show the native controls when the user interacts with the video.
+    setShowControls(true);
   };
 
   return (
-    <Pressable style={styles.video as ViewStyle} onPress={toggleControls}>
+    <Pressable style={styles.video as ViewStyle} onPress={handlePress}>
       <VideoView
         player={player}
         style={StyleSheet.absoluteFill as ViewStyle}
         nativeControls={showControls}
+        pointerEvents={showControls ? "auto" : "none"}
         allowsFullscreen
         contentFit="cover"
       />
