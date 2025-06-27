@@ -11,7 +11,6 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import React from "react";
 import { JSX } from "react/jsx-runtime";
 import {
-  type GestureResponderEvent,
   Image,
   type ImageStyle,
   Platform,
@@ -32,15 +31,8 @@ export default function HomeScreen(): JSX.Element {
       void instance.play();
     },
   );
-  const handleTouchStart = (event: GestureResponderEvent): void => {
-    event.preventDefault();
-    if (!player.playing) {
-      void player.play();
-    }
-  };
-
   return (
-    <View style={styles.container as ViewStyle} onTouchStart={handleTouchStart}>
+    <View style={styles.container as ViewStyle}>
       <Image
         source={require("@/assets/images/icon.png")}
         resizeMode="contain"
