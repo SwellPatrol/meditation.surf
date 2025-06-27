@@ -32,7 +32,11 @@ export default function ShakaVideo({ uri }: ShakaVideoProps): JSX.Element {
   };
 
   return (
-    <Pressable style={styles.video as ViewStyle} onPress={toggleControls}>
+    <Pressable
+      style={styles.video as ViewStyle}
+      onPress={toggleControls}
+      pointerEvents={showControls ? "box-none" : "auto"}
+    >
       <VideoView
         player={player}
         style={StyleSheet.absoluteFill as ViewStyle}
