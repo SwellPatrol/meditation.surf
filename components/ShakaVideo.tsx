@@ -24,7 +24,7 @@ export type ShakaVideoProps = NativeProps;
  */
 export default function ShakaVideo(props: ShakaVideoProps): JSX.Element | null {
   // Determine which implementation to use. The web version relies on Shaka
-  // Player, while the native version uses Expo's video components.
+  // Player, while the native version embeds a WebView that runs Shaka Player.
   const Implementation: ComponentType<ShakaVideoProps> =
     Platform.OS === "web" ? Web : Native;
 

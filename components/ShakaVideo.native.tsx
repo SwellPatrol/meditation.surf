@@ -6,30 +6,34 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { useVideoPlayer, VideoView } from "expo-video";
-import type { VideoPlayer } from "expo-video/build/VideoPlayer.types";
 import type { JSX } from "react";
-import React, { useEffect } from "react";
+import React, { useCallback, useRef } from "react";
 import { StyleSheet, type ViewStyle } from "react-native";
+import { WebView } from "react-native-webview";
 
 export interface ShakaVideoProps {
   readonly uri: string;
 }
 
 export default function ShakaVideo({ uri }: ShakaVideoProps): JSX.Element {
-  const player: VideoPlayer = useVideoPlayer({ uri });
+  const webviewRef: React.RefObject<WebView | null> = useRef<WebView | null>(
+    null,
+  );
 
-  useEffect(() => {
-    void player.play();
-  }, [player]);
+  const handleLoadEnd = useCallback((): void => {
+    webviewRef.current?.injectJavaScript(
+      `window.initializePlayer(${JSON.stringify(uri)}); true;`,
+    );
+  }, [uri]);
 
   return (
-    <VideoView
-      player={player}
+    <WebView
+      ref={webviewRef}
+      source={require("@/assets/html/player.html")}
       style={styles.video as ViewStyle}
-      nativeControls={false}
-      allowsFullscreen
-      contentFit="cover"
+      onLoadEnd={handleLoadEnd}
+      allowsInlineMediaPlayback
+      mediaPlaybackRequiresUserAction={false}
     />
   );
 }
