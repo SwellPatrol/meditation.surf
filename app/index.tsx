@@ -8,7 +8,7 @@
 
 import type { VideoPlayer } from "expo-video";
 import { useVideoPlayer, VideoView } from "expo-video";
-import React from "react";
+import React, { useRef } from "react";
 import { JSX } from "react/jsx-runtime";
 import {
   type GestureResponderEvent,
@@ -32,20 +32,49 @@ export default function HomeScreen(): JSX.Element {
       void instance.play();
     },
   );
-  const handleTouchStart = (event: GestureResponderEvent): void => {
+  const videoRef: React.RefObject<HTMLVideoElement | null> =
+    useRef<HTMLVideoElement | null>(null);
+
+  const handleToggle = (event: GestureResponderEvent): void => {
     event.preventDefault();
-    void player.play();
+
+    if (Platform.OS === "web") {
+      const video: HTMLVideoElement | null = videoRef.current;
+      if (video && video.paused) {
+        void video.play().catch(() => {
+          // Ignore playback errors triggered before user interaction
+        });
+      }
+
+      const root: HTMLElement = document.documentElement;
+      if (!document.fullscreenElement) {
+        void root.requestFullscreen().catch(() => {
+          // Ignore errors during fullscreen request
+        });
+      } else {
+        void document.exitFullscreen().catch(() => {
+          // Ignore errors during fullscreen exit
+        });
+      }
+    } else {
+      if (!player.playing) {
+        void player.play();
+      }
+    }
   };
 
   return (
-    <View style={styles.container as ViewStyle} onTouchStart={handleTouchStart}>
+    <View style={styles.container as ViewStyle} onTouchStart={handleToggle}>
       <Image
         source={require("@/assets/images/icon.png")}
         resizeMode="contain"
         style={styles.icon as ImageStyle}
       />
       {Platform.OS === "web" ? (
-        <ShakaVideo uri="https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8" />
+        <ShakaVideo
+          uri="https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8"
+          videoRef={videoRef}
+        />
       ) : (
         <VideoView
           style={styles.video as ViewStyle}
