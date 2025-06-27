@@ -8,7 +8,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { JSX } from "react/jsx-runtime";
-import { Platform, StyleSheet } from "react-native";
+import { Platform, StyleSheet, type ViewStyle } from "react-native";
 import type * as shakaNamespace from "shaka-player/dist/shaka-player.compiled.js";
 
 export interface ShakaVideoProps {
@@ -110,7 +110,11 @@ export default function ShakaVideo({
   );
 }
 
-const styles = StyleSheet.create({
+interface Styles {
+  readonly video: ViewStyle;
+}
+
+const styles: StyleSheet.NamedStyles<Styles> = StyleSheet.create<Styles>({
   video: {
     // Position the video absolutely so that it layers above any
     // placeholders such as the application icon. This mirrors the
