@@ -8,7 +8,7 @@
 
 import type { JSX } from "react";
 import React, { useEffect, useRef } from "react";
-import { Platform, StyleSheet, type ViewStyle } from "react-native";
+import { StyleSheet, type ViewStyle } from "react-native";
 import type * as shakaNamespace from "shaka-player/dist/shaka-player.compiled.js";
 
 export interface ShakaVideoProps {
@@ -22,11 +22,6 @@ export default function ShakaVideo({
     useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
-    // Only initialize the Shaka Player on web
-    if (Platform.OS !== "web") {
-      return;
-    }
-
     const video: HTMLVideoElement | null = videoRef.current;
     if (!video) {
       return;
@@ -67,11 +62,6 @@ export default function ShakaVideo({
       }
     };
   }, [uri]);
-
-  // Only render the video on web
-  if (Platform.OS !== "web") {
-    return null;
-  }
 
   const handleToggle = (): void => {
     // The video element is attached to the player, so we can use it directly
