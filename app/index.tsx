@@ -8,14 +8,15 @@
 
 import type { VideoPlayer } from "expo-video";
 import { useVideoPlayer, VideoView } from "expo-video";
-import React, { useRef } from "react";
+import React from "react";
 import { JSX } from "react/jsx-runtime";
 import {
+  type GestureResponderEvent,
   Image,
   type ImageStyle,
   Platform,
-  Pressable,
   StyleSheet,
+  View,
   type ViewStyle,
 } from "react-native";
 
@@ -31,47 +32,22 @@ export default function HomeScreen(): JSX.Element {
       void instance.play();
     },
   );
-  const videoRef: React.RefObject<HTMLVideoElement | null> =
-    useRef<HTMLVideoElement | null>(null);
-
-  const handleToggle = (): void => {
-    if (Platform.OS === "web") {
-      const video: HTMLVideoElement | null = videoRef.current;
-      if (video && video.paused) {
-        void video.play().catch(() => {
-          // Ignore playback errors triggered before user interaction
-        });
-      }
-
-      const root: HTMLElement = document.documentElement;
-      if (!document.fullscreenElement) {
-        void root.requestFullscreen().catch(() => {
-          // Ignore errors during fullscreen request
-        });
-      } else {
-        void document.exitFullscreen().catch(() => {
-          // Ignore errors during fullscreen exit
-        });
-      }
-    } else {
-      if (!player.playing) {
-        void player.play();
-      }
+  const handleTouchStart = (event: GestureResponderEvent): void => {
+    event.preventDefault();
+    if (!player.playing) {
+      void player.play();
     }
   };
 
   return (
-    <Pressable style={styles.container as ViewStyle} onPress={handleToggle}>
+    <View style={styles.container as ViewStyle} onTouchStart={handleTouchStart}>
       <Image
         source={require("@/assets/images/icon.png")}
         resizeMode="contain"
         style={styles.icon as ImageStyle}
       />
       {Platform.OS === "web" ? (
-        <ShakaVideo
-          uri="https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8"
-          videoRef={videoRef}
-        />
+        <ShakaVideo uri="https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8" />
       ) : (
         <VideoView
           style={styles.video as ViewStyle}
@@ -80,7 +56,7 @@ export default function HomeScreen(): JSX.Element {
           nativeControls={false}
         />
       )}
-    </Pressable>
+    </View>
   );
 }
 
