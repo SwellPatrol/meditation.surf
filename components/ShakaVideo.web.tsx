@@ -9,10 +9,12 @@
 import type { JSX } from "react";
 import React, { useEffect, useRef } from "react";
 import { StyleSheet, type ViewStyle } from "react-native";
-import type * as shakaNamespace from "shaka-player/shaka-player.uncompiled.js";
+import type * as shakaNamespace from "shaka-player/dist/shaka-player.ui.js";
 
-// Constant identifying the Shaka Player module to dynamically import
-const SHAKA_PLAYER_MODULE: string = "shaka-player/shaka-player.uncompiled.js";
+// Constant identifying the Shaka Player module to dynamically import. The
+// compiled build is bundled with the Closure library so we avoid runtime
+// errors from missing `goog` references.
+const SHAKA_PLAYER_MODULE: string = "shaka-player/dist/shaka-player.ui.js";
 
 export interface ShakaVideoProps {
   readonly uri: string;
@@ -32,9 +34,9 @@ export default function ShakaVideo({
 
     let player: shakaNamespace.Player | null = null;
 
-    // Dynamically load the uncompiled Shaka Player to ensure compatibility
-    // with the latest React Native runtime. The compiled build targets older
-    // JavaScript environments and can trigger version mismatch warnings.
+    // Dynamically load the compiled Shaka Player which bundles the Closure
+    // library. This avoids runtime errors from missing globals and maintains
+    // compatibility with modern JavaScript runtimes.
     void import(SHAKA_PLAYER_MODULE)
       .then((shaka: typeof shakaNamespace) => {
         // Create the Shaka Player without attaching it to a media element.
