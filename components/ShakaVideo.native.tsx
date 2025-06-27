@@ -27,7 +27,7 @@ export default function ShakaVideo({ uri }: ShakaVideoProps): JSX.Element {
     <VideoView
       player={player}
       style={styles.video as ViewStyle}
-      nativeControls
+      nativeControls={false}
       allowsFullscreen
       contentFit="cover"
     />
