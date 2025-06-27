@@ -101,7 +101,7 @@ export default function ShakaVideo({
   return (
     <video
       ref={videoRef}
-      style={styles.video}
+      style={styles.video as React.CSSProperties}
       autoPlay
       loop
       muted
@@ -110,8 +110,12 @@ export default function ShakaVideo({
   );
 }
 
+interface VideoStyle extends ViewStyle {
+  readonly objectFit?: React.CSSProperties["objectFit"];
+}
+
 interface Styles {
-  readonly video: ViewStyle;
+  readonly video: VideoStyle;
 }
 
 const styles: StyleSheet.NamedStyles<Styles> = StyleSheet.create<Styles>({
