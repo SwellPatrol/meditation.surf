@@ -11,12 +11,11 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import React, { useRef } from "react";
 import { JSX } from "react/jsx-runtime";
 import {
-  type GestureResponderEvent,
   Image,
   type ImageStyle,
   Platform,
+  Pressable,
   StyleSheet,
-  View,
   type ViewStyle,
 } from "react-native";
 
@@ -35,9 +34,7 @@ export default function HomeScreen(): JSX.Element {
   const videoRef: React.RefObject<HTMLVideoElement | null> =
     useRef<HTMLVideoElement | null>(null);
 
-  const handleToggle = (event: GestureResponderEvent): void => {
-    event.preventDefault();
-
+  const handleToggle = (): void => {
     if (Platform.OS === "web") {
       const video: HTMLVideoElement | null = videoRef.current;
       if (video && video.paused) {
@@ -64,7 +61,7 @@ export default function HomeScreen(): JSX.Element {
   };
 
   return (
-    <View style={styles.container as ViewStyle} onTouchStart={handleToggle}>
+    <Pressable style={styles.container as ViewStyle} onPress={handleToggle}>
       <Image
         source={require("@/assets/images/icon.png")}
         resizeMode="contain"
@@ -83,7 +80,7 @@ export default function HomeScreen(): JSX.Element {
           nativeControls={false}
         />
       )}
-    </View>
+    </Pressable>
   );
 }
 
