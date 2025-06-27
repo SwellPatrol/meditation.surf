@@ -9,7 +9,7 @@
 import type { JSX } from "react";
 import React, { useEffect, useRef } from "react";
 import { StyleSheet, type ViewStyle } from "react-native";
-import type * as shakaNamespace from "shaka-player/dist/shaka-player.compiled.js";
+import type * as shakaNamespace from "shaka-player/shaka-player.uncompiled.js";
 
 export interface ShakaVideoProps {
   readonly uri: string;
