@@ -29,7 +29,15 @@
   <body>
     <video id="video" autoplay muted loop></video>
     <script type="module">
+      /*
+       * Dynamically load Shaka Player from the installed npm package. When the
+       * native WebView finishes loading, the React component calls the global
+       * `initializePlayer()` function defined here.
+       */
       import("shaka-player/dist/shaka-player.ui.js");
+
+      // Attach Shaka Player to the <video> element and begin playback of the
+      // provided URI.
       window.initializePlayer = async function (uri) {
         const video = document.getElementById("video");
         const player = new shaka.Player(video);
