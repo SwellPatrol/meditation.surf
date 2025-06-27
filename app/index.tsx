@@ -9,6 +9,7 @@
 import type { JSX } from "react";
 import React from "react";
 import {
+  type DimensionValue,
   Image,
   type ImageStyle,
   StyleSheet,
@@ -17,6 +18,14 @@ import {
 } from "react-native";
 
 import ShakaVideo from "@/components/ShakaVideo";
+
+// Ensure the container always fills the viewport, even when browser UI
+// elements like the address bar dynamically show or hide. Use `dvh` units
+// so the value adjusts with viewport changes.
+//
+// NOTE: React Native's `DimensionValue` type does not include the new
+// `dvh` unit. Cast the value explicitly so TypeScript accepts it.
+const FULL_VIEWPORT_HEIGHT: string = "100dvh";
 
 export default function HomeScreen(): JSX.Element {
   return (
@@ -39,10 +48,7 @@ interface Styles {
 const styles: StyleSheet.NamedStyles<Styles> = StyleSheet.create<Styles>({
   container: {
     flex: 1,
-    // Ensure the container always fills the viewport, even when browser
-    // UI elements like the address bar dynamically show or hide.
-    // Use `dvh` units so the value adjusts with viewport changes.
-    minHeight: "100dvh",
+    minHeight: FULL_VIEWPORT_HEIGHT as unknown as DimensionValue,
     backgroundColor: "#000000",
     justifyContent: "center",
     alignItems: "center",
