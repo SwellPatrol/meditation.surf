@@ -6,21 +6,20 @@
  * See the file LICENSE.txt for more information.
  */
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import { JSX } from "react/jsx-runtime";
 import { Platform, StyleSheet } from "react-native";
 import type * as shakaNamespace from "shaka-player/dist/shaka-player.compiled.js";
 
 export interface ShakaVideoProps {
   readonly uri: string;
+  readonly videoRef: React.RefObject<HTMLVideoElement | null>;
 }
 
 export default function ShakaVideo({
   uri,
+  videoRef,
 }: ShakaVideoProps): JSX.Element | null {
-  const videoRef: React.RefObject<HTMLVideoElement | null> =
-    useRef<HTMLVideoElement | null>(null);
-
   useEffect(() => {
     if (Platform.OS !== "web") {
       return;
@@ -61,26 +60,13 @@ export default function ShakaVideo({
         void player.destroy();
       }
     };
-  }, [uri]);
+  }, [uri, videoRef]);
 
   if (Platform.OS !== "web") {
     return null;
   }
 
-  return (
-    <video
-      ref={videoRef}
-      style={styles.video}
-      autoPlay
-      loop
-      muted
-      onClick={(): void => {
-        videoRef.current?.play().catch(() => {
-          // Ignore playback errors triggered before user interaction
-        });
-      }}
-    />
-  );
+  return <video ref={videoRef} style={styles.video} autoPlay loop muted />;
 }
 
 const styles = StyleSheet.create({
