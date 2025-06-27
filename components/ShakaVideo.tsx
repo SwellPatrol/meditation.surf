@@ -110,6 +110,12 @@ export default function ShakaVideo({
   );
 }
 
+// Extend the built-in React Native `ViewStyle` interface with web-only
+// properties used by the underlying `<video>` element. React Native's
+// style declarations do not include the `objectFit` property since it is
+// not supported on native platforms. However, the CSS `object-fit` rule is
+// required on web to ensure the video covers its container. Adding the
+// property here allows TypeScript to type-check the style object.
 interface VideoStyle extends ViewStyle {
   readonly objectFit?: React.CSSProperties["objectFit"];
 }
