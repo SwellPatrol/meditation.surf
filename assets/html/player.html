@@ -1,0 +1,53 @@
+<!--
+  Copyright (C) 2025 Garrett Brown
+  This file is part of meditation.surf - https://github.com/eigendude/meditation.surf
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+  See the file LICENSE.txt for more information.
+-->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Shaka Player</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #000;
+        width: 100%;
+        height: 100%;
+      }
+      video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+    </style>
+  </head>
+  <body>
+    <video id="video" autoplay muted loop></video>
+    <script type="module">
+      /*
+       * Dynamically load Shaka Player from the installed npm package. When the
+       * native WebView finishes loading, the React component calls the global
+       * `initializePlayer()` function defined here.
+       */
+      import("shaka-player/dist/shaka-player.ui.js");
+
+      // Attach Shaka Player to the <video> element and begin playback of the
+      // provided URI.
+      window.initializePlayer = async function (uri) {
+        const video = document.getElementById("video");
+        const player = new shaka.Player(video);
+        await player.load(uri);
+        try {
+          await video.play();
+        } catch (e) {
+          console.error("Playback error", e);
+        }
+      };
+    </script>
+  </body>
+</html>
