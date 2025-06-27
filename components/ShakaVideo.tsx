@@ -6,8 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { JSX } from "react";
 import React, { useEffect, useRef } from "react";
-import { JSX } from "react/jsx-runtime";
 import { Platform, StyleSheet, type ViewStyle } from "react-native";
 import type * as shakaNamespace from "shaka-player/dist/shaka-player.compiled.js";
 

@@ -6,8 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { JSX } from "react";
 import React from "react";
-import { JSX } from "react/jsx-runtime";
 import {
   Image,
   type ImageStyle,
