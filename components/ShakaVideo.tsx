@@ -67,6 +67,30 @@ export default function ShakaVideo({
     return null;
   }
 
+  const handleToggle = (): void => {
+    const video: HTMLVideoElement | null = videoRef.current;
+    if (!video) {
+      return;
+    }
+
+    if (video.paused) {
+      void video.play().catch(() => {
+        // Ignore playback errors triggered before user interaction
+      });
+    }
+
+    const root: HTMLElement = document.documentElement;
+    if (!document.fullscreenElement) {
+      void root.requestFullscreen().catch(() => {
+        // Ignore errors during fullscreen request
+      });
+    } else {
+      void document.exitFullscreen().catch(() => {
+        // Ignore errors during fullscreen exit
+      });
+    }
+  };
+
   return (
     <video
       ref={videoRef}
@@ -74,11 +98,7 @@ export default function ShakaVideo({
       autoPlay
       loop
       muted
-      onClick={(): void => {
-        videoRef.current?.play().catch(() => {
-          // Ignore playback errors triggered before user interaction
-        });
-      }}
+      onClick={handleToggle}
     />
   );
 }

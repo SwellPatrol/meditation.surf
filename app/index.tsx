@@ -34,7 +34,9 @@ export default function HomeScreen(): JSX.Element {
   );
   const handleTouchStart = (event: GestureResponderEvent): void => {
     event.preventDefault();
-    void player.play();
+    if (!player.playing) {
+      void player.play();
+    }
   };
 
   return (
