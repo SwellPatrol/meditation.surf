@@ -19,6 +19,13 @@ import {
 
 import ShakaVideo from "@/components/ShakaVideo";
 
+// Path to the application icon displayed while the video loads
+const APP_ICON_PATH: string = "@/assets/images/icon-1500x1500.png";
+
+// URL for the sample surfing video stream
+const VIDEO_HLS_STREAM: string =
+  "https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8";
+
 // Ensure the container always fills the viewport, even when browser UI
 // elements like the address bar dynamically show or hide. Use `dvh` units
 // so the value adjusts with viewport changes.
@@ -31,11 +38,11 @@ export default function HomeScreen(): JSX.Element {
   return (
     <View style={styles.container as ViewStyle}>
       <Image
-        source={require("@/assets/images/icon-1500x1500.png")}
+        source={require(APP_ICON_PATH)}
         resizeMode="contain"
         style={styles.icon as ImageStyle}
       />
-      <ShakaVideo uri="https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8" />
+      <ShakaVideo uri={VIDEO_HLS_STREAM} />
     </View>
   );
 }
