@@ -22,6 +22,7 @@ export default function ShakaVideo({
     useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
+    // Only initialize the Shaka Player on web
     if (Platform.OS !== "web") {
       return;
     }
@@ -45,48 +46,54 @@ export default function ShakaVideo({
       .then(() => {
         // Load the media once the player has been attached to the element and
         // begin playback.
-        return player!.load(uri).then(() => {
-          return video.play().catch(() => {
+        return player!.load(uri).then((): Promise<void> => {
+          return video.play().catch((error: Error): void => {
             // Safely ignore autoplay errors which often occur on iOS
             // if the user hasn't interacted with the page yet.
+            console.error("Autoplay error", error);
           });
         });
       })
-      .catch((error: Error) => {
+      .catch((error: Error): void => {
         console.error("Shaka Player error", error);
       });
 
-    return () => {
+    return (): void => {
       if (player) {
         void player.destroy();
       }
     };
   }, [uri]);
 
+  // Only render the video on web
   if (Platform.OS !== "web") {
     return null;
   }
 
   const handleToggle = (): void => {
+    // The video element is attached to the player, so we can use it directly
     const video: HTMLVideoElement | null = videoRef.current;
     if (!video) {
       return;
     }
 
     if (video.paused) {
-      void video.play().catch(() => {
+      void video.play().catch((error: Error): void => {
         // Ignore playback errors triggered before user interaction
+        console.error("Playback error", error);
       });
     }
 
     const root: HTMLElement = document.documentElement;
     if (!document.fullscreenElement) {
-      void root.requestFullscreen().catch(() => {
+      void root.requestFullscreen().catch((error: Error): void => {
         // Ignore errors during fullscreen request
+        console.error("Fullscreen error", error);
       });
     } else {
-      void document.exitFullscreen().catch(() => {
+      void document.exitFullscreen().catch((error: Error): void => {
         // Ignore errors during fullscreen exit
+        console.error("Fullscreen exit error", error);
       });
     }
   };
