@@ -9,8 +9,8 @@
 import { useVideoPlayer, VideoView } from "expo-video";
 import type { VideoPlayer } from "expo-video/build/VideoPlayer.types";
 import type { JSX } from "react";
-import React, { useEffect } from "react";
-import { StyleSheet, type ViewStyle } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Pressable, StyleSheet, type ViewStyle } from "react-native";
 
 export interface ShakaVideoProps {
   readonly uri: string;
@@ -18,19 +18,29 @@ export interface ShakaVideoProps {
 
 export default function ShakaVideo({ uri }: ShakaVideoProps): JSX.Element {
   const player: VideoPlayer = useVideoPlayer({ uri });
+  const [showControls, setShowControls]: [
+    boolean,
+    React.Dispatch<React.SetStateAction<boolean>>,
+  ] = useState<boolean>(false);
 
   useEffect(() => {
     void player.play();
   }, [player]);
 
+  const toggleControls = (): void => {
+    setShowControls((visible: boolean): boolean => !visible);
+  };
+
   return (
-    <VideoView
-      player={player}
-      style={styles.video as ViewStyle}
-      nativeControls={false}
-      allowsFullscreen
-      contentFit="cover"
-    />
+    <Pressable style={styles.video as ViewStyle} onPress={toggleControls}>
+      <VideoView
+        player={player}
+        style={StyleSheet.absoluteFill as ViewStyle}
+        nativeControls={showControls}
+        allowsFullscreen
+        contentFit="cover"
+      />
+    </Pressable>
   );
 }
 
