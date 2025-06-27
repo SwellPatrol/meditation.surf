@@ -6,52 +6,39 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { useVideoPlayer, VideoView } from "expo-video";
-import type { VideoPlayer } from "expo-video/build/VideoPlayer.types";
+import { Asset } from "expo-asset";
 import type { JSX } from "react";
-import React, { useEffect, useState } from "react";
-import { Pressable, StyleSheet, type ViewStyle } from "react-native";
+import React from "react";
+import { StyleSheet, type ViewStyle } from "react-native";
+import { WebView } from "react-native-webview";
 
 export interface ShakaVideoProps {
   readonly uri: string;
 }
 
 export default function ShakaVideo({ uri }: ShakaVideoProps): JSX.Element {
-  const player: VideoPlayer = useVideoPlayer({ uri });
-  const [showControls, setShowControls]: [
-    boolean,
-    React.Dispatch<React.SetStateAction<boolean>>,
-  ] = useState<boolean>(false);
-
-  useEffect(() => {
-    void player.play();
-  }, [player]);
-
-  const toggleControls = (): void => {
-    setShowControls((visible: boolean): boolean => !visible);
-  };
-
+  const assetUri: string = Asset.fromModule(
+    require("../assets/html/player.html"),
+  ).uri;
+  const sourceUri: string = `${assetUri}?uri=${encodeURIComponent(uri)}`;
   return (
-    <Pressable style={styles.video as ViewStyle} onPress={toggleControls}>
-      <VideoView
-        player={player}
-        style={StyleSheet.absoluteFill as ViewStyle}
-        nativeControls={showControls}
-        allowsFullscreen
-        contentFit="cover"
-      />
-    </Pressable>
+    <WebView
+      style={styles.webview as ViewStyle}
+      allowsFullscreenVideo
+      allowsInlineMediaPlayback
+      mediaPlaybackRequiresUserAction={false}
+      originWhitelist={["*"]}
+      source={{ uri: sourceUri }}
+    />
   );
 }
 
 interface Styles {
-  readonly video: ViewStyle;
+  readonly webview: ViewStyle;
 }
 
 const styles: StyleSheet.NamedStyles<Styles> = StyleSheet.create<Styles>({
-  video: {
-    // Position the video absolutely so that it layers above any placeholders,
-    // mirroring the behavior of the web <video> element.
+  webview: {
     ...StyleSheet.absoluteFillObject,
     width: "100%",
     height: "100%",

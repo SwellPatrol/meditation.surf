@@ -60,6 +60,7 @@
   },
   "dependencies": {
     "expo": "^53.0.13",
+    "expo-asset": "~11.1.5",
     "expo-router": "^5.1.1",
     "expo-splash-screen": "^0.30.9",
     "expo-video": "^2.2.2",
@@ -67,6 +68,7 @@
     "react-dom": "19.0.0",
     "react-native": "^0.79.4",
     "react-native-web": "^0.20.0",
+    "react-native-webview": "13.13.5",
     "shaka-player": "^4.15.4"
   },
   "devDependencies": {
