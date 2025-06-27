@@ -6,20 +6,21 @@
  * See the file LICENSE.txt for more information.
  */
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { JSX } from "react/jsx-runtime";
 import { Platform, StyleSheet } from "react-native";
 import type * as shakaNamespace from "shaka-player/dist/shaka-player.compiled.js";
 
 export interface ShakaVideoProps {
   readonly uri: string;
-  readonly videoRef: React.RefObject<HTMLVideoElement | null>;
 }
 
 export default function ShakaVideo({
   uri,
-  videoRef,
 }: ShakaVideoProps): JSX.Element | null {
+  const videoRef: React.RefObject<HTMLVideoElement | null> =
+    useRef<HTMLVideoElement | null>(null);
+
   useEffect(() => {
     if (Platform.OS !== "web") {
       return;
@@ -60,13 +61,46 @@ export default function ShakaVideo({
         void player.destroy();
       }
     };
-  }, [uri, videoRef]);
+  }, [uri]);
 
   if (Platform.OS !== "web") {
     return null;
   }
 
-  return <video ref={videoRef} style={styles.video} autoPlay loop muted />;
+  const handleToggle = (): void => {
+    const video: HTMLVideoElement | null = videoRef.current;
+    if (!video) {
+      return;
+    }
+
+    if (video.paused) {
+      void video.play().catch(() => {
+        // Ignore playback errors triggered before user interaction
+      });
+    }
+
+    const root: HTMLElement = document.documentElement;
+    if (!document.fullscreenElement) {
+      void root.requestFullscreen().catch(() => {
+        // Ignore errors during fullscreen request
+      });
+    } else {
+      void document.exitFullscreen().catch(() => {
+        // Ignore errors during fullscreen exit
+      });
+    }
+  };
+
+  return (
+    <video
+      ref={videoRef}
+      style={styles.video}
+      autoPlay
+      loop
+      muted
+      onClick={handleToggle}
+    />
+  );
 }
 
 const styles = StyleSheet.create({
