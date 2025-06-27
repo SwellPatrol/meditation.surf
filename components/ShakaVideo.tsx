@@ -34,7 +34,10 @@ export default function ShakaVideo({
 
     let player: shakaNamespace.Player | null = null;
 
-    void import("shaka-player/dist/shaka-player.compiled.js")
+    // Dynamically load the uncompiled Shaka Player to ensure compatibility
+    // with the latest React Native runtime. The compiled build targets older
+    // JavaScript environments and can trigger version mismatch warnings.
+    void import("shaka-player/shaka-player.uncompiled.js")
       .then((shaka: typeof shakaNamespace) => {
         // Create the Shaka Player without attaching it to a media element.
         player = new shaka.Player();
