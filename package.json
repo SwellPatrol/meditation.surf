@@ -65,7 +65,7 @@
     "expo-video": "^2.2.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-native": "^0.80.0",
+    "react-native": "^0.79.4",
     "react-native-web": "^0.20.0",
     "shaka-player": "^4.15.4"
   },
