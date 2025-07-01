@@ -10,7 +10,7 @@ import type { JSX } from "react";
 import React from "react";
 import { StyleSheet, View, type ViewStyle } from "react-native";
 
-import BundledWebView from "@/components/BundledWebView";
+import BundledWebView from "../components/BundledWebView";
 
 export default function WebviewScreen(): JSX.Element {
   return (
