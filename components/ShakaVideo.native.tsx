@@ -6,41 +6,42 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { useVideoPlayer, VideoView } from "expo-video";
-import type { VideoPlayer } from "expo-video/build/VideoPlayer.types";
 import type { JSX } from "react";
-import React, { useEffect } from "react";
+import React from "react";
 import { StyleSheet, type ViewStyle } from "react-native";
+import { WebView } from "react-native-webview";
+
+/** Path to the bundled web build used inside the WebView. */
+const BUNDLED_HTML_PATH: number = require("../webview/index.html");
 
 export interface ShakaVideoProps {
   readonly uri: string;
 }
 
-export default function ShakaVideo({ uri }: ShakaVideoProps): JSX.Element {
-  const player: VideoPlayer = useVideoPlayer({ uri });
-
-  useEffect(() => {
-    void player.play();
-  }, [player]);
-
+export default function ShakaVideo({
+  uri: _uri,
+}: ShakaVideoProps): JSX.Element {
+  // The native implementation reuses the web build via a WebView so that
+  // Shaka Player can be used consistently across platforms. The bundled
+  // HTML does not currently accept the URI, so the prop is ignored.
+  void _uri;
   return (
-    <VideoView
-      player={player}
-      style={styles.video as ViewStyle}
-      nativeControls={false}
-      allowsFullscreen
-      contentFit="cover"
+    <WebView
+      originWhitelist={["*"]}
+      source={BUNDLED_HTML_PATH}
+      style={styles.webview as ViewStyle}
+      allowsFullscreenVideo
     />
   );
 }
 
 interface Styles {
-  readonly video: ViewStyle;
+  readonly webview: ViewStyle;
 }
 
 const styles: StyleSheet.NamedStyles<Styles> = StyleSheet.create<Styles>({
-  video: {
-    // Position the video absolutely so that it layers above any placeholders,
+  webview: {
+    // Position the WebView absolutely so that it layers above any placeholders,
     // mirroring the behavior of the web <video> element.
     ...StyleSheet.absoluteFillObject,
     width: "100%",
