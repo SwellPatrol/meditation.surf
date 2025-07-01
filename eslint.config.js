@@ -79,6 +79,6 @@ export default defineConfig([
 
   // Ignore build output and lockfiles
   {
-    ignores: ["dist", "node_modules", "pnpm-lock.yaml"],
+    ignores: ["dist", "webview", "node_modules", "pnpm-lock.yaml"],
   },
 ]);
