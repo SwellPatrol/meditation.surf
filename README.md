@@ -47,6 +47,18 @@ pnpm start
 pnpm build
 ```
 
+### Build the WebView bundle for native platforms
+
+When running on iOS or Android, the video player is rendered inside a
+`WebView`. The HTML bundle is generated with:
+
+```bash
+pnpm build:webview
+```
+
+The output is placed in the `webview` directory and loaded by the native
+`WebView` component during runtime.
+
 In the output, you'll find options to open the app:
 
 - [development build](https://docs.expo.dev/develop/development-builds/introduction/)
