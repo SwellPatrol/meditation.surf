@@ -17,10 +17,8 @@ import {
   type ViewStyle,
 } from "react-native";
 
+import appIcon from "@/assets/images/icon-1500x1500.png";
 import ShakaVideo from "@/components/ShakaVideo";
-
-// Path to the application icon displayed while the video loads
-const APP_ICON_PATH: string = "@/assets/images/icon-1500x1500.png";
 
 // URL for the sample surfing video stream
 const VIDEO_HLS_STREAM: string =
@@ -38,7 +36,7 @@ export default function HomeScreen(): JSX.Element {
   return (
     <View style={styles.container as ViewStyle}>
       <Image
-        source={require(APP_ICON_PATH)}
+        source={appIcon}
         resizeMode="contain"
         style={styles.icon as ImageStyle}
       />
