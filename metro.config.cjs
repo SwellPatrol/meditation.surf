@@ -16,4 +16,25 @@ const config = getDefaultConfig(__dirname);
 // Treat `.html` files as assets so the WebView can load the bundled build.
 config.resolver.assetExts.push("html");
 
+// Ensure that React's new JSX runtime can be resolved correctly in Metro.
+// Metro doesn't fully support the `exports` field used by React yet. Explicit
+// paths guarantee that modules like `react/jsx-runtime` resolve without errors
+// during static rendering.
+config.resolver.extraNodeModules = {
+  "react/jsx-runtime": require.resolve("react/jsx-runtime"),
+  "react/jsx-dev-runtime": require.resolve("react/jsx-dev-runtime"),
+  // React Native Web depends on this package, but Metro occasionally
+  // fails to locate it when using pnpm's symlinked node_modules
+  // structure. Explicitly mapping the module ensures resolution
+  // succeeds during static rendering.
+  "@react-native/normalize-colors": require.resolve(
+    "@react-native/normalize-colors",
+  ),
+};
+
+// Enable Node's "exports" field handling for packages that support it. This is
+// marked unstable in Metro but required for modern modules that rely on
+// subpath exports.
+config.resolver.unstable_enablePackageExportsResolution = true;
+
 module.exports = config;
