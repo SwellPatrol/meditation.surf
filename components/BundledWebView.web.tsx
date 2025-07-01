@@ -7,18 +7,11 @@
  */
 
 import type { JSX } from "react";
-import React from "react";
-import { Platform } from "react-native";
-
-import Native from "./BundledWebView.native";
 
 /**
- * Cross-platform wrapper that renders the bundled WebView on native
- * platforms and returns null on the web.
+ * Web-only shim that renders nothing. The native implementation is provided
+ * in `BundledWebView.native.tsx`.
  */
 export default function BundledWebView(): JSX.Element | null {
-  if (Platform.OS === "web") {
-    return null;
-  }
-  return <Native />;
+  return null;
 }
