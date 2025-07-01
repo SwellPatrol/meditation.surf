@@ -10,7 +10,8 @@ Before committing or opening a pull request, run the following commands and ensu
 pnpm lint:prettier
 pnpm lint:eslint
 pnpm lint:expo
-pnpm build
+pnpm build:web
+pnpm build:webview
 ```
 
 Use `pnpm format` to automatically fix formatting issues, which often helps
