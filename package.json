@@ -44,6 +44,7 @@
     "audit-ci": "audit-ci --config audit-ci.json",
     "build": "pnpm build:web",
     "build:web": "expo export --platform web && cp -r public/* dist/",
+    "build:webview": "expo export --platform web --output-dir webview && cp -r public/* webview/",
     "clean": "rm -rf .expo dist node_modules",
     "deploy": "pnpm build && gh-pages --branch main --repo git@github.com-eigendude:SwellPatrol/swellpatrol.github.io.git --dist dist --dotfiles",
     "format": "pnpm format:prettier && pnpm format:eslint",
@@ -59,14 +60,14 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "expo": "^53.0.13",
-    "expo-router": "^5.1.1",
+    "expo": "53.0.15",
+    "expo-router": "~5.1.2",
     "expo-splash-screen": "^0.30.9",
-    "expo-video": "^2.2.2",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "^0.79.4",
     "react-native-web": "^0.20.0",
+    "react-native-webview": "13.13.5",
     "shaka-player": "^4.15.4"
   },
   "devDependencies": {
