@@ -23,6 +23,13 @@ config.resolver.assetExts.push("html");
 config.resolver.extraNodeModules = {
   "react/jsx-runtime": require.resolve("react/jsx-runtime"),
   "react/jsx-dev-runtime": require.resolve("react/jsx-dev-runtime"),
+  // React Native Web depends on this package, but Metro occasionally
+  // fails to locate it when using pnpm's symlinked node_modules
+  // structure. Explicitly mapping the module ensures resolution
+  // succeeds during static rendering.
+  "@react-native/normalize-colors": require.resolve(
+    "@react-native/normalize-colors",
+  ),
 };
 
 // Enable Node's "exports" field handling for packages that support it. This is

@@ -11,6 +11,9 @@ importers:
 
   .:
     dependencies:
+      '@react-native/normalize-colors':
+        specifier: 0.79.4
+        version: 0.79.4
       expo:
         specifier: ^53.0.13
         version: 53.0.15(@babel/core@7.27.7)(@expo/metro-runtime@5.0.4(react-native@0.79.4(@babel/core@7.27.7)(@types/react@19.0.14)(react@19.0.0)))(react-native-webview@13.13.5(react-native@0.79.4(@babel/core@7.27.7)(@types/react@19.0.14)(react@19.0.0))(react@19.0.0))(react-native@0.79.4(@babel/core@7.27.7)(@types/react@19.0.14)(react@19.0.0))(react@19.0.0)
@@ -3436,7 +3439,6 @@ packages:
 
   shaka-player@4.15.5:
     resolution: {integrity: sha512-WkL5A2VeRmZS9yZCGgXuyE4yWIbv9y296OKwZL7WXB1N1lVL0sX5iu1uNQPturm6IM58OagiQ4IEOi9X0eQLaQ==}
-    engines: {node: '>=18'}
 
   shallowequal@1.1.0:
     resolution: {integrity: sha512-y0m1JoUZSlPAjXVtPPW70aZWfIL/dSP7AFkRnniLCrK/8MDKog3TySTBmckD+RObVxH0v4Tox67+F14PdED2oQ==}
