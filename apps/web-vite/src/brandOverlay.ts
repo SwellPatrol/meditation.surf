@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { applyBrandOverlayImageSize } from "@meditation-surf/core";
+import { applyBrandOverlayImageSize } from "@meditation-surf/core/brand/web";
 
 /**
  * Keep the overlay icon centered and sized from the shared viewport policy.

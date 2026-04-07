@@ -7,10 +7,8 @@
  */
 
 import Blits from "@lightningjs/blits";
-import {
-  BRAND_OVERLAY_ICON_URL,
-  getBrandOverlayIconSize,
-} from "@meditation-surf/core";
+import { getBrandOverlayIconSize } from "@meditation-surf/core";
+import { BRAND_OVERLAY_ICON_URL } from "@meditation-surf/core/brand/web";
 
 import { getStageCompensatedIconSize } from "../../app/layout/icon";
 

@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { BRAND_OVERLAY_ICON_URL } from "@meditation-surf/core";
+import { BRAND_OVERLAY_ICON_URL } from "@meditation-surf/core/brand/web";
 
 export type WebAppShell = {
   backgroundVideoElement: HTMLVideoElement;
