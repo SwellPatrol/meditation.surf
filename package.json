@@ -5,11 +5,11 @@
   "description": "Stunning surf cinematography from SwellPatrol",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/eigendude/meditation.surf.git"
+    "url": "git+https://github.com/SwellPatrol/meditation.surf.git"
   },
   "homepage": "https://meditation.surf",
   "bugs": {
-    "url": "https://github.com/eigendude/meditation.surf/issues"
+    "url": "https://github.com/SwellPatrol/meditation.surf/issues"
   },
   "author": "Garrett Brown <eigendebugger@gmail.com>",
   "license": "AGPL-3.0-or-later",
