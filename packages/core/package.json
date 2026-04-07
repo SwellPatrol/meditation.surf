@@ -1,0 +1,12 @@
+{
+  "name": "@meditation-surf/core",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@meditation-surf/player-core": "workspace:*"
+  }
+}

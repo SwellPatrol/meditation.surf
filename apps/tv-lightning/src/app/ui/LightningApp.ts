@@ -7,14 +7,16 @@
  */
 
 import Blits from "@lightningjs/blits";
+import {
+  type AppCatalog,
+  type CatalogCategory,
+  DemoCatalogClient,
+  type MediaContent,
+} from "@meditation-surf/core";
 
 import AudioToggle from "../../components/audio/AudioToggle";
 import Icon from "../../components/common/Icon";
-import videoPlayerState from "../state/VideoPlayerState";
-
-// URL of the demo video used for testing playback
-export const DEMO_URL: string =
-  "https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8";
+import lightningPlaybackController from "../playback/LightningPlaybackController";
 
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
@@ -22,6 +24,24 @@ type LightningAppFactory = ReturnType<typeof Blits.Application>;
 // Fixed design resolution for a TV-only Lightning experience
 export const LIGHTNING_APP_WIDTH: number = 1920;
 export const LIGHTNING_APP_HEIGHT: number = 1080;
+const catalogClient: DemoCatalogClient = new DemoCatalogClient();
+
+/**
+ * Load the shared demo catalog and start the featured item.
+ * The TV app stays responsible for presentation and playback timing.
+ */
+async function playFeaturedContent(): Promise<void> {
+  const catalog: AppCatalog = await catalogClient.getCatalog();
+  const featuredCategory: CatalogCategory | undefined = catalog.categories[0];
+  const featuredItem: MediaContent | undefined = featuredCategory?.items[0];
+
+  if (featuredItem === undefined) {
+    return;
+  }
+
+  await lightningPlaybackController.load(featuredItem.playbackSource);
+  await lightningPlaybackController.play();
+}
 
 // Minimal LightningJS app displaying a full-screen video behind a UI
 const LightningApp: LightningAppFactory = Blits.Application({
@@ -49,8 +69,14 @@ const LightningApp: LightningAppFactory = Blits.Application({
      * UI lifecycle stays separate from media playback internals.
      */
     ready(): void {
-      videoPlayerState.initialize(LIGHTNING_APP_WIDTH, LIGHTNING_APP_HEIGHT);
-      videoPlayerState.playUrl(DEMO_URL);
+      lightningPlaybackController.setDisplayBounds(
+        0,
+        0,
+        LIGHTNING_APP_WIDTH,
+        LIGHTNING_APP_HEIGHT,
+      );
+      lightningPlaybackController.initialize();
+      void playFeaturedContent();
     },
   },
 

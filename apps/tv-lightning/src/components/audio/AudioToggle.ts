@@ -8,8 +8,8 @@
 
 import Blits from "@lightningjs/blits";
 
+import lightningPlaybackController from "../../app/playback/LightningPlaybackController";
 import AudioState from "../../app/state/AudioState";
-import videoPlayerState from "../../app/state/VideoPlayerState";
 
 // Type alias for the factory returned by Blits.Component
 type AudioToggleFactory = ReturnType<typeof Blits.Component>;
@@ -35,7 +35,7 @@ const AudioToggle: AudioToggleFactory = Blits.Component("AudioToggle", {
       // @ts-ignore `this` contains the reactive state provided at runtime
       const current: boolean = this.muted as boolean;
       const newMuted: boolean = !current;
-      videoPlayerState.setMuted(newMuted);
+      lightningPlaybackController.setMuted(newMuted);
       AudioState.setMuted(newMuted);
       // @ts-ignore update the reactive state
       this.muted = newMuted;

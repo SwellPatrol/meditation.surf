@@ -8,7 +8,7 @@
 
 import Blits from "@lightningjs/blits";
 
-import videoPlayerState from "../state/VideoPlayerState";
+import lightningPlaybackController from "../playback/LightningPlaybackController";
 import LightningApp from "../ui/LightningApp";
 import { LIGHTNING_APP_HEIGHT, LIGHTNING_APP_WIDTH } from "../ui/LightningApp";
 
@@ -64,7 +64,7 @@ function startApp(): void {
       canvas.style.zIndex = "1";
     }
 
-    videoPlayerState.setDisplayBounds(
+    lightningPlaybackController.setDisplayBounds(
       fittedStageBounds.left,
       fittedStageBounds.top,
       fittedStageBounds.width,

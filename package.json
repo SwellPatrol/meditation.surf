@@ -1,5 +1,5 @@
 {
-  "name": "meditation.surf",
+  "name": "@meditation-surf/workspace",
   "version": "1.0.0",
   "type": "module",
   "description": "Stunning surf cinematography from SwellPatrol",
@@ -13,6 +13,7 @@
   },
   "author": "Garrett Brown <eigendebugger@gmail.com>",
   "license": "AGPL-3.0-or-later",
+  "private": true,
   "engines": {
     "node": ">=22.0.0",
     "pnpm": ">=10.0.0"
@@ -39,22 +40,28 @@
   ],
   "scripts": {
     "audit-ci": "audit-ci --config audit-ci.json",
-    "build": "tsc && vite build",
-    "clean": "rm -rf dist node_modules",
-    "deploy": "pnpm build && gh-pages --branch main --repo git@github.com-eigendude:SwellPatrol/swellpatrol.github.io.git --dist dist --dotfiles",
-    "dev": "vite dev --host",
+    "build": "pnpm build:tsc && pnpm build:tv && pnpm build:m",
+    "build:m": "pnpm --dir apps/mobile-expo build",
+    "build:tsc": "tsc --project tsconfig.json",
+    "build:tv": "pnpm --dir apps/tv-lightning build",
+    "check": "pnpm install --frozen-lockfile && pnpm audit-ci && pnpm format && pnpm build && pnpm test",
+    "clean": "rm -rf node_modules packages/core/node_modules packages/player-core/node_modules && pnpm clean:m && pnpm clean:tv",
+    "clean:m": "rm -rf apps/mobile-expo/.expo apps/mobile-expo/.expo-shared apps/mobile-expo/dist apps/mobile-expo/node_modules apps/mobile-expo/web-build",
+    "clean:tv": "rm -rf apps/tv-lightning/dist apps/tv-lightning/node_modules",
+    "deploy": "pnpm build && gh-pages --branch main --repo git@github.com-eigendude:SwellPatrol/swellpatrol.github.io.git --dist apps/tv-lightning/dist --dotfiles",
+    "dev": "pnpm dev:tv",
+    "dev:m": "pnpm --dir apps/mobile-expo dev",
+    "dev:tv": "pnpm --dir apps/tv-lightning exec vite dev --host",
     "format": "prettier --write . && eslint --fix .",
-    "lint": "prettier --check . && eslint .",
-    "preview": "vite preview",
-    "start": "vite",
+    "format:eslint": "eslint --fix .",
+    "format:prettier": "prettier --write .",
+    "lint": "pnpm lint:prettier && pnpm lint:eslint",
+    "lint:eslint": "eslint .",
+    "lint:prettier": "prettier --check .",
+    "preview": "pnpm --dir apps/tv-lightning exec vite preview",
+    "start": "pnpm dev",
     "test": "vitest run --passWithNoTests",
     "test:ui": "vitest --ui"
-  },
-  "dependencies": {
-    "@lightningjs/blits": "^2.0.1",
-    "@lightningjs/sdk": "^5.5.7",
-    "@metrological/sdk": "^1.0.2",
-    "shaka-player": "^5.0.9"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -77,7 +84,5 @@
   },
   "resolutions": {
     "file-type": "22.0.0"
-  },
-  "bundleDependencies": false,
-  "target": "web"
+  }
 }

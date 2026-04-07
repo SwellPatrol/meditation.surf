@@ -13,7 +13,7 @@ name: Node.js CI
 on: [push, pull_request]
 
 jobs:
-  build-and-deploy:
+  build:
     # The type of runner that the job will run on
     runs-on: ${{ matrix.os }}
 
@@ -28,18 +28,22 @@ jobs:
 
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Cache pnpm modules
+      - name: Restore workspace dependencies
         id: cache-modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
+            apps/mobile-expo/node_modules
+            apps/tv-lightning/node_modules
             node_modules
-          key: cache-pnpm-modules-${{ matrix.os }}-${{ matrix.node-version }}-${{ hashFiles('pnpm-lock.yaml') }}
+            packages/core/node_modules
+            packages/player-core/node_modules
+          key: cache-pnpm-modules-${{ matrix.os }}-${{ matrix.node-version }}-${{ hashFiles('pnpm-lock.yaml', 'package.json', 'apps/*/package.json', 'packages/*/package.json') }}
 
       - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
 
@@ -47,23 +51,35 @@ jobs:
         run: |
           npm install -g pnpm
 
-      - name: pnpm install
+      - name: pnpm install --frozen-lockfile
         if: steps.cache-modules.outputs.cache-hit != 'true'
         run: |
-          pnpm install
+          pnpm install --frozen-lockfile
 
-      - name: pnpm audit-ci
+      - name: Run dependency audit
         run: |
           pnpm audit-ci
 
-      - name: pnpm lint
+      - name: Run lint:prettier
         run: |
-          pnpm lint
+          pnpm lint:prettier
 
-      - name: pnpm build
+      - name: Run lint:eslint
         run: |
-          pnpm build
+          pnpm lint:eslint
 
-      - name: pnpm test
+      - name: Run build:tsc
+        run: |
+          pnpm build:tsc
+
+      - name: Run build:tv
+        run: |
+          pnpm build:tv
+
+      - name: Run build:m
+        run: |
+          pnpm build:m
+
+      - name: Run workspace tests
         run: |
           pnpm test

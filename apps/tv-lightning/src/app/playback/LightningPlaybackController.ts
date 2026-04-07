@@ -5,12 +5,21 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  * See the file LICENSE.txt for more information.
  */
-import AudioState from "./AudioState";
+
+import {
+  clampAudioVolume,
+  DEFAULT_AUDIO_PREFERENCES,
+} from "@meditation-surf/core";
+import type {
+  PlaybackController,
+  PlaybackSource,
+} from "@meditation-surf/player-core";
+
+import AudioState from "../state/AudioState";
 
 declare global {
   // ESLint treats global type-only declarations as unused variables.
   // This declaration exists solely so `globalThis.shaka` has a concrete type.
-  // eslint-disable-next-line no-unused-vars
   var shaka: (typeof import("shaka-player"))["default"];
 }
 
@@ -27,11 +36,11 @@ type DisplayBounds = {
 };
 
 /**
- * @brief Shared playback controller for the DOM video element
- *
- * Lightning renders only the UI while app code owns media playback.
+ * Lightning-specific playback controller backed by a DOM video element and Shaka.
+ * The shared playback contract stays in `packages/player-core`, but this class
+ * intentionally owns the web-only media implementation details.
  */
-export class VideoPlayerState {
+export class LightningPlaybackController implements PlaybackController {
   // Shared DOM video element created once at boot
   private videoElement: HTMLVideoElement | null;
 
@@ -41,30 +50,30 @@ export class VideoPlayerState {
   // True after the video element has been configured
   private initialized: boolean;
 
-  // URL currently loaded in the player, if any
-  private currentUrl: string | null;
+  // Active playback source, if one has been loaded
+  private currentSource: PlaybackSource | null;
 
   // Boot-time DOM bounds for the displayed stage
   private displayBounds: DisplayBounds | null;
 
   /**
-   * @brief Initialize the video player state with empty values
+   * @brief Initialize the controller with empty state
    */
   constructor() {
     this.videoElement = null as HTMLVideoElement | null;
     this.shakaPlayer = null as ShakaPlayer | null;
     this.initialized = false as boolean;
-    this.currentUrl = null as string | null;
+    this.currentSource = null as PlaybackSource | null;
     this.displayBounds = null as DisplayBounds | null;
   }
 
   /**
-   * @brief Update the onscreen bounds of the shared video element
+   * @brief Update the fitted TV display bounds for the shared video element
    *
-   * @param left - Left edge of the viewport in pixels
-   * @param top - Top edge of the viewport in pixels
-   * @param width - Width of the viewport in pixels
-   * @param height - Height of the viewport in pixels
+   * @param left - Left edge of the stage in pixels
+   * @param top - Top edge of the stage in pixels
+   * @param width - Stage width in pixels
+   * @param height - Stage height in pixels
    */
   public setDisplayBounds(
     left: number,
@@ -129,23 +138,18 @@ export class VideoPlayerState {
 
   /**
    * @brief Configure the shared DOM video element if needed
-   *
-   * @param width - Width of the viewport in pixels
-   * @param height - Height of the viewport in pixels
    */
-  public initialize(width: number, height: number): void {
+  public initialize(): void {
     const videoElement: HTMLVideoElement = this.ensureVideoElement();
 
     if (!this.initialized) {
       // Mute before initial playback so autoplay is more likely to succeed.
       this.setMuted(true);
-      this.setVolume(AudioState.getVolume());
+      this.setVolume(DEFAULT_AUDIO_PREFERENCES.volume);
       this.initialized = true as boolean;
     }
 
-    if (this.displayBounds === null) {
-      this.setDisplayBounds(0, 0, width, height);
-    } else {
+    if (this.displayBounds !== null) {
       this.applyDisplayBounds();
     }
 
@@ -170,24 +174,21 @@ export class VideoPlayerState {
   }
 
   /**
-   * @brief Open a video URL using Shaka Player and begin playback
+   * @brief Load a shared playback source into Shaka Player
    *
-   * @param url - Media URL to play
+   * @param source - Platform-agnostic playback source metadata
    */
-  public playUrl(url: string): void {
+  public async load(source: PlaybackSource): Promise<void> {
     const videoElement: HTMLVideoElement = this.ensureVideoElement();
 
-    // Avoid reloading the same URL to prevent repeated Shaka loads.
-    if (this.currentUrl === url) {
-      void videoElement.play().catch((error: unknown): void => {
-        console.warn("Autoplay failed", error);
-      });
+    // Avoid reloading the same stream to preserve smooth TV playback.
+    if (this.currentSource?.url === source.url) {
       return;
     }
 
     // Mute before starting playback to maximize autoplay success.
     this.setMuted(true);
-    this.currentUrl = url;
+    this.currentSource = source;
 
     const restoreAudio: () => void = (): void => {
       const muted: boolean = AudioState.isMuted();
@@ -197,17 +198,17 @@ export class VideoPlayerState {
     };
     videoElement.addEventListener("playing", restoreAudio, { once: true });
 
-    void this.loadStream(url, videoElement);
+    await this.loadStream(source, videoElement);
   }
 
   /**
-   * @brief Load a media stream into Shaka Player and start playback
+   * @brief Load a media stream into Shaka Player and prepare playback
    *
-   * @param url - Media URL to load
+   * @param source - Shared playback source details
    * @param videoElement - Shared DOM video element used for playback
    */
   private async loadStream(
-    url: string,
+    source: PlaybackSource,
     videoElement: HTMLVideoElement,
   ): Promise<void> {
     await this.destroyShakaPlayer();
@@ -226,11 +227,26 @@ export class VideoPlayerState {
     this.shakaPlayer = shakaPlayer;
 
     try {
-      await shakaPlayer.load(url);
-      await videoElement.play();
+      await shakaPlayer.load(source.url);
     } catch (error: unknown) {
       console.error("Failed to load stream with Shaka", error);
     }
+  }
+
+  /**
+   * @brief Resume playback on the shared video element
+   */
+  public play(): Promise<void> {
+    const videoElement: HTMLVideoElement = this.ensureVideoElement();
+    return videoElement.play();
+  }
+
+  /**
+   * @brief Pause playback on the shared video element
+   */
+  public pause(): void {
+    const videoElement: HTMLVideoElement = this.ensureVideoElement();
+    videoElement.pause();
   }
 
   /**
@@ -256,12 +272,26 @@ export class VideoPlayerState {
    */
   public setVolume(volume: number): void {
     const videoElement: HTMLVideoElement = this.ensureVideoElement();
-    const clampedVolume: number = Math.min(Math.max(volume, 0), 1);
+    const clampedVolume: number = clampAudioVolume(volume);
     videoElement.volume = clampedVolume;
+  }
+
+  /**
+   * @brief Tear down the current player instance and hide the video element
+   */
+  public async destroy(): Promise<void> {
+    await this.destroyShakaPlayer();
+
+    if (this.videoElement !== null) {
+      this.videoElement.pause();
+      this.videoElement.style.display = "none";
+    }
+
+    this.currentSource = null;
   }
 }
 
-// Singleton instance of the video player state
-const videoPlayerState: VideoPlayerState = new VideoPlayerState();
+const lightningPlaybackController: LightningPlaybackController =
+  new LightningPlaybackController();
 
-export default videoPlayerState;
+export default lightningPlaybackController;

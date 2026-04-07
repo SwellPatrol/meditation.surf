@@ -44,7 +44,8 @@ export default [
       "simple-import-sort/imports": "error",
       // Run Prettier as an ESLint rule
       "prettier/prettier": "error",
-      "no-unused-vars": [
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": [
         "error",
         {
           argsIgnorePattern: "^err",
@@ -55,7 +56,7 @@ export default [
 
   // 3) JavaScript in the project root + Prettier
   {
-    files: ["*.js"],
+    files: ["**/*.js"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
@@ -76,8 +77,14 @@ export default [
   // 4) Turn off any ESLint rules that conflict with Prettier
   prettierConfig,
 
-  // 5) Ignore build output and lockfiles
+  // 5) Ignore build output, node_modules folders and lockfiles
   {
-    ignores: ["dist", "node_modules", "pnpm-lock.yaml"],
+    ignores: [
+      "**/node_modules/**",
+      "apps/mobile-expo/dist/**",
+      "apps/tv-lightning/dist/**",
+      "dist/**",
+      "pnpm-lock.yaml",
+    ],
   },
 ];

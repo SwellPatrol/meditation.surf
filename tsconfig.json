@@ -2,7 +2,9 @@
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
+    "ignoreDeprecations": "6.0",
     "isolatedModules": true,
+    "jsx": "react-jsx",
     "lib": ["dom", "esnext"],
     "module": "esnext",
     "moduleResolution": "bundler",
@@ -11,8 +13,24 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "esnext",
-    "types": ["node", "vite/client"]
+    "types": ["node", "vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@meditation-surf/core": ["packages/core/src/index.ts"],
+      "@meditation-surf/player-core": ["packages/player-core/src/index.ts"]
+    }
   },
-  "exclude": ["dist", "node_modules"],
-  "include": ["src/**/*", "test/**/*"]
+  "exclude": [
+    "**/node_modules",
+    "apps/mobile-expo/dist",
+    "apps/tv-lightning/dist",
+    "dist"
+  ],
+  "include": [
+    "apps/mobile-expo/**/*",
+    "apps/tv-lightning/**/*",
+    "packages/core/**/*",
+    "packages/player-core/**/*",
+    "test/**/*"
+  ]
 }

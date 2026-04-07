@@ -1,0 +1,19 @@
+{
+  "name": "@meditation-surf/tv-lightning",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite dev --host",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@lightningjs/blits": "^2.0.1",
+    "@lightningjs/sdk": "^5.5.7",
+    "@meditation-surf/core": "workspace:*",
+    "@meditation-surf/player-core": "workspace:*",
+    "@metrological/sdk": "^1.0.2",
+    "shaka-player": "^5.0.9"
+  }
+}

@@ -13,12 +13,19 @@ import {
   reactivityGuard,
 } from "@lightningjs/blits/vite";
 import { createRequire } from "node:module";
+import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
 
 const require = createRequire(import.meta.url);
 const lightningSettingsEntry =
   require.resolve("@lightningjs/sdk/src/Settings/index.js");
 const metrologicalSdkEntry = require.resolve("@metrological/sdk/index.js");
+const coreEntry = fileURLToPath(
+  new URL("../../packages/core/src/index.ts", import.meta.url),
+);
+const playerCoreEntry = fileURLToPath(
+  new URL("../../packages/player-core/src/index.ts", import.meta.url),
+);
 
 // Vite configuration for the LightningJS-based application. The configuration
 // is intentionally simple and primarily enables the Blits plugin along with the
@@ -52,6 +59,8 @@ export default defineConfig({
   // Ensure internal Lightning modules can be bundled by the dev server
   resolve: {
     alias: {
+      "@meditation-surf/core": coreEntry,
+      "@meditation-surf/player-core": playerCoreEntry,
       "@lightningjs/sdk/src/Settings": lightningSettingsEntry,
       "@metrological/sdk": metrologicalSdkEntry,
     },

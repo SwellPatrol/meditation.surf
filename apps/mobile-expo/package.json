@@ -1,0 +1,23 @@
+{
+  "name": "@meditation-surf/mobile-expo",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "main": "./index.ts",
+  "scripts": {
+    "build": "expo export --platform web --output-dir dist",
+    "dev": "expo start"
+  },
+  "dependencies": {
+    "@meditation-surf/core": "workspace:*",
+    "@meditation-surf/player-core": "workspace:*",
+    "expo": "^55.0.12",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-native": "^0.84.1",
+    "react-native-web": "^0.21.2"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14"
+  }
+}
