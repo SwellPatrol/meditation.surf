@@ -27,25 +27,29 @@ type DisplayBounds = {
 };
 
 /**
- * Shared playback controller for the DOM video element.
+ * @brief Shared playback controller for the DOM video element
+ *
  * Lightning renders only the UI while app code owns media playback.
  */
 export class VideoPlayerState {
-  /** Shared DOM video element created once at boot. */
+  // Shared DOM video element created once at boot
   private videoElement: HTMLVideoElement | null;
 
-  /** Active Shaka Player instance or `null` when idle. */
+  // Active Shaka Player instance or `null` when idle
   private shakaPlayer: ShakaPlayer | null;
 
-  /** True after the video element has been configured. */
+  // True after the video element has been configured
   private initialized: boolean;
 
-  /** URL currently loaded in the player, if any. */
+  // URL currently loaded in the player, if any
   private currentUrl: string | null;
 
-  /** Boot-time DOM bounds for the displayed stage. */
+  // Boot-time DOM bounds for the displayed stage
   private displayBounds: DisplayBounds | null;
 
+  /**
+   * @brief Initialize the video player state with empty values
+   */
   constructor() {
     this.videoElement = null as HTMLVideoElement | null;
     this.shakaPlayer = null as ShakaPlayer | null;
@@ -54,6 +58,14 @@ export class VideoPlayerState {
     this.displayBounds = null as DisplayBounds | null;
   }
 
+  /**
+   * @brief Update the onscreen bounds of the shared video element
+   *
+   * @param left - Left edge of the viewport in pixels
+   * @param top - Top edge of the viewport in pixels
+   * @param width - Width of the viewport in pixels
+   * @param height - Height of the viewport in pixels
+   */
   public setDisplayBounds(
     left: number,
     top: number,
@@ -69,6 +81,11 @@ export class VideoPlayerState {
     this.applyDisplayBounds();
   }
 
+  /**
+   * @brief Create the shared video element on first access
+   *
+   * @returns The shared DOM video element
+   */
   private ensureVideoElement(): HTMLVideoElement {
     if (this.videoElement !== null) {
       return this.videoElement;
@@ -96,6 +113,9 @@ export class VideoPlayerState {
     return videoElement;
   }
 
+  /**
+   * @brief Apply the stored display bounds to the shared video element
+   */
   private applyDisplayBounds(): void {
     if (this.displayBounds === null || this.videoElement === null) {
       return;
@@ -108,10 +128,10 @@ export class VideoPlayerState {
   }
 
   /**
-   * Configure the shared DOM video element if it has not been initialized.
+   * @brief Configure the shared DOM video element if needed
    *
-   * @param width - Width of the viewport in pixels.
-   * @param height - Height of the viewport in pixels.
+   * @param width - Width of the viewport in pixels
+   * @param height - Height of the viewport in pixels
    */
   public initialize(width: number, height: number): void {
     const videoElement: HTMLVideoElement = this.ensureVideoElement();
@@ -132,6 +152,9 @@ export class VideoPlayerState {
     videoElement.style.display = "block";
   }
 
+  /**
+   * @brief Destroy the active Shaka Player instance if one exists
+   */
   private async destroyShakaPlayer(): Promise<void> {
     if (this.shakaPlayer === null) {
       return;
@@ -147,9 +170,9 @@ export class VideoPlayerState {
   }
 
   /**
-   * Open a video URL using Shaka Player and begin playback.
+   * @brief Open a video URL using Shaka Player and begin playback
    *
-   * @param url - Media URL to play.
+   * @param url - Media URL to play
    */
   public playUrl(url: string): void {
     const videoElement: HTMLVideoElement = this.ensureVideoElement();
@@ -177,6 +200,12 @@ export class VideoPlayerState {
     void this.loadStream(url, videoElement);
   }
 
+  /**
+   * @brief Load a media stream into Shaka Player and start playback
+   *
+   * @param url - Media URL to load
+   * @param videoElement - Shared DOM video element used for playback
+   */
   private async loadStream(
     url: string,
     videoElement: HTMLVideoElement,
@@ -205,9 +234,9 @@ export class VideoPlayerState {
   }
 
   /**
-   * Apply the mute state to the underlying video element.
+   * @brief Apply the mute state to the underlying video element
    *
-   * @param muted - Whether the player should be muted.
+   * @param muted - Whether the player should be muted
    */
   public setMuted(muted: boolean): void {
     const videoElement: HTMLVideoElement = this.ensureVideoElement();
@@ -221,9 +250,9 @@ export class VideoPlayerState {
   }
 
   /**
-   * Set the playback volume on the underlying video element.
+   * @brief Set the playback volume on the underlying video element
    *
-   * @param volume - Volume value in [0, 1].
+   * @param volume - Volume value in [0, 1]
    */
   public setVolume(volume: number): void {
     const videoElement: HTMLVideoElement = this.ensureVideoElement();
@@ -232,7 +261,7 @@ export class VideoPlayerState {
   }
 }
 
-/** Singleton instance of the video player state. */
+// Singleton instance of the video player state
 const videoPlayerState: VideoPlayerState = new VideoPlayerState();
 
 export default videoPlayerState;

@@ -12,18 +12,18 @@ import AudioToggle from "../../components/audio/AudioToggle";
 import Icon from "../../components/common/Icon";
 import videoPlayerState from "../state/VideoPlayerState";
 
-/** URL of the demo video used for testing playback. */
+// URL of the demo video used for testing playback
 export const DEMO_URL: string =
   "https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8";
 
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
 
-// Fixed design resolution for the TV-only Lightning experience
+// Fixed design resolution for a TV-only Lightning experience
 export const LIGHTNING_APP_WIDTH: number = 1920;
 export const LIGHTNING_APP_HEIGHT: number = 1080;
 
-// Minimal LightningJS app displaying a full-screen icon
+// Minimal LightningJS app displaying a full-screen video behind a UI
 const LightningApp: LightningAppFactory = Blits.Application({
   // Keep the stage dimensions fixed for the TV-only experience.
   state(): { stageW: number; stageH: number } {

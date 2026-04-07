@@ -7,30 +7,31 @@
  */
 
 /**
- * Persisted audio configuration for the video player.
- * The mute state and volume are stored in local storage
- * so they survive page reloads and Lightning restarts.
+ * @brief Persisted audio configuration for the video player
+ *
+ * The mute state and volume are stored in local storage so they survive page
+ * reloads and Lightning restarts.
  */
 export class AudioState {
-  /** Storage key for the mute flag. */
+  // Storage key for the mute flag
   private static readonly MUTED_KEY: string = "audioMuted";
 
-  /** Storage key for the volume level. */
+  // Storage key for the volume level
   private static readonly VOLUME_KEY: string = "audioVolume";
 
   /**
-   * Retrieve the persisted mute flag.
+   * @brief Retrieve the persisted mute flag
    *
-   * @returns `true` when audio should be muted.
+   * @returns `true` when audio should be muted
    */
   public static isMuted(): boolean {
     return window.localStorage.getItem(AudioState.MUTED_KEY) === "true";
   }
 
   /**
-   * Retrieve the persisted volume level, clamped to [0, 1].
+   * @brief Retrieve the persisted volume level
    *
-   * @returns Volume level from 0.0 to 1.0.
+   * @returns Volume level clamped to [0, 1]
    */
   public static getVolume(): number {
     const stored: string | null = window.localStorage.getItem(
@@ -44,18 +45,18 @@ export class AudioState {
   }
 
   /**
-   * Persist the mute flag.
+   * @brief Persist the mute flag
    *
-   * @param muted - Whether audio should be muted.
+   * @param muted - Whether audio should be muted
    */
   public static setMuted(muted: boolean): void {
     window.localStorage.setItem(AudioState.MUTED_KEY, muted ? "true" : "false");
   }
 
   /**
-   * Persist the volume level.
+   * @brief Persist the volume level
    *
-   * @param volume - Volume value in [0, 1].
+   * @param volume - Volume value in [0, 1]
    */
   public static setVolume(volume: number): void {
     const clamped: number = Math.min(Math.max(volume, 0), 1);
