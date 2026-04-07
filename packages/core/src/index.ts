@@ -18,6 +18,7 @@ export {
   BRAND_OVERLAY_ICON_VIEWPORT_RATIO,
   getBrandOverlayIconSize,
 } from "./brand/overlay";
+export { BRAND_OVERLAY_ICON_URL } from "./brand/web";
 export { DEMO_CATALOG, DEMO_SURF_VIDEO } from "./catalog/demoCatalog";
 export type {
   AppCatalog,

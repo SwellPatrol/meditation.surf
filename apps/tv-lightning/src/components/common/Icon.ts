@@ -7,36 +7,94 @@
  */
 
 import Blits from "@lightningjs/blits";
-import { getBrandOverlayIconSize } from "@meditation-surf/core";
-import { BRAND_OVERLAY_ICON_URL } from "@meditation-surf/core/brand/web";
+import {
+  BRAND_OVERLAY_ICON_URL,
+  getBrandOverlayIconSize,
+} from "@meditation-surf/core";
 
-// Type alias for the factory returned by Blits.Component
+/**
+ * @brief Type alias for the factory returned by Blits.Component
+ */
 type IconFactory = ReturnType<typeof Blits.Component>;
 
 /**
- * A reusable component that displays the app icon centered on the stage.
+ * @brief Reusable component that displays the app icon centered on the stage
+ *
  * The icon is rendered at most one third the size of the smaller viewport
  * dimension to keep it unobtrusive while maintaining its aspect ratio.
+ *
+ * @property {number} stageW The Lightning stage width in pixels.
+ * @property {number} stageH The Lightning stage height in pixels.
+ * @property {number} viewportW The browser viewport width in pixels.
+ * @property {number} viewportH The browser viewport height in pixels.
  */
 const Icon: IconFactory = Blits.Component("Icon", {
-  // Stage dimensions passed from the parent component
-  props: ["stageW", "stageH"],
+  // Stage coordinates stay fixed for centering, while viewport dimensions
+  // drive the shared icon sizing policy to match web and mobile behavior.
+  props: ["stageW", "stageH", "viewportW", "viewportH"],
 
   computed: {
     /**
-     * Size the icon using the shared overlay policy while keeping the TV
-     * renderer responsible for its own stage-centered placement.
+     * @brief Computes the requested icon size from the shared overlay policy
+     *
+     * Keeps the TV renderer responsible for its own stage-centered placement.
+     *
+     * @returns {number} The target icon size in viewport pixels.
+     */
+    requestedIconSize(): number {
+      // @ts-ignore `this` contains the reactive props provided at runtime
+      const viewportW: number = this.viewportW as number;
+
+      // @ts-ignore `this` contains the reactive props provided at runtime
+      const viewportH: number = this.viewportH as number;
+      return getBrandOverlayIconSize(viewportW, viewportH);
+    },
+
+    /**
+     * @brief Computes the rendered icon size in stage coordinates
+     *
+     * The Lightning stage is rendered at a fixed TV resolution and then scaled
+     * into the browser viewport. Compensate for that stage scale so the final
+     * on-screen icon size matches the shared viewport-based size target.
+     *
+     * @returns {number} The icon size to render within the Lightning stage.
      */
     iconSize(): number {
       // @ts-ignore `this` contains the reactive props provided at runtime
       const stageW: number = this.stageW as number;
+
+      // @ts-ignore `this` contains the reactive props provided at runtime
       const stageH: number = this.stageH as number;
-      return getBrandOverlayIconSize(stageW, stageH);
+
+      // @ts-ignore `this` contains the reactive props provided at runtime
+      const viewportW: number = this.viewportW as number;
+
+      // @ts-ignore `this` contains the reactive props provided at runtime
+      const viewportH: number = this.viewportH as number;
+
+      const stageWidthScale: number = viewportW / stageW;
+      const stageHeightScale: number = viewportH / stageH;
+      const stageScale: number = Math.min(stageWidthScale, stageHeightScale);
+
+      if (stageScale <= 0) {
+        // Fall back safely during any transient invalid layout state.
+        // @ts-ignore `this` contains the reactive props provided at runtime
+        return this.requestedIconSize as number;
+      }
+
+      // Render the node larger in stage coordinates so the fitted canvas
+      // produces the intended final pixel size on screen.
+      // @ts-ignore `this` contains the reactive props provided at runtime
+      const requestedIconSize: number = this.requestedIconSize as number;
+      return requestedIconSize / stageScale;
     },
 
     /**
-     * Resolve the shared icon asset through Vite so the TV app renders the
-     * same source image as the web surface.
+     * @brief Resolves the shared icon asset URL for the TV app
+     *
+     * Ensures the TV app renders the same source image as the web surface.
+     *
+     * @returns {string} The resolved icon asset URL.
      */
     iconSource(): string {
       return BRAND_OVERLAY_ICON_URL;
@@ -50,6 +108,7 @@ const Icon: IconFactory = Blits.Component("Icon", {
       :h="$iconSize"
       :x="$stageW / 2"
       :y="$stageH / 2"
+      fit="contain"
       :mount="0.5"
     />`,
 });

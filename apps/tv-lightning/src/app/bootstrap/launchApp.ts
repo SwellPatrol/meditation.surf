@@ -8,35 +8,14 @@
 
 import Blits from "@lightningjs/blits";
 
+import {
+  type FittedStageBounds,
+  getFittedStageBounds,
+  LIGHTNING_APP_HEIGHT,
+  LIGHTNING_APP_WIDTH,
+} from "../layout/stage";
 import lightningPlaybackAdapter from "../playback/LightningPlaybackAdapter";
-import LightningApp from "../ui/LightningApp";
-import { LIGHTNING_APP_HEIGHT, LIGHTNING_APP_WIDTH } from "../ui/LightningApp";
-
-type FittedStageBounds = {
-  width: number;
-  height: number;
-  left: number;
-  top: number;
-};
-
-const getFittedStageBounds = (): FittedStageBounds => {
-  const viewportWidth: number = window.innerWidth;
-  const viewportHeight: number = window.innerHeight;
-  const widthScale: number = viewportWidth / LIGHTNING_APP_WIDTH;
-  const heightScale: number = viewportHeight / LIGHTNING_APP_HEIGHT;
-  const scale: number = Math.min(widthScale, heightScale);
-  const width: number = LIGHTNING_APP_WIDTH * scale;
-  const height: number = LIGHTNING_APP_HEIGHT * scale;
-  const left: number = (viewportWidth - width) / 2;
-  const top: number = (viewportHeight - height) / 2;
-
-  return {
-    width,
-    height,
-    left,
-    top,
-  };
-};
+import LightningApp, { TV_STAGE_LAYOUT_EVENT } from "../ui/LightningApp";
 
 /**
  * Launch the app once at a fixed TV resolution and position its canvas.
@@ -51,7 +30,10 @@ function startApp(): void {
   });
 
   const applyStageLayout: () => void = (): void => {
-    const fittedStageBounds: FittedStageBounds = getFittedStageBounds();
+    const fittedStageBounds: FittedStageBounds = getFittedStageBounds(
+      window.innerWidth,
+      window.innerHeight,
+    );
     const canvas: HTMLCanvasElement | null = mount.querySelector("canvas");
 
     lightningPlaybackAdapter.setDisplayBounds(
@@ -69,6 +51,18 @@ function startApp(): void {
       canvas.style.height = `${fittedStageBounds.height}px`;
       canvas.style.zIndex = "1";
     }
+
+    window.dispatchEvent(
+      new CustomEvent<{
+        viewportWidth: number;
+        viewportHeight: number;
+      }>(TV_STAGE_LAYOUT_EVENT, {
+        detail: {
+          viewportWidth: window.innerWidth,
+          viewportHeight: window.innerHeight,
+        },
+      }),
+    );
   };
 
   window.setTimeout(applyStageLayout, 0);
