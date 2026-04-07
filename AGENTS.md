@@ -28,6 +28,7 @@ Only proceed if all commands succeed.
 - Choose descriptive variable names that clearly convey their purpose.
 - Avoid relying on global variables. Use module imports or scoped variables
   instead.
+- Comment style: use Doxygen-style `/** ... */` blocks; `@tag` lines have no trailing period; prose sentences inside block comments use periods; `//` comments use no trailing period when they are a single sentence and use periods when they contain multiple sentences. Insert newlines in doxy comments between tag types.
 - Start new files with the project copyright header (using the current year) whenever possible.
 
   For TypeScript or languages that use block comments:
