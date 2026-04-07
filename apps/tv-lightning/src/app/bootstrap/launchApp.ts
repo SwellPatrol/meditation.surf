@@ -9,13 +9,16 @@
 import Blits from "@lightningjs/blits";
 
 import {
+  applyCanvasStageLayout,
+  dispatchStageLayoutEvent,
   type FittedStageBounds,
   getFittedStageBounds,
+  getViewportSize,
   LIGHTNING_APP_HEIGHT,
   LIGHTNING_APP_WIDTH,
 } from "../layout/stage";
 import lightningPlaybackAdapter from "../playback/LightningPlaybackAdapter";
-import LightningApp, { TV_STAGE_LAYOUT_EVENT } from "../ui/LightningApp";
+import LightningApp from "../ui/LightningApp";
 
 /**
  * Launch the app once at a fixed TV resolution and position its canvas.
@@ -30,9 +33,13 @@ function startApp(): void {
   });
 
   const applyStageLayout: () => void = (): void => {
+    const viewportSize: {
+      width: number;
+      height: number;
+    } = getViewportSize();
     const fittedStageBounds: FittedStageBounds = getFittedStageBounds(
-      window.innerWidth,
-      window.innerHeight,
+      viewportSize.width,
+      viewportSize.height,
     );
     const canvas: HTMLCanvasElement | null = mount.querySelector("canvas");
 
@@ -44,25 +51,10 @@ function startApp(): void {
     );
 
     if (canvas !== null) {
-      canvas.style.position = "absolute";
-      canvas.style.top = `${fittedStageBounds.top}px`;
-      canvas.style.left = `${fittedStageBounds.left}px`;
-      canvas.style.width = `${fittedStageBounds.width}px`;
-      canvas.style.height = `${fittedStageBounds.height}px`;
-      canvas.style.zIndex = "1";
+      applyCanvasStageLayout(canvas, fittedStageBounds);
     }
 
-    window.dispatchEvent(
-      new CustomEvent<{
-        viewportWidth: number;
-        viewportHeight: number;
-      }>(TV_STAGE_LAYOUT_EVENT, {
-        detail: {
-          viewportWidth: window.innerWidth,
-          viewportHeight: window.innerHeight,
-        },
-      }),
-    );
+    dispatchStageLayoutEvent();
   };
 
   window.setTimeout(applyStageLayout, 0);

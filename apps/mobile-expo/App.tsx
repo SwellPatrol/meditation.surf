@@ -7,10 +7,15 @@
  */
 
 import {
-  DEMO_SURF_VIDEO,
-  getBrandOverlayIconSize,
+  DEMO_BACKGROUND_VIDEO_POLICY,
+  getDemoBackgroundVideoSource,
 } from "@meditation-surf/core";
-import { BRAND_OVERLAY_ICON_SOURCE } from "@meditation-surf/core/brand/native";
+import {
+  BRAND_OVERLAY_ICON_SOURCE,
+  getNativeBrandOverlayImageStyle,
+  type NativeBrandOverlayImageStyle,
+} from "@meditation-surf/core/brand/native";
+import type { PlaybackSource } from "@meditation-surf/player-core";
 import {
   useVideoPlayer,
   type VideoPlayer,
@@ -59,16 +64,18 @@ export default function App(): JSX.Element {
   const windowDimensions: { width: number; height: number } =
     useWindowDimensions();
   // Reuse the same shared demo source as the TV-oriented app data path.
+  const demoBackgroundVideoSource: PlaybackSource =
+    getDemoBackgroundVideoSource();
   const demoVideoSource: VideoSource = {
     contentType: "hls",
-    uri: DEMO_SURF_VIDEO.playbackSource.url,
+    uri: demoBackgroundVideoSource.url,
   };
   const videoPlayer: VideoPlayer = useVideoPlayer(
     demoVideoSource,
     (player: VideoPlayer): void => {
       // The minimal demo should start immediately, stay muted, and keep looping.
-      player.loop = true;
-      player.muted = true;
+      player.loop = DEMO_BACKGROUND_VIDEO_POLICY.loop;
+      player.muted = DEMO_BACKGROUND_VIDEO_POLICY.muted;
     },
   );
 
@@ -77,22 +84,19 @@ export default function App(): JSX.Element {
     videoPlayer.play();
   }, [videoPlayer]);
 
-  const iconSize: number = getBrandOverlayIconSize(
-    windowDimensions.width,
-    windowDimensions.height,
-  );
-  const dynamicIconStyle: ImageStyle = {
-    height: iconSize,
-    width: iconSize,
-  };
+  const dynamicIconStyle: NativeBrandOverlayImageStyle =
+    getNativeBrandOverlayImageStyle(
+      windowDimensions.width,
+      windowDimensions.height,
+    );
 
   return (
     <View style={containerStyle}>
       <VideoView
-        contentFit="cover"
+        contentFit={DEMO_BACKGROUND_VIDEO_POLICY.objectFit}
         nativeControls={false}
         player={videoPlayer}
-        playsInline={true}
+        playsInline={DEMO_BACKGROUND_VIDEO_POLICY.playsInline}
         style={backgroundVideoStyle}
       />
       <View pointerEvents="none" style={overlayStyle}>

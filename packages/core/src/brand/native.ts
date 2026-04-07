@@ -6,6 +6,31 @@
  * See the file LICENSE.txt for more information.
  */
 
+import { getBrandOverlayIconSize } from "./overlay";
+
 // React Native bundles static image assets through module-local `require()`.
 // eslint-disable-next-line no-undef
 export const BRAND_OVERLAY_ICON_SOURCE: number = require("./icon-1500x1500.png");
+
+export type NativeBrandOverlayImageStyle = {
+  width: number;
+  height: number;
+};
+
+/**
+ * Return the runtime-specific image dimensions expected by React Native.
+ */
+export function getNativeBrandOverlayImageStyle(
+  availableWidth: number,
+  availableHeight: number,
+): NativeBrandOverlayImageStyle {
+  const iconSize: number = getBrandOverlayIconSize(
+    availableWidth,
+    availableHeight,
+  );
+
+  return {
+    width: iconSize,
+    height: iconSize,
+  };
+}

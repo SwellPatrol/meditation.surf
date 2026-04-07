@@ -18,13 +18,21 @@ export {
   BRAND_OVERLAY_ICON_VIEWPORT_RATIO,
   getBrandOverlayIconSize,
 } from "./brand/overlay";
-export { BRAND_OVERLAY_ICON_URL } from "./brand/web";
+export {
+  applyBrandOverlayImageSize,
+  BRAND_OVERLAY_ICON_URL,
+} from "./brand/web";
 export { DEMO_CATALOG, DEMO_SURF_VIDEO } from "./catalog/demoCatalog";
 export type {
   AppCatalog,
   CatalogCategory,
   MediaContent,
 } from "./catalog/types";
+export {
+  DEMO_BACKGROUND_VIDEO_POLICY,
+  getDemoBackgroundVideoSource,
+} from "./demoBackgroundVideo";
+export type { DemoBackgroundVideoPolicy } from "./demoBackgroundVideo";
 export {
   clampAudioVolume,
   DEFAULT_AUDIO_PREFERENCES,

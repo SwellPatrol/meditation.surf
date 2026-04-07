@@ -12,6 +12,8 @@ import {
   getBrandOverlayIconSize,
 } from "@meditation-surf/core";
 
+import { getStageCompensatedIconSize } from "../../app/layout/icon";
+
 /**
  * @brief Type alias for the factory returned by Blits.Component
  */
@@ -72,21 +74,15 @@ const Icon: IconFactory = Blits.Component("Icon", {
       // @ts-ignore `this` contains the reactive props provided at runtime
       const viewportH: number = this.viewportH as number;
 
-      const stageWidthScale: number = viewportW / stageW;
-      const stageHeightScale: number = viewportH / stageH;
-      const stageScale: number = Math.min(stageWidthScale, stageHeightScale);
-
-      if (stageScale <= 0) {
-        // Fall back safely during any transient invalid layout state.
-        // @ts-ignore `this` contains the reactive props provided at runtime
-        return this.requestedIconSize as number;
-      }
-
-      // Render the node larger in stage coordinates so the fitted canvas
-      // produces the intended final pixel size on screen.
       // @ts-ignore `this` contains the reactive props provided at runtime
       const requestedIconSize: number = this.requestedIconSize as number;
-      return requestedIconSize / stageScale;
+
+      return getStageCompensatedIconSize(requestedIconSize, {
+        stageWidth: stageW,
+        stageHeight: stageH,
+        viewportWidth: viewportW,
+        viewportHeight: viewportH,
+      });
     },
 
     /**

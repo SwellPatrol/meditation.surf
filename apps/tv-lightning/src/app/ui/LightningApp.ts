@@ -16,18 +16,18 @@ import {
 } from "@meditation-surf/core";
 
 import Icon from "../../components/common/Icon";
-import { LIGHTNING_APP_HEIGHT, LIGHTNING_APP_WIDTH } from "../layout/stage";
+import {
+  getViewportSize,
+  LIGHTNING_APP_HEIGHT,
+  LIGHTNING_APP_WIDTH,
+  type StageLayoutEventDetail,
+  TV_STAGE_LAYOUT_EVENT,
+} from "../layout/stage";
 import lightningPlaybackAdapter from "../playback/LightningPlaybackAdapter";
 
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
 const catalogClient: CatalogClient = new DemoCatalogClient();
-export const TV_STAGE_LAYOUT_EVENT: string = "meditation-surf:tv-stage-layout";
-
-type StageLayoutEventDetail = {
-  viewportWidth: number;
-  viewportHeight: number;
-};
 
 type LightningAppState = {
   stageW: number;
@@ -72,8 +72,8 @@ const LightningApp: LightningAppFactory = Blits.Application<
     return {
       stageW: LIGHTNING_APP_WIDTH,
       stageH: LIGHTNING_APP_HEIGHT,
-      viewportW: window.innerWidth,
-      viewportH: window.innerHeight,
+      viewportW: getViewportSize().width,
+      viewportH: getViewportSize().height,
     };
   },
 
@@ -93,7 +93,9 @@ const LightningApp: LightningAppFactory = Blits.Application<
      * resize callback dispatches its first layout event.
      */
     syncViewportSize(): void {
-      this.applyViewportSize(window.innerWidth, window.innerHeight);
+      const viewportSize: { width: number; height: number } = getViewportSize();
+
+      this.applyViewportSize(viewportSize.width, viewportSize.height);
     },
 
     /**
