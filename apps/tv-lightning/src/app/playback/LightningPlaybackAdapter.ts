@@ -29,7 +29,8 @@ type ShakaImportResult = {
   default: ShakaModule;
 };
 /**
- * Lightning-specific playback adapter backed by a DOM video element and Shaka.
+ * @brief Lightning-specific playback adapter backed by a DOM video element and Shaka
+ *
  * The shared controller contract stays in `packages/player-core`, while this
  * class owns the TV app's platform playback implementation details.
  */
@@ -53,6 +54,8 @@ export class LightningPlaybackAdapter implements PlaybackController {
    * @param top - Top edge of the stage in pixels
    * @param width - Stage width in pixels
    * @param height - Stage height in pixels
+   *
+   * @returns No value because the fullscreen background no longer consumes stage-relative bounds
    */
   public setDisplayBounds(
     left: number,
@@ -92,6 +95,10 @@ export class LightningPlaybackAdapter implements PlaybackController {
 
   /**
    * @brief Configure the shared DOM video element once when it is created
+   *
+   * @param videoElement - Video element instance to configure for background playback
+   *
+   * @returns No value because the element is configured in place
    */
   private configureVideoElement(videoElement: HTMLVideoElement): void {
     videoElement.setAttribute("crossorigin", "anonymous");
@@ -103,7 +110,7 @@ export class LightningPlaybackAdapter implements PlaybackController {
     videoElement.style.objectFit = "cover";
     videoElement.style.zIndex = "0";
 
-    // Save audio changes so user preferences persist across sessions.
+    // Save audio changes so user preferences persist across sessions
     videoElement.addEventListener("volumechange", (): void => {
       AudioState.setMuted(videoElement.muted);
       AudioState.setVolume(videoElement.volume);
@@ -112,6 +119,10 @@ export class LightningPlaybackAdapter implements PlaybackController {
 
   /**
    * @brief Apply fullscreen viewport bounds to the shared video element
+   *
+   * @param videoElement - Video element instance to size against the viewport
+   *
+   * @returns No value because the element styles are updated in place
    */
   private applyDisplayBounds(videoElement: HTMLVideoElement): void {
     // Fill the entire viewport and let `object-fit: cover` crop the excess so
@@ -124,12 +135,14 @@ export class LightningPlaybackAdapter implements PlaybackController {
 
   /**
    * @brief Configure the shared DOM video element if needed
+   *
+   * @returns No value because initialization mutates internal adapter state
    */
   public initialize(): void {
     const videoElement: HTMLVideoElement = this.ensureVideoElement();
 
     if (!this.initialized) {
-      // Mute before initial playback so autoplay is more likely to succeed.
+      // Mute before initial playback so autoplay is more likely to succeed
       this.setMuted(true);
       this.setVolume(DEFAULT_AUDIO_PREFERENCES.volume);
       this.initialized = true;
@@ -141,6 +154,8 @@ export class LightningPlaybackAdapter implements PlaybackController {
 
   /**
    * @brief Destroy the active Shaka Player instance if one exists
+   *
+   * @returns A promise that resolves after the active Shaka player has been torn down
    */
   private async destroyShakaPlayer(): Promise<void> {
     const shakaPlayer: ShakaPlayer | null = this.shakaPlayer;
@@ -161,6 +176,8 @@ export class LightningPlaybackAdapter implements PlaybackController {
    * @brief Load a shared playback source into Shaka Player
    *
    * @param source - Platform-agnostic playback source metadata
+   *
+   * @returns A promise that resolves after the adapter has attempted to load the source
    */
   public async load(source: PlaybackSource): Promise<void> {
     const videoElement: HTMLVideoElement = this.ensureVideoElement();
@@ -170,7 +187,7 @@ export class LightningPlaybackAdapter implements PlaybackController {
       return;
     }
 
-    // Mute before starting playback to maximize autoplay success.
+    // Mute before starting playback to maximize autoplay success
     this.setMuted(true);
     this.currentSource = source;
 
@@ -206,6 +223,8 @@ export class LightningPlaybackAdapter implements PlaybackController {
 
   /**
    * @brief Resume playback on the shared video element
+   *
+   * @returns A promise that resolves when playback has started
    */
   public play(): Promise<void> {
     return this.ensureVideoElement().play();
@@ -213,6 +232,8 @@ export class LightningPlaybackAdapter implements PlaybackController {
 
   /**
    * @brief Pause playback on the shared video element
+   *
+   * @returns No value because pausing happens synchronously on the video element
    */
   public pause(): void {
     this.ensureVideoElement().pause();
@@ -222,6 +243,8 @@ export class LightningPlaybackAdapter implements PlaybackController {
    * @brief Apply the mute state to the underlying video element
    *
    * @param muted - Whether the player should be muted
+   *
+   * @returns No value because the mute state is applied directly to the video element
    */
   public setMuted(muted: boolean): void {
     const videoElement: HTMLVideoElement = this.ensureVideoElement();
@@ -238,6 +261,8 @@ export class LightningPlaybackAdapter implements PlaybackController {
    * @brief Set the playback volume on the underlying video element
    *
    * @param volume - Volume value in [0, 1]
+   *
+   * @returns No value because the clamped volume is applied directly to the video element
    */
   public setVolume(volume: number): void {
     const videoElement: HTMLVideoElement = this.ensureVideoElement();
@@ -247,6 +272,8 @@ export class LightningPlaybackAdapter implements PlaybackController {
 
   /**
    * @brief Tear down the current player instance and hide the video element
+   *
+   * @returns A promise that resolves after player teardown has completed
    */
   public async destroy(): Promise<void> {
     const videoElement: HTMLVideoElement | null = this.videoElement;

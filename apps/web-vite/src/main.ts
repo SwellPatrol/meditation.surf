@@ -9,8 +9,7 @@
 import "./styles.css";
 
 import type { WebAppShell } from "./appShell";
-import { createWebAppShell } from "./appShell";
-import { applyWebBrandOverlayLayout } from "./brandOverlay";
+import { applyWebAppShellLayout, createWebAppShell } from "./appShell";
 import {
   configureDemoBackgroundVideoElement,
   loadDemoBackgroundVideo,
@@ -27,14 +26,7 @@ configureDemoBackgroundVideoElement(webAppShell.backgroundVideoElement);
 let activeShakaPlayer: ShakaPlayer | null = null;
 
 /**
- * Keep the web entry point focused on startup orchestration.
- */
-function applyLayout(): void {
-  applyWebBrandOverlayLayout(webAppShell.overlayIconElement);
-}
-
-/**
- * Start background playback using the shared demo policy and source config.
+ * @brief Start background playback using the shared demo policy and source config
  */
 async function startPlayback(): Promise<void> {
   activeShakaPlayer = await loadDemoBackgroundVideo(
@@ -47,7 +39,9 @@ window.addEventListener("beforeunload", (): void => {
     void activeShakaPlayer.destroy();
   }
 });
-window.addEventListener("resize", applyLayout);
+window.addEventListener("resize", (): void => {
+  applyWebAppShellLayout(webAppShell);
+});
 
-applyLayout();
+applyWebAppShellLayout(webAppShell);
 void startPlayback();

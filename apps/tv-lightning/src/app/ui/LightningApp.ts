@@ -17,11 +17,9 @@ import {
 
 import Icon from "../../components/common/Icon";
 import {
-  getViewportSize,
   LIGHTNING_APP_HEIGHT,
   LIGHTNING_APP_WIDTH,
-  type StageLayoutEventDetail,
-  TV_STAGE_LAYOUT_EVENT,
+  subscribeToStageLayout,
 } from "../layout/stage";
 import lightningPlaybackAdapter from "../playback/LightningPlaybackAdapter";
 
@@ -34,16 +32,17 @@ type LightningAppState = {
   stageH: number;
   viewportW: number;
   viewportH: number;
+  stopViewportSync: (() => void) | null;
 };
 
 type LightningAppMethods = {
-  applyViewportSize(viewportWidth: number, viewportHeight: number): void;
-  syncViewportSize(): void;
-  handleStageLayout(event: Event): void;
+  initializeViewportSync(): void;
+  tearDownViewportSync(): void;
 };
 
 /**
- * Load the shared catalog and start the featured item.
+ * @brief Load the shared catalog and start the featured item
+ *
  * Lightning still owns TV-specific presentation and playback timing.
  */
 async function playFeaturedContent(): Promise<void> {
@@ -72,44 +71,33 @@ const LightningApp: LightningAppFactory = Blits.Application<
     return {
       stageW: LIGHTNING_APP_WIDTH,
       stageH: LIGHTNING_APP_HEIGHT,
-      viewportW: getViewportSize().width,
-      viewportH: getViewportSize().height,
+      viewportW: 0,
+      viewportH: 0,
+      stopViewportSync: null,
     };
   },
 
   methods: {
     /**
-     * Store the live browser viewport separately from the fixed Lightning
-     * stage so TV shares the same overlay sizing inputs as web and mobile.
+     * @brief Subscribe to viewport updates emitted by the TV bootstrap layout helper
      */
-    applyViewportSize(viewportWidth: number, viewportHeight: number): void {
-      this.viewportW = viewportWidth;
-      this.viewportH = viewportHeight;
-    },
-
-    /**
-     * Mirror the live viewport dimensions currently visible in the browser.
-     * This keeps initial render state aligned even before the bootstrap
-     * resize callback dispatches its first layout event.
-     */
-    syncViewportSize(): void {
-      const viewportSize: { width: number; height: number } = getViewportSize();
-
-      this.applyViewportSize(viewportSize.width, viewportSize.height);
-    },
-
-    /**
-     * Accept viewport updates from the bootstrap layer whenever the fitted TV
-     * canvas is re-laid out.
-     */
-    handleStageLayout(event: Event): void {
-      const stageLayoutEvent: CustomEvent<StageLayoutEventDetail> =
-        event as CustomEvent<StageLayoutEventDetail>;
-
-      this.applyViewportSize(
-        stageLayoutEvent.detail.viewportWidth,
-        stageLayoutEvent.detail.viewportHeight,
+    initializeViewportSync(): void {
+      this.stopViewportSync = subscribeToStageLayout(
+        (viewportSize: { width: number; height: number }): void => {
+          this.viewportW = viewportSize.width;
+          this.viewportH = viewportSize.height;
+        },
       );
+    },
+
+    /**
+     * @brief Release the viewport subscription when the Lightning root is destroyed
+     */
+    tearDownViewportSync(): void {
+      if (this.stopViewportSync !== null) {
+        this.stopViewportSync();
+        this.stopViewportSync = null;
+      }
     },
   },
 
@@ -122,21 +110,21 @@ const LightningApp: LightningAppFactory = Blits.Application<
 
   hooks: {
     /**
-     * The application is fully rendered and ready.
+     * @brief The application is fully rendered and ready
+     *
      * UI lifecycle stays separate from media playback internals.
      */
     ready(): void {
-      this.syncViewportSize();
-      window.addEventListener(TV_STAGE_LAYOUT_EVENT, this.handleStageLayout);
+      this.initializeViewportSync();
       lightningPlaybackAdapter.initialize();
       void playFeaturedContent();
     },
 
     /**
-     * Remove app-level listeners when Lightning tears down the root view.
+     * @brief Remove app-level listeners when Lightning tears down the root view
      */
     destroy(): void {
-      window.removeEventListener(TV_STAGE_LAYOUT_EVENT, this.handleStageLayout);
+      this.tearDownViewportSync();
     },
   },
 

@@ -17,7 +17,7 @@ type ShakaModule =
 type ShakaPlayer = InstanceType<ShakaModule["Player"]>;
 
 /**
- * Apply the shared demo background playback policy to the web video element.
+ * @brief Apply the shared demo background playback policy to the web video element
  */
 export function configureDemoBackgroundVideoElement(
   videoElement: HTMLVideoElement,
@@ -38,7 +38,7 @@ export function configureDemoBackgroundVideoElement(
 }
 
 /**
- * Apply the minimal background playback behavior expected by the demo.
+ * @brief Apply the minimal background playback behavior expected by the demo
  */
 export async function attemptDemoBackgroundAutoplay(
   videoElement: HTMLVideoElement,
@@ -59,8 +59,8 @@ export async function attemptDemoBackgroundAutoplay(
 }
 
 /**
- * Load the shared demo HLS stream using native playback when available and
- * Shaka as the browser compatibility fallback.
+ * @brief Load the shared demo HLS stream using native playback when available
+ * and Shaka as the browser compatibility fallback
  */
 export async function loadDemoBackgroundVideo(
   videoElement: HTMLVideoElement,

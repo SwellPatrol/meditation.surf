@@ -12,7 +12,8 @@ import type {
 } from "@meditation-surf/player-core";
 
 /**
- * Placeholder Expo playback adapter.
+ * @brief Placeholder Expo playback adapter
+ *
  * The mobile app owns its eventual player implementation separately from TV.
  */
 export class ExpoPlaybackController implements PlaybackController {
@@ -28,6 +29,8 @@ export class ExpoPlaybackController implements PlaybackController {
 
   /**
    * @brief Prepare the placeholder controller
+   *
+   * @returns No value because the scaffold does not require asynchronous setup
    */
   public initialize(): void {}
 
@@ -35,6 +38,8 @@ export class ExpoPlaybackController implements PlaybackController {
    * @brief Store the requested playback source until Expo playback lands
    *
    * @param source - Shared playback source metadata
+   *
+   * @returns A promise that resolves after the source has been stored
    */
   public async load(source: PlaybackSource): Promise<void> {
     this.currentSource = source;
@@ -42,6 +47,8 @@ export class ExpoPlaybackController implements PlaybackController {
 
   /**
    * @brief No-op play method for the initial scaffold
+   *
+   * @returns No value because playback start is not implemented yet
    */
   public play(): void {}
 
@@ -70,6 +77,8 @@ export class ExpoPlaybackController implements PlaybackController {
 
   /**
    * @brief Clear the current source when the scaffold shuts down
+   *
+   * @returns A promise that resolves after the placeholder state has been cleared
    */
   public async destroy(): Promise<void> {
     this.currentSource = null;

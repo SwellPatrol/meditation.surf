@@ -6,22 +6,13 @@
  * See the file LICENSE.txt for more information.
  */
 
-import {
-  DEMO_BACKGROUND_VIDEO_POLICY,
-  getDemoBackgroundVideoSource,
-} from "@meditation-surf/core";
+import { DEMO_BACKGROUND_VIDEO_POLICY } from "@meditation-surf/core";
 import {
   BRAND_OVERLAY_ICON_SOURCE,
   getNativeBrandOverlayImageStyle,
   type NativeBrandOverlayImageStyle,
 } from "@meditation-surf/core/brand/native";
-import type { PlaybackSource } from "@meditation-surf/player-core";
-import {
-  useVideoPlayer,
-  type VideoPlayer,
-  type VideoSource,
-  VideoView,
-} from "expo-video";
+import { useVideoPlayer, type VideoPlayer, VideoView } from "expo-video";
 import { type JSX, useEffect } from "react";
 import {
   Image,
@@ -30,6 +21,11 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+
+import {
+  configureExpoDemoVideoPlayer,
+  createExpoDemoVideoSource,
+} from "./src/demoBackgroundVideo";
 
 const containerStyle: ViewStyle = {
   backgroundColor: "#000000",
@@ -63,19 +59,10 @@ const iconStyle: ImageStyle = {
 export default function App(): JSX.Element {
   const windowDimensions: { width: number; height: number } =
     useWindowDimensions();
-  // Reuse the same shared demo source as the TV-oriented app data path.
-  const demoBackgroundVideoSource: PlaybackSource =
-    getDemoBackgroundVideoSource();
-  const demoVideoSource: VideoSource = {
-    contentType: "hls",
-    uri: demoBackgroundVideoSource.url,
-  };
   const videoPlayer: VideoPlayer = useVideoPlayer(
-    demoVideoSource,
+    createExpoDemoVideoSource(),
     (player: VideoPlayer): void => {
-      // The minimal demo should start immediately, stay muted, and keep looping.
-      player.loop = DEMO_BACKGROUND_VIDEO_POLICY.loop;
-      player.muted = DEMO_BACKGROUND_VIDEO_POLICY.muted;
+      configureExpoDemoVideoPlayer(player);
     },
   );
 

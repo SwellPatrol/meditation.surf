@@ -13,7 +13,8 @@ import {
 } from "@meditation-surf/core";
 
 /**
- * Placeholder mobile screen model used until the Expo UI layer is wired in.
+ * @brief Placeholder mobile screen model used until the Expo UI layer is wired in
+ *
  * This keeps the scaffold honest without sharing any Lightning UI code.
  */
 export type MobileHomeScreenModel = {
@@ -23,7 +24,7 @@ export type MobileHomeScreenModel = {
 };
 
 /**
- * Build the initial mobile shell state from the shared demo catalog.
+ * @brief Build the initial mobile shell state from the shared demo catalog
  *
  * @returns Placeholder home-screen content for the Expo app
  */

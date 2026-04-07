@@ -9,7 +9,7 @@
 import { applyBrandOverlayImageSize } from "@meditation-surf/core/brand/web";
 
 /**
- * Keep the overlay icon centered and sized from the shared viewport policy.
+ * @brief Keep the overlay icon centered and sized from the shared viewport policy
  */
 export function applyWebBrandOverlayLayout(
   overlayIconElement: HTMLImageElement,

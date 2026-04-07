@@ -17,6 +17,7 @@ type StageScaleInput = {
  * @brief Compute the fitted Lightning stage scale for the current viewport
  *
  * @param scaleInput - Fixed stage size and live viewport dimensions
+ *
  * @returns Render scale applied to the Lightning stage within the browser
  */
 export function getFittedStageScale(scaleInput: StageScaleInput): number {
@@ -37,6 +38,7 @@ export function getFittedStageScale(scaleInput: StageScaleInput): number {
  *
  * @param requestedIconSize - Shared on-screen icon size in viewport pixels
  * @param scaleInput - Fixed stage size and live viewport dimensions
+ *
  * @returns Icon size to render within the Lightning stage
  */
 export function getStageCompensatedIconSize(

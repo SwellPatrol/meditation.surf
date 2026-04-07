@@ -35,22 +35,6 @@ const Icon: IconFactory = Blits.Component("Icon", {
 
   computed: {
     /**
-     * @brief Computes the requested icon size from the shared overlay policy
-     *
-     * Keeps the TV renderer responsible for its own stage-centered placement.
-     *
-     * @returns {number} The target icon size in viewport pixels
-     */
-    requestedIconSize(): number {
-      // @ts-ignore `this` contains the reactive props provided at runtime
-      const viewportW: number = this.viewportW as number;
-
-      // @ts-ignore `this` contains the reactive props provided at runtime
-      const viewportH: number = this.viewportH as number;
-      return getBrandOverlayIconSize(viewportW, viewportH);
-    },
-
-    /**
      * @brief Computes the rendered icon size in stage coordinates
      *
      * The Lightning stage is rendered at a fixed TV resolution and then scaled
@@ -72,15 +56,15 @@ const Icon: IconFactory = Blits.Component("Icon", {
       // @ts-ignore `this` contains the reactive props provided at runtime
       const viewportH: number = this.viewportH as number;
 
-      // @ts-ignore `this` contains the reactive props provided at runtime
-      const requestedIconSize: number = this.requestedIconSize as number;
-
-      return getStageCompensatedIconSize(requestedIconSize, {
-        stageWidth: stageW,
-        stageHeight: stageH,
-        viewportWidth: viewportW,
-        viewportHeight: viewportH,
-      });
+      return getStageCompensatedIconSize(
+        getBrandOverlayIconSize(viewportW, viewportH),
+        {
+          stageWidth: stageW,
+          stageHeight: stageH,
+          viewportWidth: viewportW,
+          viewportHeight: viewportH,
+        },
+      );
     },
 
     /**

@@ -8,13 +8,15 @@
 
 import { BRAND_OVERLAY_ICON_URL } from "@meditation-surf/core/brand/web";
 
+import { applyWebBrandOverlayLayout } from "./brandOverlay";
+
 export type WebAppShell = {
   backgroundVideoElement: HTMLVideoElement;
   overlayIconElement: HTMLImageElement;
 };
 
 /**
- * Build the minimal DOM shell used by the web demo surface.
+ * @brief Build the minimal DOM shell used by the web demo surface
  */
 export function createWebAppShell(): WebAppShell {
   const appRootElement: HTMLDivElement | null = document.querySelector("#app");
@@ -43,4 +45,11 @@ export function createWebAppShell(): WebAppShell {
     backgroundVideoElement,
     overlayIconElement,
   };
+}
+
+/**
+ * @brief Keep shell-owned DOM layout behavior close to the shell elements it manages
+ */
+export function applyWebAppShellLayout(webAppShell: WebAppShell): void {
+  applyWebBrandOverlayLayout(webAppShell.overlayIconElement);
 }
