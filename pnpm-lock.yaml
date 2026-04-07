@@ -118,6 +118,15 @@ importers:
         specifier: ^5.0.9
         version: 5.0.9
 
+  apps/web-vite:
+    dependencies:
+      '@meditation-surf/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      shaka-player:
+        specifier: ^5.0.9
+        version: 5.0.9
+
   packages/core:
     dependencies:
       '@meditation-surf/player-core':

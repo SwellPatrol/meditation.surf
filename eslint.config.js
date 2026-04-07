@@ -84,6 +84,7 @@ export default [
       "apps/mobile-expo/.expo/**",
       "apps/mobile-expo/dist/**",
       "apps/tv-lightning/dist/**",
+      "apps/web-vite/dist/**",
       "dist/**",
       "pnpm-lock.yaml",
     ],

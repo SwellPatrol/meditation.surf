@@ -1,0 +1,15 @@
+{
+  "name": "@meditation-surf/web-vite",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite dev --host",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@meditation-surf/core": "workspace:*",
+    "shaka-player": "^5.0.9"
+  }
+}

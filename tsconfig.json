@@ -25,11 +25,13 @@
     "apps/mobile-expo/.expo",
     "apps/mobile-expo/dist",
     "apps/tv-lightning/dist",
+    "apps/web-vite/dist",
     "dist"
   ],
   "include": [
     "apps/mobile-expo/**/*",
     "apps/tv-lightning/**/*",
+    "apps/web-vite/**/*",
     "packages/core/**/*",
     "packages/player-core/**/*",
     "test/**/*"
