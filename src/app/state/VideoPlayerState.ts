@@ -5,13 +5,20 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  * See the file LICENSE.txt for more information.
  */
-
-import type shaka from "shaka-player/dist/shaka-player.compiled.js";
-
 import AudioState from "./AudioState";
 
-type ShakaModule = typeof shaka;
+declare global {
+  // ESLint treats global type-only declarations as unused variables.
+  // This declaration exists solely so `globalThis.shaka` has a concrete type.
+  // eslint-disable-next-line no-unused-vars
+  var shaka: (typeof import("shaka-player"))["default"];
+}
+
+type ShakaModule = typeof globalThis.shaka;
 type ShakaPlayer = InstanceType<ShakaModule["Player"]>;
+type ShakaImportResult = {
+  default: ShakaModule;
+};
 type DisplayBounds = {
   left: number;
   top: number;
@@ -176,7 +183,7 @@ export class VideoPlayerState {
   ): Promise<void> {
     await this.destroyShakaPlayer();
 
-    const shakaModule: typeof import("shaka-player/dist/shaka-player.compiled.js") =
+    const shakaModule: ShakaImportResult =
       await import("shaka-player/dist/shaka-player.compiled.js");
     const shakaLib: ShakaModule = shakaModule.default;
 
