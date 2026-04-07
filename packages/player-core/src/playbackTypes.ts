@@ -7,13 +7,15 @@
  */
 
 /**
- * Audio layout metadata for a playback source.
+ * @brief Audio layout metadata for a playback source
+ *
  * The player implementation can use this to describe or select streams.
  */
 export type AudioProfile = "stereo" | "5.1" | "7.1" | "atmos";
 
 /**
- * Platform-agnostic media source details shared by both apps.
+ * @brief Platform-agnostic media source details shared by both apps
+ *
  * Platform-specific player implementations decide how to consume this.
  */
 export type PlaybackSource = {
@@ -24,7 +26,9 @@ export type PlaybackSource = {
 };
 
 /**
- * Public playback lifecycle states shared by controllers and observers.
+ * @brief Public playback lifecycle states shared by controllers and observers
+ *
+ * These values represent the shared playback state machine surface.
  */
 export type PlaybackStatus =
   | "idle"
@@ -37,7 +41,9 @@ export type PlaybackStatus =
   | "error";
 
 /**
- * Minimal playback state model shared across app boundaries.
+ * @brief Minimal playback state model shared across app boundaries
+ *
+ * This captures the core state needed by shared playback integrations.
  */
 export type PlaybackState = {
   status: PlaybackStatus;
@@ -47,7 +53,9 @@ export type PlaybackState = {
 };
 
 /**
- * Shared event names for analytics and lightweight playback observation.
+ * @brief Shared event names for analytics and lightweight playback observation
+ *
+ * These names provide a stable event vocabulary across runtimes.
  */
 export type PlaybackEventName =
   | "playback_initialized"
@@ -58,7 +66,9 @@ export type PlaybackEventName =
   | "playback_destroyed";
 
 /**
- * Shared payload shapes for playback events.
+ * @brief Shared payload shapes for playback events
+ *
+ * Each event name maps to the payload shape emitted for that event.
  */
 export type PlaybackEventPayloadMap = {
   playback_initialized: undefined;

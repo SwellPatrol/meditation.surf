@@ -25,10 +25,10 @@ type IconFactory = ReturnType<typeof Blits.Component>;
  * The icon is rendered at most one third the size of the smaller viewport
  * dimension to keep it unobtrusive while maintaining its aspect ratio.
  *
- * @property {number} stageW The Lightning stage width in pixels.
- * @property {number} stageH The Lightning stage height in pixels.
- * @property {number} viewportW The browser viewport width in pixels.
- * @property {number} viewportH The browser viewport height in pixels.
+ * @property {number} stageW The Lightning stage width in pixels
+ * @property {number} stageH The Lightning stage height in pixels
+ * @property {number} viewportW The browser viewport width in pixels
+ * @property {number} viewportH The browser viewport height in pixels
  */
 const Icon: IconFactory = Blits.Component("Icon", {
   // Stage coordinates stay fixed for centering, while viewport dimensions
@@ -41,7 +41,7 @@ const Icon: IconFactory = Blits.Component("Icon", {
      *
      * Keeps the TV renderer responsible for its own stage-centered placement.
      *
-     * @returns {number} The target icon size in viewport pixels.
+     * @returns {number} The target icon size in viewport pixels
      */
     requestedIconSize(): number {
       // @ts-ignore `this` contains the reactive props provided at runtime
@@ -59,7 +59,7 @@ const Icon: IconFactory = Blits.Component("Icon", {
      * into the browser viewport. Compensate for that stage scale so the final
      * on-screen icon size matches the shared viewport-based size target.
      *
-     * @returns {number} The icon size to render within the Lightning stage.
+     * @returns {number} The icon size to render within the Lightning stage
      */
     iconSize(): number {
       // @ts-ignore `this` contains the reactive props provided at runtime
@@ -90,7 +90,7 @@ const Icon: IconFactory = Blits.Component("Icon", {
      *
      * Ensures the TV app renders the same source image as the web surface.
      *
-     * @returns {string} The resolved icon asset URL.
+     * @returns {string} The resolved icon asset URL
      */
     iconSource(): string {
       return BRAND_OVERLAY_ICON_URL;

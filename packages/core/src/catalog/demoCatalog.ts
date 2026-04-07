@@ -9,7 +9,7 @@
 import type { AppCatalog, MediaContent } from "./types";
 
 /**
- * Shared demo media item consumed by workspace apps.
+ * @brief Shared demo media item consumed by workspace apps
  */
 export const DEMO_SURF_VIDEO: MediaContent = {
   id: "swellpatrol-featured-break",
@@ -23,7 +23,7 @@ export const DEMO_SURF_VIDEO: MediaContent = {
 };
 
 /**
- * Shared demo catalog used to exercise the common content model.
+ * @brief Shared demo catalog used to exercise the common content model
  */
 export const DEMO_CATALOG: AppCatalog = {
   categories: [

@@ -18,7 +18,14 @@ export type NativeBrandOverlayImageStyle = {
 };
 
 /**
- * Return the runtime-specific image dimensions expected by React Native.
+ * @brief Return the runtime-specific image dimensions expected by React Native
+ *
+ * This converts the shared overlay sizing rules into a native image style.
+ *
+ * @param availableWidth - Available width for the overlay image
+ * @param availableHeight - Available height for the overlay image
+ *
+ * @returns The React Native image dimensions for the overlay icon
  */
 export function getNativeBrandOverlayImageStyle(
   availableWidth: number,

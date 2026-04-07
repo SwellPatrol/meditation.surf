@@ -11,8 +11,14 @@ export const BRAND_OVERLAY_ICON_MAX_SIZE_PX: number = 240;
 export const BRAND_OVERLAY_ICON_VIEWPORT_RATIO: number = 0.32;
 
 /**
- * Keep the shared overlay icon square and modestly sized across runtimes.
+ * @brief Keep the shared overlay icon square and modestly sized across runtimes
+ *
  * Each app remains responsible for centering and rendering the asset.
+ *
+ * @param availableWidth - Available width for the overlay region
+ * @param availableHeight - Available height for the overlay region
+ *
+ * @returns The icon size in pixels after applying shared sizing limits
  */
 export function getBrandOverlayIconSize(
   availableWidth: number,

@@ -14,7 +14,7 @@ export const BRAND_OVERLAY_ICON_URL: string = new URL(
 ).href;
 
 /**
- * Apply the shared brand overlay size to a web image element.
+ * @brief Apply the shared brand overlay size to a web image element
  */
 export function applyBrandOverlayImageSize(
   imageElement: HTMLImageElement,

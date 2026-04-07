@@ -9,7 +9,7 @@
 import type { PlaybackSource } from "@meditation-surf/player-core";
 
 /**
- * A single piece of playable meditation content.
+ * @brief A single piece of playable meditation content
  */
 export type MediaContent = {
   id: string;
@@ -19,7 +19,7 @@ export type MediaContent = {
 };
 
 /**
- * A catalog grouping shown by frontend-specific navigation and layout layers.
+ * @brief A catalog grouping shown by frontend-specific navigation and layout layers
  */
 export type CatalogCategory = {
   id: string;
@@ -28,7 +28,7 @@ export type CatalogCategory = {
 };
 
 /**
- * Shared catalog payload returned by content clients.
+ * @brief Shared catalog payload returned by content clients
  */
 export type AppCatalog = {
   categories: CatalogCategory[];

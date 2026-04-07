@@ -7,7 +7,9 @@
  */
 
 /**
- * Shared analytics event names used across both apps.
+ * @brief Shared analytics event names used across both apps
+ *
+ * These names define the stable analytics vocabulary for shared features.
  */
 export type AnalyticsEventName =
   | "app_launched"
@@ -16,7 +18,9 @@ export type AnalyticsEventName =
   | "audio_preferences_changed";
 
 /**
- * Shared analytics payload types keyed by event name.
+ * @brief Shared analytics payload types keyed by event name
+ *
+ * Each analytics event name maps to the payload emitted for that event.
  */
 export type AnalyticsEventPayloadMap = {
   app_launched: {

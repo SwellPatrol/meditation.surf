@@ -7,7 +7,7 @@
  */
 
 /**
- * Persisted audio preferences shared by both frontends.
+ * @brief Persisted audio preferences shared by both frontends
  */
 export type AudioPreferences = {
   muted: boolean;
@@ -15,7 +15,8 @@ export type AudioPreferences = {
 };
 
 /**
- * Storage contract for audio preferences.
+ * @brief Storage contract for audio preferences
+ *
  * Each frontend keeps its own persistence implementation.
  */
 export interface AudioPreferencesStorage {
@@ -24,7 +25,7 @@ export interface AudioPreferencesStorage {
 }
 
 /**
- * Default audio preferences used when no storage value exists.
+ * @brief Default audio preferences used when no storage value exists
  */
 export const DEFAULT_AUDIO_PREFERENCES: AudioPreferences = {
   muted: false,
@@ -32,9 +33,10 @@ export const DEFAULT_AUDIO_PREFERENCES: AudioPreferences = {
 };
 
 /**
- * Clamp a volume value into the valid media element range.
+ * @brief Clamp a volume value into the valid media element range
  *
  * @param volume - Candidate volume value
+ *
  * @returns Volume clamped to [0, 1]
  */
 export function clampAudioVolume(volume: number): number {
@@ -42,9 +44,10 @@ export function clampAudioVolume(volume: number): number {
 }
 
 /**
- * Normalize an arbitrary preference object into the shared model.
+ * @brief Normalize an arbitrary preference object into the shared model
  *
  * @param preferences - Partial or invalid preference input
+ *
  * @returns A complete and safe preference object
  */
 export function normalizeAudioPreferences(
