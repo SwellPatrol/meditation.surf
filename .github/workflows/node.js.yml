@@ -23,6 +23,8 @@ jobs:
         include:
           - os: ubuntu-24.04
             node-version: 24
+          - os: ubuntu-24.04
+            node-version: 25
 
     steps:
       - name: Checkout 🛎️
