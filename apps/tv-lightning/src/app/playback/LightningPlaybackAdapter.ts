@@ -36,36 +36,25 @@ type DisplayBounds = {
 };
 
 /**
- * Lightning-specific playback controller backed by a DOM video element and Shaka.
- * The shared playback contract stays in `packages/player-core`, but this class
- * intentionally owns the web-only media implementation details.
+ * Lightning-specific playback adapter backed by a DOM video element and Shaka.
+ * The shared controller contract stays in `packages/player-core`, while this
+ * class owns the TV app's platform playback implementation details.
  */
-export class LightningPlaybackController implements PlaybackController {
+export class LightningPlaybackAdapter implements PlaybackController {
   // Shared DOM video element created once at boot
-  private videoElement: HTMLVideoElement | null;
+  private videoElement: HTMLVideoElement | null = null;
 
   // Active Shaka Player instance or `null` when idle
-  private shakaPlayer: ShakaPlayer | null;
+  private shakaPlayer: ShakaPlayer | null = null;
 
   // True after the video element has been configured
-  private initialized: boolean;
+  private initialized: boolean = false;
 
   // Active playback source, if one has been loaded
-  private currentSource: PlaybackSource | null;
+  private currentSource: PlaybackSource | null = null;
 
   // Boot-time DOM bounds for the displayed stage
-  private displayBounds: DisplayBounds | null;
-
-  /**
-   * @brief Initialize the controller with empty state
-   */
-  constructor() {
-    this.videoElement = null as HTMLVideoElement | null;
-    this.shakaPlayer = null as ShakaPlayer | null;
-    this.initialized = false as boolean;
-    this.currentSource = null as PlaybackSource | null;
-    this.displayBounds = null as DisplayBounds | null;
-  }
+  private displayBounds: DisplayBounds | null = null;
 
   /**
    * @brief Update the fitted TV display bounds for the shared video element
@@ -87,7 +76,11 @@ export class LightningPlaybackController implements PlaybackController {
       width,
       height,
     };
-    this.applyDisplayBounds();
+
+    const videoElement: HTMLVideoElement | null = this.videoElement;
+    if (videoElement !== null) {
+      this.applyDisplayBounds(videoElement);
+    }
   }
 
   /**
@@ -96,11 +89,24 @@ export class LightningPlaybackController implements PlaybackController {
    * @returns The shared DOM video element
    */
   private ensureVideoElement(): HTMLVideoElement {
-    if (this.videoElement !== null) {
-      return this.videoElement;
+    const existingVideoElement: HTMLVideoElement | null = this.videoElement;
+    if (existingVideoElement !== null) {
+      return existingVideoElement;
     }
 
     const videoElement: HTMLVideoElement = document.createElement("video");
+    this.configureVideoElement(videoElement);
+    this.applyDisplayBounds(videoElement);
+    document.body.appendChild(videoElement);
+    this.videoElement = videoElement;
+
+    return videoElement;
+  }
+
+  /**
+   * @brief Configure the shared DOM video element once when it is created
+   */
+  private configureVideoElement(videoElement: HTMLVideoElement): void {
     videoElement.setAttribute("crossorigin", "anonymous");
     videoElement.setAttribute("autoplay", "");
     videoElement.setAttribute("playsinline", "");
@@ -115,25 +121,21 @@ export class LightningPlaybackController implements PlaybackController {
       AudioState.setMuted(videoElement.muted);
       AudioState.setVolume(videoElement.volume);
     });
-
-    document.body.appendChild(videoElement);
-    this.videoElement = videoElement;
-
-    return videoElement;
   }
 
   /**
    * @brief Apply the stored display bounds to the shared video element
    */
-  private applyDisplayBounds(): void {
-    if (this.displayBounds === null || this.videoElement === null) {
+  private applyDisplayBounds(videoElement: HTMLVideoElement): void {
+    const displayBounds: DisplayBounds | null = this.displayBounds;
+    if (displayBounds === null) {
       return;
     }
 
-    this.videoElement.style.left = `${this.displayBounds.left}px`;
-    this.videoElement.style.top = `${this.displayBounds.top}px`;
-    this.videoElement.style.width = `${this.displayBounds.width}px`;
-    this.videoElement.style.height = `${this.displayBounds.height}px`;
+    videoElement.style.left = `${displayBounds.left}px`;
+    videoElement.style.top = `${displayBounds.top}px`;
+    videoElement.style.width = `${displayBounds.width}px`;
+    videoElement.style.height = `${displayBounds.height}px`;
   }
 
   /**
@@ -146,13 +148,10 @@ export class LightningPlaybackController implements PlaybackController {
       // Mute before initial playback so autoplay is more likely to succeed.
       this.setMuted(true);
       this.setVolume(DEFAULT_AUDIO_PREFERENCES.volume);
-      this.initialized = true as boolean;
+      this.initialized = true;
     }
 
-    if (this.displayBounds !== null) {
-      this.applyDisplayBounds();
-    }
-
+    this.applyDisplayBounds(videoElement);
     videoElement.style.display = "block";
   }
 
@@ -160,17 +159,18 @@ export class LightningPlaybackController implements PlaybackController {
    * @brief Destroy the active Shaka Player instance if one exists
    */
   private async destroyShakaPlayer(): Promise<void> {
-    if (this.shakaPlayer === null) {
+    const shakaPlayer: ShakaPlayer | null = this.shakaPlayer;
+    if (shakaPlayer === null) {
       return;
     }
 
+    this.shakaPlayer = null;
+
     try {
-      await this.shakaPlayer.destroy();
+      await shakaPlayer.destroy();
     } catch (error: unknown) {
       console.error("Failed to destroy Shaka Player", error);
     }
-
-    this.shakaPlayer = null;
   }
 
   /**
@@ -198,19 +198,6 @@ export class LightningPlaybackController implements PlaybackController {
     };
     videoElement.addEventListener("playing", restoreAudio, { once: true });
 
-    await this.loadStream(source, videoElement);
-  }
-
-  /**
-   * @brief Load a media stream into Shaka Player and prepare playback
-   *
-   * @param source - Shared playback source details
-   * @param videoElement - Shared DOM video element used for playback
-   */
-  private async loadStream(
-    source: PlaybackSource,
-    videoElement: HTMLVideoElement,
-  ): Promise<void> {
     await this.destroyShakaPlayer();
 
     const shakaModule: ShakaImportResult =
@@ -237,16 +224,14 @@ export class LightningPlaybackController implements PlaybackController {
    * @brief Resume playback on the shared video element
    */
   public play(): Promise<void> {
-    const videoElement: HTMLVideoElement = this.ensureVideoElement();
-    return videoElement.play();
+    return this.ensureVideoElement().play();
   }
 
   /**
    * @brief Pause playback on the shared video element
    */
   public pause(): void {
-    const videoElement: HTMLVideoElement = this.ensureVideoElement();
-    videoElement.pause();
+    this.ensureVideoElement().pause();
   }
 
   /**
@@ -280,18 +265,19 @@ export class LightningPlaybackController implements PlaybackController {
    * @brief Tear down the current player instance and hide the video element
    */
   public async destroy(): Promise<void> {
-    await this.destroyShakaPlayer();
+    const videoElement: HTMLVideoElement | null = this.videoElement;
+    this.currentSource = null;
 
-    if (this.videoElement !== null) {
-      this.videoElement.pause();
-      this.videoElement.style.display = "none";
+    if (videoElement !== null) {
+      videoElement.pause();
+      videoElement.style.display = "none";
     }
 
-    this.currentSource = null;
+    await this.destroyShakaPlayer();
   }
 }
 
-const lightningPlaybackController: LightningPlaybackController =
-  new LightningPlaybackController();
+const lightningPlaybackAdapter: LightningPlaybackAdapter =
+  new LightningPlaybackAdapter();
 
-export default lightningPlaybackController;
+export default lightningPlaybackAdapter;

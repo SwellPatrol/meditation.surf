@@ -8,12 +8,11 @@
 
 import Blits from "@lightningjs/blits";
 
-import lightningPlaybackController from "../playback/LightningPlaybackController";
+import lightningPlaybackAdapter from "../playback/LightningPlaybackAdapter";
 import LightningApp from "../ui/LightningApp";
 import { LIGHTNING_APP_HEIGHT, LIGHTNING_APP_WIDTH } from "../ui/LightningApp";
 
 type FittedStageBounds = {
-  scale: number;
   width: number;
   height: number;
   left: number;
@@ -32,7 +31,6 @@ const getInitialFittedStageBounds = (): FittedStageBounds => {
   const top: number = (viewportHeight - height) / 2;
 
   return {
-    scale,
     width,
     height,
     left,
@@ -48,6 +46,12 @@ function startApp(): void {
   const fittedStageBounds: FittedStageBounds = getInitialFittedStageBounds();
 
   mount.style.position = "relative";
+  lightningPlaybackAdapter.setDisplayBounds(
+    fittedStageBounds.left,
+    fittedStageBounds.top,
+    fittedStageBounds.width,
+    fittedStageBounds.height,
+  );
   Blits.Launch(LightningApp, mount, {
     w: LIGHTNING_APP_WIDTH,
     h: LIGHTNING_APP_HEIGHT,
@@ -63,13 +67,6 @@ function startApp(): void {
       canvas.style.height = `${fittedStageBounds.height}px`;
       canvas.style.zIndex = "1";
     }
-
-    lightningPlaybackController.setDisplayBounds(
-      fittedStageBounds.left,
-      fittedStageBounds.top,
-      fittedStageBounds.width,
-      fittedStageBounds.height,
-    );
   };
   window.setTimeout(positionCanvas, 0);
 }

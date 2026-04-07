@@ -9,8 +9,7 @@
 import {
   type AudioPreferences,
   type AudioPreferencesStorage,
-  clampAudioVolume,
-  DEFAULT_AUDIO_PREFERENCES,
+  normalizeAudioPreferences,
 } from "@meditation-surf/core";
 
 /**
@@ -36,16 +35,12 @@ class BrowserAudioPreferencesStorage implements AudioPreferencesStorage {
       BrowserAudioPreferencesStorage.VOLUME_KEY,
     );
     const parsedVolume: number =
-      volumeValue === null
-        ? DEFAULT_AUDIO_PREFERENCES.volume
-        : parseFloat(volumeValue);
+      volumeValue === null ? Number.NaN : parseFloat(volumeValue);
 
-    return {
-      muted: mutedValue === "true",
-      volume: Number.isNaN(parsedVolume)
-        ? DEFAULT_AUDIO_PREFERENCES.volume
-        : clampAudioVolume(parsedVolume),
-    };
+    return normalizeAudioPreferences({
+      muted: mutedValue === null ? undefined : mutedValue === "true",
+      volume: Number.isNaN(parsedVolume) ? undefined : parsedVolume,
+    });
   }
 
   /**
@@ -54,13 +49,16 @@ class BrowserAudioPreferencesStorage implements AudioPreferencesStorage {
    * @param preferences - Shared preference model to persist
    */
   public save(preferences: AudioPreferences): void {
+    const normalizedPreferences: AudioPreferences =
+      normalizeAudioPreferences(preferences);
+
     window.localStorage.setItem(
       BrowserAudioPreferencesStorage.MUTED_KEY,
-      preferences.muted ? "true" : "false",
+      normalizedPreferences.muted ? "true" : "false",
     );
     window.localStorage.setItem(
       BrowserAudioPreferencesStorage.VOLUME_KEY,
-      clampAudioVolume(preferences.volume).toString(),
+      normalizedPreferences.volume.toString(),
     );
   }
 }

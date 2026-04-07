@@ -18,7 +18,7 @@ export interface CatalogClient {
 }
 
 /**
- * Temporary in-memory client used during the two-app migration.
+ * In-memory client that serves the shared demo catalog.
  */
 export class DemoCatalogClient implements CatalogClient {
   public async getCatalog(): Promise<AppCatalog> {

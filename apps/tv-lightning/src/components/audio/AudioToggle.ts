@@ -8,10 +8,13 @@
 
 import Blits from "@lightningjs/blits";
 
-import lightningPlaybackController from "../../app/playback/LightningPlaybackController";
+import lightningPlaybackAdapter from "../../app/playback/LightningPlaybackAdapter";
 import AudioState from "../../app/state/AudioState";
 
-// Type alias for the factory returned by Blits.Component
+type AudioToggleState = {
+  muted: boolean;
+};
+
 type AudioToggleFactory = ReturnType<typeof Blits.Component>;
 
 /**
@@ -23,69 +26,28 @@ const AudioToggle: AudioToggleFactory = Blits.Component("AudioToggle", {
   props: ["stageW", "stageH"],
 
   // Maintain local mute state in sync with AudioState
-  state(): { muted: boolean } {
+  state(): AudioToggleState {
     return {
-      muted: AudioState.isMuted() as boolean,
+      muted: AudioState.isMuted(),
     };
   },
 
   methods: {
     /** Toggle the mute state and apply it to the video player. */
-    toggle(): void {
-      // @ts-ignore `this` contains the reactive state provided at runtime
-      const current: boolean = this.muted as boolean;
-      const newMuted: boolean = !current;
-      lightningPlaybackController.setMuted(newMuted);
+    toggle(this: AudioToggleState): void {
+      const newMuted: boolean = !this.muted;
+      lightningPlaybackAdapter.setMuted(newMuted);
       AudioState.setMuted(newMuted);
-      // @ts-ignore update the reactive state
       this.muted = newMuted;
     },
   },
 
-  computed: {
-    /**
-     * Path to the icon image based on the mute state.
-     * The images are preloaded from the public assets folder.
-     */
-    iconSrc(): string {
-      // @ts-ignore `this` contains the reactive state provided at runtime
-      const muted: boolean = this.muted as boolean;
-      return muted ? "assets/audio-off.svg" : "assets/audio-on.svg";
-    },
-
-    /** Width of the icon occupying a third of the viewport width. */
-    iconW(): number {
-      // @ts-ignore `this` contains the reactive props provided at runtime
-      const stageW: number = this.stageW as number;
-      return stageW / 3;
-    },
-
-    /** Height of the icon occupying a third of the viewport height. */
-    iconH(): number {
-      // @ts-ignore `this` contains the reactive props provided at runtime
-      const stageH: number = this.stageH as number;
-      return stageH / 3;
-    },
-
-    /** X coordinate of the icon anchored to the bottom-right. */
-    iconX(): number {
-      // @ts-ignore `this` contains the reactive props provided at runtime
-      const stageW: number = this.stageW as number;
-      return stageW;
-    },
-
-    /** Y coordinate of the icon anchored to the bottom-right. */
-    iconY(): number {
-      // @ts-ignore `this` contains the reactive props provided at runtime
-      const stageH: number = this.stageH as number;
-      return stageH;
-    },
-  },
-
   template: `<Element
-      :src="$iconSrc"
-      :w="$iconW" :h="$iconH"
-      :x="$iconX" :y="$iconY"
+      :src="$muted ? 'assets/audio-off.svg' : 'assets/audio-on.svg'"
+      :w="$stageW / 3"
+      :h="$stageH / 3"
+      :x="$stageW"
+      :y="$stageH"
       :zIndex="2"
       :mount="1"
       @click="toggle"

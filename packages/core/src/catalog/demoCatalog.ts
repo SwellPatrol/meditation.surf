@@ -9,13 +9,12 @@
 import type { AppCatalog, MediaContent } from "./types";
 
 /**
- * Shared demo media item used by both app scaffolds during the split.
+ * Shared demo media item consumed by workspace apps.
  */
 export const DEMO_SURF_VIDEO: MediaContent = {
   id: "swellpatrol-featured-break",
   title: "Featured Break",
-  description:
-    "A calm featured surf stream used as the shared migration sample.",
+  description: "A calm featured surf stream used as shared sample content.",
   playbackSource: {
     url: "https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8",
     mimeType: "application/x-mpegURL",
@@ -24,7 +23,7 @@ export const DEMO_SURF_VIDEO: MediaContent = {
 };
 
 /**
- * Shared demo catalog proving both apps can consume the same content model.
+ * Shared demo catalog used to exercise the common content model.
  */
 export const DEMO_CATALOG: AppCatalog = {
   categories: [
