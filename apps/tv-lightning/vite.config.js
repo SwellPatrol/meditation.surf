@@ -23,6 +23,9 @@ const metrologicalSdkEntry = require.resolve("@metrological/sdk/index.js");
 const coreEntry = fileURLToPath(
   new URL("../../packages/core/src/index.ts", import.meta.url),
 );
+const coreBrandWebEntry = fileURLToPath(
+  new URL("../../packages/core/src/brand/web.ts", import.meta.url),
+);
 const playerCoreEntry = fileURLToPath(
   new URL("../../packages/player-core/src/index.ts", import.meta.url),
 );
@@ -59,6 +62,7 @@ export default defineConfig({
   // Ensure internal Lightning modules can be bundled by the dev server
   resolve: {
     alias: {
+      "@meditation-surf/core/brand/web": coreBrandWebEntry,
       "@meditation-surf/core": coreEntry,
       "@meditation-surf/player-core": playerCoreEntry,
       "@lightningjs/sdk/src/Settings": lightningSettingsEntry,

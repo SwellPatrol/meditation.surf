@@ -8,9 +8,11 @@
 
 import "./styles.css";
 
-import { DEMO_SURF_VIDEO } from "@meditation-surf/core";
-
-import swellPatrolIconSource from "./icon-1500x1500.png";
+import {
+  DEMO_SURF_VIDEO,
+  getBrandOverlayIconSize,
+} from "@meditation-surf/core";
+import { BRAND_OVERLAY_ICON_URL } from "@meditation-surf/core/brand/web";
 
 type ShakaModule =
   (typeof import("shaka-player/dist/shaka-player.compiled.js"))["default"];
@@ -45,12 +47,26 @@ overlayElement.setAttribute("aria-hidden", "true");
 const overlayIconElement: HTMLImageElement = document.createElement("img");
 overlayIconElement.className = "overlay-icon";
 overlayIconElement.alt = "";
-overlayIconElement.src = swellPatrolIconSource;
+overlayIconElement.src = BRAND_OVERLAY_ICON_URL;
 
 overlayElement.appendChild(overlayIconElement);
 appRootElement.append(backgroundVideoElement, overlayElement);
 
 let activeShakaPlayer: ShakaPlayer | null = null;
+
+/**
+ * Keep the overlay icon centered and consistently sized as the viewport
+ * changes without coupling the web app to the native or Lightning runtimes.
+ */
+const applyOverlayIconLayout: () => void = (): void => {
+  const iconSize: number = getBrandOverlayIconSize(
+    window.innerWidth,
+    window.innerHeight,
+  );
+
+  overlayIconElement.style.width = `${iconSize}px`;
+  overlayIconElement.style.height = `${iconSize}px`;
+};
 
 /**
  * Apply the minimal background playback behavior expected by the demo.
@@ -124,5 +140,7 @@ window.addEventListener("beforeunload", (): void => {
     void activeShakaPlayer.destroy();
   }
 });
+window.addEventListener("resize", applyOverlayIconLayout);
 
+applyOverlayIconLayout();
 void loadDemoVideoSource();

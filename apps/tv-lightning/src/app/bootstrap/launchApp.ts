@@ -19,7 +19,7 @@ type FittedStageBounds = {
   top: number;
 };
 
-const getInitialFittedStageBounds = (): FittedStageBounds => {
+const getFittedStageBounds = (): FittedStageBounds => {
   const viewportWidth: number = window.innerWidth;
   const viewportHeight: number = window.innerHeight;
   const widthScale: number = viewportWidth / LIGHTNING_APP_WIDTH;
@@ -43,22 +43,24 @@ const getInitialFittedStageBounds = (): FittedStageBounds => {
  */
 function startApp(): void {
   const mount: HTMLElement = document.getElementById("app") as HTMLElement;
-  const fittedStageBounds: FittedStageBounds = getInitialFittedStageBounds();
 
   mount.style.position = "relative";
-  lightningPlaybackAdapter.setDisplayBounds(
-    fittedStageBounds.left,
-    fittedStageBounds.top,
-    fittedStageBounds.width,
-    fittedStageBounds.height,
-  );
   Blits.Launch(LightningApp, mount, {
     w: LIGHTNING_APP_WIDTH,
     h: LIGHTNING_APP_HEIGHT,
   });
 
-  const positionCanvas = (): void => {
+  const applyStageLayout: () => void = (): void => {
+    const fittedStageBounds: FittedStageBounds = getFittedStageBounds();
     const canvas: HTMLCanvasElement | null = mount.querySelector("canvas");
+
+    lightningPlaybackAdapter.setDisplayBounds(
+      fittedStageBounds.left,
+      fittedStageBounds.top,
+      fittedStageBounds.width,
+      fittedStageBounds.height,
+    );
+
     if (canvas !== null) {
       canvas.style.position = "absolute";
       canvas.style.top = `${fittedStageBounds.top}px`;
@@ -68,7 +70,9 @@ function startApp(): void {
       canvas.style.zIndex = "1";
     }
   };
-  window.setTimeout(positionCanvas, 0);
+
+  window.setTimeout(applyStageLayout, 0);
+  window.addEventListener("resize", applyStageLayout);
 }
 
 /**

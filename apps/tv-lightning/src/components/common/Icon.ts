@@ -7,6 +7,8 @@
  */
 
 import Blits from "@lightningjs/blits";
+import { getBrandOverlayIconSize } from "@meditation-surf/core";
+import { BRAND_OVERLAY_ICON_URL } from "@meditation-surf/core/brand/web";
 
 // Type alias for the factory returned by Blits.Component
 type IconFactory = ReturnType<typeof Blits.Component>;
@@ -22,21 +24,28 @@ const Icon: IconFactory = Blits.Component("Icon", {
 
   computed: {
     /**
-     * Size of the square icon in pixels.
-     * The smallest stage dimension is divided by two so the icon does not
-     * exceed half of the available space while maintaining its aspect ratio.
+     * Size the icon using the shared overlay policy while keeping the TV
+     * renderer responsible for its own stage-centered placement.
      */
     iconSize(): number {
       // @ts-ignore `this` contains the reactive props provided at runtime
       const stageW: number = this.stageW as number;
       const stageH: number = this.stageH as number;
-      return Math.min(stageW, stageH) / 2;
+      return getBrandOverlayIconSize(stageW, stageH);
+    },
+
+    /**
+     * Resolve the shared icon asset through Vite so the TV app renders the
+     * same source image as the web surface.
+     */
+    iconSource(): string {
+      return BRAND_OVERLAY_ICON_URL;
     },
   },
 
   // Render the icon centered at half mount
   template: `<Element
-      src="assets/icon-1500x1500.png"
+      :src="$iconSource"
       :w="$iconSize"
       :h="$iconSize"
       :x="$stageW / 2"

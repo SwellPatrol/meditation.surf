@@ -12,6 +12,12 @@ export type {
   AnalyticsEventName,
   AnalyticsEventPayloadMap,
 } from "./analytics/events";
+export {
+  BRAND_OVERLAY_ICON_ASPECT_RATIO,
+  BRAND_OVERLAY_ICON_MAX_SIZE_PX,
+  BRAND_OVERLAY_ICON_VIEWPORT_RATIO,
+  getBrandOverlayIconSize,
+} from "./brand/overlay";
 export { DEMO_CATALOG, DEMO_SURF_VIDEO } from "./catalog/demoCatalog";
 export type {
   AppCatalog,

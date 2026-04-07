@@ -52,8 +52,5 @@ body {
 .overlay-icon {
   aspect-ratio: 1 / 1;
   display: block;
-  height: auto;
-  max-height: min(32vmin, 240px);
-  max-width: min(32vmin, 240px);
-  width: min(32vmin, 240px);
+  object-fit: contain;
 }

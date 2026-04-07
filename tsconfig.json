@@ -17,6 +17,10 @@
     "baseUrl": ".",
     "paths": {
       "@meditation-surf/core": ["packages/core/src/index.ts"],
+      "@meditation-surf/core/brand/native": [
+        "packages/core/src/brand/native.ts"
+      ],
+      "@meditation-surf/core/brand/web": ["packages/core/src/brand/web.ts"],
       "@meditation-surf/player-core": ["packages/player-core/src/index.ts"]
     }
   },

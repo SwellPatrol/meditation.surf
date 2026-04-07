@@ -6,7 +6,11 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { DEMO_SURF_VIDEO } from "@meditation-surf/core";
+import {
+  DEMO_SURF_VIDEO,
+  getBrandOverlayIconSize,
+} from "@meditation-surf/core";
+import { BRAND_OVERLAY_ICON_SOURCE } from "@meditation-surf/core/brand/native";
 import {
   useVideoPlayer,
   type VideoPlayer,
@@ -14,9 +18,13 @@ import {
   VideoView,
 } from "expo-video";
 import { type JSX, useEffect } from "react";
-import { Image, type ImageStyle, View, type ViewStyle } from "react-native";
-
-import swellPatrolIcon from "./icon-1500x1500.png";
+import {
+  Image,
+  type ImageStyle,
+  useWindowDimensions,
+  View,
+  type ViewStyle,
+} from "react-native";
 
 const containerStyle: ViewStyle = {
   backgroundColor: "#000000",
@@ -44,12 +52,12 @@ const overlayStyle: ViewStyle = {
 };
 
 const iconStyle: ImageStyle = {
-  height: 180,
   resizeMode: "contain",
-  width: 180,
 };
 
 export default function App(): JSX.Element {
+  const windowDimensions: { width: number; height: number } =
+    useWindowDimensions();
   // Reuse the same shared demo source as the TV-oriented app data path.
   const demoVideoSource: VideoSource = {
     contentType: "hls",
@@ -69,6 +77,15 @@ export default function App(): JSX.Element {
     videoPlayer.play();
   }, [videoPlayer]);
 
+  const iconSize: number = getBrandOverlayIconSize(
+    windowDimensions.width,
+    windowDimensions.height,
+  );
+  const dynamicIconStyle: ImageStyle = {
+    height: iconSize,
+    width: iconSize,
+  };
+
   return (
     <View style={containerStyle}>
       <VideoView
@@ -81,8 +98,8 @@ export default function App(): JSX.Element {
       <View pointerEvents="none" style={overlayStyle}>
         <Image
           resizeMode="contain"
-          source={{ uri: swellPatrolIcon }}
-          style={iconStyle}
+          source={BRAND_OVERLAY_ICON_SOURCE}
+          style={[iconStyle, dynamicIconStyle]}
         />
       </View>
     </View>
