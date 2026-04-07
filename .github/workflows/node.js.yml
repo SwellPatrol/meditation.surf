@@ -76,9 +76,13 @@ jobs:
         run: |
           pnpm build:tv
 
-      - name: Run build:m
+      - name: Run build:mobile
         run: |
-          pnpm build:m
+          pnpm build:mobile
+
+      - name: Run build:web
+        run: |
+          pnpm build:web
 
       - name: Run workspace tests
         run: |

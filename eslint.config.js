@@ -82,6 +82,7 @@ export default [
     ignores: [
       "**/node_modules/**",
       "apps/mobile-expo/.expo/**",
+      "apps/mobile-expo/ios/**",
       "apps/mobile-expo/dist/**",
       "apps/tv-lightning/dist/**",
       "apps/web-vite/dist/**",
