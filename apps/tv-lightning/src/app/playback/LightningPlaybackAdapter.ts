@@ -28,13 +28,6 @@ type ShakaPlayer = InstanceType<ShakaModule["Player"]>;
 type ShakaImportResult = {
   default: ShakaModule;
 };
-type DisplayBounds = {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-};
-
 /**
  * Lightning-specific playback adapter backed by a DOM video element and Shaka.
  * The shared controller contract stays in `packages/player-core`, while this
@@ -53,11 +46,8 @@ export class LightningPlaybackAdapter implements PlaybackController {
   // Active playback source, if one has been loaded
   private currentSource: PlaybackSource | null = null;
 
-  // Boot-time DOM bounds for the displayed stage
-  private displayBounds: DisplayBounds | null = null;
-
   /**
-   * @brief Update the fitted TV display bounds for the shared video element
+   * @brief Accept fitted stage bounds from bootstrap code for API stability
    *
    * @param left - Left edge of the stage in pixels
    * @param top - Top edge of the stage in pixels
@@ -70,17 +60,14 @@ export class LightningPlaybackAdapter implements PlaybackController {
     width: number,
     height: number,
   ): void {
-    this.displayBounds = {
-      left,
-      top,
-      width,
-      height,
-    };
-
-    const videoElement: HTMLVideoElement | null = this.videoElement;
-    if (videoElement !== null) {
-      this.applyDisplayBounds(videoElement);
-    }
+    // The Lightning canvas is still fitted to the TV stage, but the DOM video
+    // now acts as a true fullscreen background layer. Keep this method so the
+    // bootstrap flow does not need to change, even though the video no longer
+    // consumes stage-relative bounds.
+    void left;
+    void top;
+    void width;
+    void height;
   }
 
   /**
@@ -124,18 +111,15 @@ export class LightningPlaybackAdapter implements PlaybackController {
   }
 
   /**
-   * @brief Apply the stored display bounds to the shared video element
+   * @brief Apply fullscreen viewport bounds to the shared video element
    */
   private applyDisplayBounds(videoElement: HTMLVideoElement): void {
-    const displayBounds: DisplayBounds | null = this.displayBounds;
-    if (displayBounds === null) {
-      return;
-    }
-
-    videoElement.style.left = `${displayBounds.left}px`;
-    videoElement.style.top = `${displayBounds.top}px`;
-    videoElement.style.width = `${displayBounds.width}px`;
-    videoElement.style.height = `${displayBounds.height}px`;
+    // Fill the entire viewport and let `object-fit: cover` crop the excess so
+    // the video behaves like a true fullscreen background.
+    videoElement.style.left = "0";
+    videoElement.style.top = "0";
+    videoElement.style.width = "100vw";
+    videoElement.style.height = "100vh";
   }
 
   /**
