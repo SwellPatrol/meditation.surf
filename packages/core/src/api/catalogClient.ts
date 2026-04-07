@@ -7,7 +7,7 @@
  */
 
 import { DEMO_CATALOG } from "../catalog/demoCatalog";
-import type { AppCatalog } from "../catalog/types";
+import type { Catalog } from "../catalog/types";
 
 /**
  * @brief Shared content client contract
@@ -22,7 +22,7 @@ export interface CatalogClient {
    *
    * @returns The application catalog payload.
    */
-  getCatalog(): Promise<AppCatalog>;
+  getCatalog(): Promise<Catalog>;
 }
 
 /**
@@ -38,7 +38,7 @@ export class DemoCatalogClient implements CatalogClient {
    *
    * @returns The demo catalog payload.
    */
-  public async getCatalog(): Promise<AppCatalog> {
+  public async getCatalog(): Promise<Catalog> {
     return DEMO_CATALOG;
   }
 }

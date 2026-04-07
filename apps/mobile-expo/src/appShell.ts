@@ -7,9 +7,9 @@
  */
 
 import {
-  type AppCatalog,
+  Catalog,
   DemoCatalogClient,
-  type MediaContent,
+  type MediaItem,
 } from "@meditation-surf/core";
 
 /**
@@ -20,19 +20,23 @@ import {
 export type MobileHomeScreenModel = {
   heading: string;
   subheading: string;
-  featuredItem: MediaContent;
+  featuredItem: MediaItem;
 };
+
+const catalogClient: DemoCatalogClient = new DemoCatalogClient();
 
 /**
  * @brief Build the initial mobile shell state from the shared demo catalog
  *
  * @returns Placeholder home-screen content for the Expo app
  */
-const catalogClient: DemoCatalogClient = new DemoCatalogClient();
-
 export async function createMobileHomeScreenModel(): Promise<MobileHomeScreenModel> {
-  const catalog: AppCatalog = await catalogClient.getCatalog();
-  const featuredItem: MediaContent = catalog.categories[0].items[0];
+  const catalog: Catalog = await catalogClient.getCatalog();
+  const featuredItem: MediaItem | null = catalog.getFeaturedItem();
+
+  if (featuredItem === null) {
+    throw new Error("Expected the demo catalog to expose a featured item.");
+  }
 
   return {
     heading: "meditation.surf",

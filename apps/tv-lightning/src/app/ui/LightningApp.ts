@@ -8,11 +8,10 @@
 
 import Blits from "@lightningjs/blits";
 import {
-  type AppCatalog,
-  type CatalogCategory,
-  type CatalogClient,
-  DemoCatalogClient,
-  type MediaContent,
+  type CenteredIconOverlayModel,
+  DemoExperienceFactory,
+  type MediaItem,
+  type MeditationExperience,
 } from "@meditation-surf/core";
 
 import Icon from "../../components/common/Icon";
@@ -25,9 +24,10 @@ import lightningPlaybackAdapter from "../playback/LightningPlaybackAdapter";
 
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
-const catalogClient: CatalogClient = new DemoCatalogClient();
+const experience: MeditationExperience = DemoExperienceFactory.create();
 
 type LightningAppState = {
+  overlayModel: CenteredIconOverlayModel;
   stageW: number;
   stageH: number;
   viewportW: number;
@@ -41,21 +41,38 @@ type LightningAppMethods = {
 };
 
 /**
- * @brief Load the shared catalog and start the featured item
+ * @brief Start the scene background video chosen by the shared experience
  *
  * Lightning still owns TV-specific presentation and playback timing.
+ *
+ * @param appExperience - Shared meditation experience consumed by the TV app
  */
-async function playFeaturedContent(): Promise<void> {
-  const catalog: AppCatalog = await catalogClient.getCatalog();
-  const featuredCategory: CatalogCategory | undefined = catalog.categories[0];
-  const featuredItem: MediaContent | undefined = featuredCategory?.items[0];
+async function playExperienceBackground(
+  appExperience: MeditationExperience,
+): Promise<void> {
+  const featuredItem: MediaItem | null = appExperience.getFeaturedItem();
+  const backgroundSource: ReturnType<MediaItem["getPlaybackSource"]> =
+    featuredItem?.getPlaybackSource() ??
+    appExperience.backgroundVideo.getPlaybackSource();
 
-  if (featuredItem === undefined) {
-    return;
+  await lightningPlaybackAdapter.load(backgroundSource);
+  await lightningPlaybackAdapter.play();
+}
+
+/**
+ * @brief Return the shared centered icon overlay required by the TV scene
+ *
+ * @returns Shared centered icon overlay model
+ */
+function getCenteredIconOverlayModel(): CenteredIconOverlayModel {
+  const centeredIconOverlay: CenteredIconOverlayModel | null =
+    experience.foregroundUi.getCenteredIconOverlay();
+
+  if (centeredIconOverlay === null) {
+    throw new Error("Expected the demo experience to expose a centered icon.");
   }
 
-  await lightningPlaybackAdapter.load(featuredItem.playbackSource);
-  await lightningPlaybackAdapter.play();
+  return centeredIconOverlay;
 }
 
 // Minimal LightningJS app displaying a full-screen video behind a UI
@@ -69,6 +86,7 @@ const LightningApp: LightningAppFactory = Blits.Application<
   // Keep the stage dimensions fixed for the TV-only experience.
   state(): LightningAppState {
     return {
+      overlayModel: getCenteredIconOverlayModel(),
       stageW: LIGHTNING_APP_WIDTH,
       stageH: LIGHTNING_APP_HEIGHT,
       viewportW: 0,
@@ -117,7 +135,7 @@ const LightningApp: LightningAppFactory = Blits.Application<
     ready(): void {
       this.initializeViewportSync();
       lightningPlaybackAdapter.initialize();
-      void playFeaturedContent();
+      void playExperienceBackground(experience);
     },
 
     /**
@@ -131,6 +149,7 @@ const LightningApp: LightningAppFactory = Blits.Application<
   // Render the icon component centered on a black canvas
   template: `<Element :w="$stageW" :h="$stageH">
     <Icon
+      :overlayModel="$overlayModel"
       :stageW="$stageW"
       :stageH="$stageH"
       :viewportW="$viewportW"

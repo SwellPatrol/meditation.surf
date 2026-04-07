@@ -6,10 +6,13 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { DEMO_BACKGROUND_VIDEO_POLICY } from "@meditation-surf/core";
+import {
+  type CenteredIconOverlayModel,
+  DemoExperienceFactory,
+  type MeditationExperience,
+} from "@meditation-surf/core";
 import {
   BRAND_OVERLAY_ICON_SOURCE,
-  getNativeBrandOverlayImageStyle,
   type NativeBrandOverlayImageStyle,
 } from "@meditation-surf/core/brand/native";
 import { useVideoPlayer, type VideoPlayer, VideoView } from "expo-video";
@@ -23,9 +26,11 @@ import {
 } from "react-native";
 
 import {
-  configureExpoDemoVideoPlayer,
-  createExpoDemoVideoSource,
+  configureExpoVideoPlayer,
+  createExpoVideoSource,
 } from "./src/demoBackgroundVideo";
+
+const experience: MeditationExperience = DemoExperienceFactory.create();
 
 const containerStyle: ViewStyle = {
   backgroundColor: "#000000",
@@ -56,13 +61,38 @@ const iconStyle: ImageStyle = {
   resizeMode: "contain",
 };
 
+/**
+ * @brief Convert the shared centered icon overlay model into a native image style
+ *
+ * @param overlayIconModel - Shared overlay icon model
+ * @param availableWidth - Window width available to the icon
+ * @param availableHeight - Window height available to the icon
+ *
+ * @returns React Native image dimensions for the centered icon
+ */
+function getNativeOverlayIconStyle(
+  overlayIconModel: CenteredIconOverlayModel,
+  availableWidth: number,
+  availableHeight: number,
+): NativeBrandOverlayImageStyle {
+  const layoutSize: { width: number; height: number } =
+    overlayIconModel.getLayoutSize(availableWidth, availableHeight);
+
+  return {
+    width: layoutSize.width,
+    height: layoutSize.height,
+  };
+}
+
 export default function App(): JSX.Element {
   const windowDimensions: { width: number; height: number } =
     useWindowDimensions();
+  const overlayIconModel: CenteredIconOverlayModel | null =
+    experience.foregroundUi.getCenteredIconOverlay();
   const videoPlayer: VideoPlayer = useVideoPlayer(
-    createExpoDemoVideoSource(),
+    createExpoVideoSource(experience.backgroundVideo),
     (player: VideoPlayer): void => {
-      configureExpoDemoVideoPlayer(player);
+      configureExpoVideoPlayer(player, experience.backgroundVideo);
     },
   );
 
@@ -71,19 +101,28 @@ export default function App(): JSX.Element {
     videoPlayer.play();
   }, [videoPlayer]);
 
+  if (overlayIconModel === null) {
+    throw new Error("Expected the demo experience to expose a centered icon.");
+  }
+
   const dynamicIconStyle: NativeBrandOverlayImageStyle =
-    getNativeBrandOverlayImageStyle(
+    getNativeOverlayIconStyle(
+      overlayIconModel,
       windowDimensions.width,
       windowDimensions.height,
     );
+  const backgroundPlaybackPolicy: {
+    objectFit: "cover";
+    playsInline: boolean;
+  } = experience.backgroundVideo.getPlaybackPolicy();
 
   return (
     <View style={containerStyle}>
       <VideoView
-        contentFit={DEMO_BACKGROUND_VIDEO_POLICY.objectFit}
+        contentFit={backgroundPlaybackPolicy.objectFit}
         nativeControls={false}
         player={videoPlayer}
-        playsInline={DEMO_BACKGROUND_VIDEO_POLICY.playsInline}
+        playsInline={backgroundPlaybackPolicy.playsInline}
         style={backgroundVideoStyle}
       />
       <View pointerEvents="none" style={overlayStyle}>

@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { getBrandOverlayIconSize } from "./overlay";
+import { DEMO_CENTERED_ICON_OVERLAY } from "../foregroundUi";
 
 export const BRAND_OVERLAY_ICON_URL: string = new URL(
   "./icon-1500x1500.png",
@@ -21,11 +21,9 @@ export function applyBrandOverlayImageSize(
   availableWidth: number,
   availableHeight: number,
 ): void {
-  const iconSize: number = getBrandOverlayIconSize(
-    availableWidth,
-    availableHeight,
-  );
+  const layoutSize: { width: number; height: number } =
+    DEMO_CENTERED_ICON_OVERLAY.getLayoutSize(availableWidth, availableHeight);
 
-  imageElement.style.width = `${iconSize}px`;
-  imageElement.style.height = `${iconSize}px`;
+  imageElement.style.width = `${layoutSize.width}px`;
+  imageElement.style.height = `${layoutSize.height}px`;
 }

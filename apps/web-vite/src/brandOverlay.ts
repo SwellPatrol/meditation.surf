@@ -6,17 +6,21 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { applyBrandOverlayImageSize } from "@meditation-surf/core/brand/web";
+import type { CenteredIconOverlayModel } from "@meditation-surf/core";
 
 /**
- * @brief Keep the overlay icon centered and sized from the shared viewport policy
+ * @brief Keep the overlay icon centered and sized from the shared scene model
+ *
+ * @param overlayIconElement - DOM image element that renders the brand icon
+ * @param overlayIconModel - Shared layout model for the centered icon overlay
  */
 export function applyWebBrandOverlayLayout(
   overlayIconElement: HTMLImageElement,
+  overlayIconModel: CenteredIconOverlayModel,
 ): void {
-  applyBrandOverlayImageSize(
-    overlayIconElement,
-    window.innerWidth,
-    window.innerHeight,
-  );
+  const layoutSize: { width: number; height: number } =
+    overlayIconModel.getLayoutSize(window.innerWidth, window.innerHeight);
+
+  overlayIconElement.style.width = `${layoutSize.width}px`;
+  overlayIconElement.style.height = `${layoutSize.height}px`;
 }

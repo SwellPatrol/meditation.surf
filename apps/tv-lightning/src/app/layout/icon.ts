@@ -30,26 +30,26 @@ export function getFittedStageScale(scaleInput: StageScaleInput): number {
 }
 
 /**
- * @brief Convert a target on-screen icon size into Lightning stage units
+ * @brief Convert a target on-screen element size into Lightning stage units
  *
  * The TV app renders into a fixed-resolution stage that is then scaled into
  * the viewport. This helper compensates so the final rendered size still
- * matches the shared viewport-driven brand overlay policy.
+ * matches the shared viewport-driven layout policy.
  *
- * @param requestedIconSize - Shared on-screen icon size in viewport pixels
+ * @param requestedElementSize - Shared on-screen size in viewport pixels
  * @param scaleInput - Fixed stage size and live viewport dimensions
  *
- * @returns Icon size to render within the Lightning stage
+ * @returns Element size to render within the Lightning stage
  */
-export function getStageCompensatedIconSize(
-  requestedIconSize: number,
+export function getStageCompensatedElementSize(
+  requestedElementSize: number,
   scaleInput: StageScaleInput,
 ): number {
   const stageScale: number = getFittedStageScale(scaleInput);
 
   if (stageScale <= 0) {
-    return requestedIconSize;
+    return requestedElementSize;
   }
 
-  return requestedIconSize / stageScale;
+  return requestedElementSize / stageScale;
 }

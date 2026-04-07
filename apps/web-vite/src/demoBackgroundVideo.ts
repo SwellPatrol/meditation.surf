@@ -6,30 +6,36 @@
  * See the file LICENSE.txt for more information.
  */
 
-import {
-  DEMO_BACKGROUND_VIDEO_POLICY,
-  getDemoBackgroundVideoSource,
+import type {
+  BackgroundVideoModel,
+  BackgroundVideoPlaybackPolicy,
 } from "@meditation-surf/core";
-import type { PlaybackSource } from "@meditation-surf/player-core";
 
 type ShakaModule =
   (typeof import("shaka-player/dist/shaka-player.compiled.js"))["default"];
 type ShakaPlayer = InstanceType<ShakaModule["Player"]>;
 
 /**
- * @brief Apply the shared demo background playback policy to the web video element
+ * @brief Apply the shared background playback policy to the web video element
+ *
+ * @param videoElement - DOM video element that renders the background
+ * @param backgroundVideo - Shared background video model
  */
-export function configureDemoBackgroundVideoElement(
+export function configureBackgroundVideoElement(
   videoElement: HTMLVideoElement,
+  backgroundVideo: BackgroundVideoModel,
 ): void {
-  videoElement.autoplay = DEMO_BACKGROUND_VIDEO_POLICY.autoplay;
+  const playbackPolicy: BackgroundVideoPlaybackPolicy =
+    backgroundVideo.getPlaybackPolicy();
+
+  videoElement.autoplay = playbackPolicy.autoplay;
   videoElement.controls = false;
   videoElement.crossOrigin = "anonymous";
-  videoElement.loop = DEMO_BACKGROUND_VIDEO_POLICY.loop;
-  videoElement.muted = DEMO_BACKGROUND_VIDEO_POLICY.muted;
+  videoElement.loop = playbackPolicy.loop;
+  videoElement.muted = playbackPolicy.muted;
   videoElement.preload = "auto";
-  videoElement.playsInline = DEMO_BACKGROUND_VIDEO_POLICY.playsInline;
-  videoElement.style.objectFit = DEMO_BACKGROUND_VIDEO_POLICY.objectFit;
+  videoElement.playsInline = playbackPolicy.playsInline;
+  videoElement.style.objectFit = playbackPolicy.objectFit;
   videoElement.setAttribute("autoplay", "");
   videoElement.setAttribute("crossorigin", "anonymous");
   videoElement.setAttribute("loop", "");
@@ -39,14 +45,18 @@ export function configureDemoBackgroundVideoElement(
 
 /**
  * @brief Apply the minimal background playback behavior expected by the demo
+ *
+ * @param videoElement - DOM video element that renders the background
+ * @param playbackPolicy - Shared background playback policy
  */
-export async function attemptDemoBackgroundAutoplay(
+export async function attemptBackgroundAutoplay(
   videoElement: HTMLVideoElement,
+  playbackPolicy: BackgroundVideoPlaybackPolicy,
 ): Promise<void> {
-  videoElement.muted = DEMO_BACKGROUND_VIDEO_POLICY.muted;
-  videoElement.autoplay = DEMO_BACKGROUND_VIDEO_POLICY.autoplay;
-  videoElement.loop = DEMO_BACKGROUND_VIDEO_POLICY.loop;
-  videoElement.playsInline = DEMO_BACKGROUND_VIDEO_POLICY.playsInline;
+  videoElement.muted = playbackPolicy.muted;
+  videoElement.autoplay = playbackPolicy.autoplay;
+  videoElement.loop = playbackPolicy.loop;
+  videoElement.playsInline = playbackPolicy.playsInline;
 
   try {
     await videoElement.play();
@@ -59,13 +69,22 @@ export async function attemptDemoBackgroundAutoplay(
 }
 
 /**
- * @brief Load the shared demo HLS stream using native playback when available
- * and Shaka as the browser compatibility fallback
+ * @brief Load the shared HLS stream using native playback when available and
+ * Shaka as the browser compatibility fallback
+ *
+ * @param videoElement - DOM video element that renders the background
+ * @param backgroundVideo - Shared background video model
+ *
+ * @returns Active Shaka player when the fallback path is used
  */
-export async function loadDemoBackgroundVideo(
+export async function loadBackgroundVideo(
   videoElement: HTMLVideoElement,
+  backgroundVideo: BackgroundVideoModel,
 ): Promise<ShakaPlayer | null> {
-  const playbackSource: PlaybackSource = getDemoBackgroundVideoSource();
+  const playbackSource: { url: string; mimeType?: string } =
+    backgroundVideo.getPlaybackSource();
+  const playbackPolicy: BackgroundVideoPlaybackPolicy =
+    backgroundVideo.getPlaybackPolicy();
   const playbackSourceUrl: string = playbackSource.url;
   const playbackMimeType: string =
     playbackSource.mimeType ?? "application/x-mpegURL";
@@ -77,7 +96,7 @@ export async function loadDemoBackgroundVideo(
     videoElement.addEventListener(
       "loadedmetadata",
       (): void => {
-        void attemptDemoBackgroundAutoplay(videoElement);
+        void attemptBackgroundAutoplay(videoElement, playbackPolicy);
       },
       { once: true },
     );
@@ -102,7 +121,7 @@ export async function loadDemoBackgroundVideo(
 
   try {
     await shakaPlayer.load(playbackSourceUrl);
-    await attemptDemoBackgroundAutoplay(videoElement);
+    await attemptBackgroundAutoplay(videoElement, playbackPolicy);
   } catch (error: unknown) {
     console.error("Failed to load the shared demo stream.", error);
   }

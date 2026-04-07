@@ -8,29 +8,39 @@
 
 import "./styles.css";
 
+import {
+  DemoExperienceFactory,
+  type MeditationExperience,
+} from "@meditation-surf/core";
+
 import type { WebAppShell } from "./appShell";
 import { applyWebAppShellLayout, createWebAppShell } from "./appShell";
 import {
-  configureDemoBackgroundVideoElement,
-  loadDemoBackgroundVideo,
+  configureBackgroundVideoElement,
+  loadBackgroundVideo,
 } from "./demoBackgroundVideo";
 
 type ShakaModule =
   (typeof import("shaka-player/dist/shaka-player.compiled.js"))["default"];
 type ShakaPlayer = InstanceType<ShakaModule["Player"]>;
 
-const webAppShell: WebAppShell = createWebAppShell();
+const experience: MeditationExperience = DemoExperienceFactory.create();
+const webAppShell: WebAppShell = createWebAppShell(experience);
 
-configureDemoBackgroundVideoElement(webAppShell.backgroundVideoElement);
+configureBackgroundVideoElement(
+  webAppShell.backgroundVideoElement,
+  experience.backgroundVideo,
+);
 
 let activeShakaPlayer: ShakaPlayer | null = null;
 
 /**
- * @brief Start background playback using the shared demo policy and source config
+ * @brief Start background playback using the shared demo scene model
  */
 async function startPlayback(): Promise<void> {
-  activeShakaPlayer = await loadDemoBackgroundVideo(
+  activeShakaPlayer = await loadBackgroundVideo(
     webAppShell.backgroundVideoElement,
+    experience.backgroundVideo,
   );
 }
 
@@ -40,8 +50,8 @@ window.addEventListener("beforeunload", (): void => {
   }
 });
 window.addEventListener("resize", (): void => {
-  applyWebAppShellLayout(webAppShell);
+  applyWebAppShellLayout(webAppShell, experience);
 });
 
-applyWebAppShellLayout(webAppShell);
+applyWebAppShellLayout(webAppShell, experience);
 void startPlayback();

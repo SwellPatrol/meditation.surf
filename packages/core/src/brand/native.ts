@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { getBrandOverlayIconSize } from "./overlay";
+import { DEMO_CENTERED_ICON_OVERLAY } from "../foregroundUi";
 
 // React Native bundles static image assets through module-local `require()`.
 // eslint-disable-next-line no-undef
@@ -31,13 +31,11 @@ export function getNativeBrandOverlayImageStyle(
   availableWidth: number,
   availableHeight: number,
 ): NativeBrandOverlayImageStyle {
-  const iconSize: number = getBrandOverlayIconSize(
-    availableWidth,
-    availableHeight,
-  );
+  const layoutSize: { width: number; height: number } =
+    DEMO_CENTERED_ICON_OVERLAY.getLayoutSize(availableWidth, availableHeight);
 
   return {
-    width: iconSize,
-    height: iconSize,
+    width: layoutSize.width,
+    height: layoutSize.height,
   };
 }

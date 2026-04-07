@@ -6,9 +6,14 @@
  * See the file LICENSE.txt for more information.
  */
 
-export const BRAND_OVERLAY_ICON_ASPECT_RATIO: number = 1;
-export const BRAND_OVERLAY_ICON_MAX_SIZE_PX: number = 240;
-export const BRAND_OVERLAY_ICON_VIEWPORT_RATIO: number = 0.32;
+import { DEMO_CENTERED_ICON_OVERLAY } from "../foregroundUi";
+
+export const BRAND_OVERLAY_ICON_ASPECT_RATIO: number =
+  DEMO_CENTERED_ICON_OVERLAY.aspectRatio;
+export const BRAND_OVERLAY_ICON_MAX_SIZE_PX: number =
+  DEMO_CENTERED_ICON_OVERLAY.maxSizePx;
+export const BRAND_OVERLAY_ICON_VIEWPORT_RATIO: number =
+  DEMO_CENTERED_ICON_OVERLAY.viewportRatio;
 
 /**
  * @brief Keep the shared overlay icon square and modestly sized across runtimes
@@ -24,9 +29,8 @@ export function getBrandOverlayIconSize(
   availableWidth: number,
   availableHeight: number,
 ): number {
-  const smallerDimension: number = Math.min(availableWidth, availableHeight);
-  const scaledSize: number =
-    smallerDimension * BRAND_OVERLAY_ICON_VIEWPORT_RATIO;
-
-  return Math.min(scaledSize, BRAND_OVERLAY_ICON_MAX_SIZE_PX);
+  return DEMO_CENTERED_ICON_OVERLAY.getIconSize(
+    availableWidth,
+    availableHeight,
+  );
 }

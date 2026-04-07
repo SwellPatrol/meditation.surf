@@ -6,12 +6,12 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { AppCatalog, MediaContent } from "./types";
+import { Catalog, CatalogSection, MediaItem } from "./types";
 
 /**
  * @brief Shared demo media item consumed by workspace apps
  */
-export const DEMO_SURF_VIDEO: MediaContent = {
+export const DEMO_SURF_VIDEO: MediaItem = new MediaItem({
   id: "swellpatrol-featured-break",
   title: "Featured Break",
   description: "A calm featured surf stream used as shared sample content.",
@@ -20,17 +20,17 @@ export const DEMO_SURF_VIDEO: MediaContent = {
     mimeType: "application/x-mpegURL",
     audioProfile: "stereo",
   },
-};
+});
 
 /**
  * @brief Shared demo catalog used to exercise the common content model
  */
-export const DEMO_CATALOG: AppCatalog = {
-  categories: [
-    {
+export const DEMO_CATALOG: Catalog = new Catalog({
+  sections: [
+    new CatalogSection({
       id: "featured",
       title: "Featured",
       items: [DEMO_SURF_VIDEO],
-    },
+    }),
   ],
-};
+});

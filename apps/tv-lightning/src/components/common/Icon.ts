@@ -7,10 +7,10 @@
  */
 
 import Blits from "@lightningjs/blits";
-import { getBrandOverlayIconSize } from "@meditation-surf/core";
+import type { CenteredIconOverlayModel } from "@meditation-surf/core";
 import { BRAND_OVERLAY_ICON_URL } from "@meditation-surf/core/brand/web";
 
-import { getStageCompensatedIconSize } from "../../app/layout/icon";
+import { getStageCompensatedElementSize } from "../../app/layout/icon";
 
 /**
  * @brief Type alias for the factory returned by Blits.Component
@@ -20,9 +20,10 @@ type IconFactory = ReturnType<typeof Blits.Component>;
 /**
  * @brief Reusable component that displays the app icon centered on the stage
  *
- * The icon is rendered at most one third the size of the smaller viewport
- * dimension to keep it unobtrusive while maintaining its aspect ratio.
+ * The shared overlay model owns the target on-screen size, while the Lightning
+ * app compensates for stage scaling before rendering.
  *
+ * @property {CenteredIconOverlayModel} overlayModel Shared centered icon model
  * @property {number} stageW The Lightning stage width in pixels
  * @property {number} stageH The Lightning stage height in pixels
  * @property {number} viewportW The browser viewport width in pixels
@@ -31,19 +32,19 @@ type IconFactory = ReturnType<typeof Blits.Component>;
 const Icon: IconFactory = Blits.Component("Icon", {
   // Stage coordinates stay fixed for centering, while viewport dimensions
   // drive the shared icon sizing policy to match web and mobile behavior.
-  props: ["stageW", "stageH", "viewportW", "viewportH"],
+  props: ["overlayModel", "stageW", "stageH", "viewportW", "viewportH"],
 
   computed: {
     /**
-     * @brief Computes the rendered icon size in stage coordinates
+     * @brief Computes the rendered icon width in stage coordinates
      *
-     * The Lightning stage is rendered at a fixed TV resolution and then scaled
-     * into the browser viewport. Compensate for that stage scale so the final
-     * on-screen icon size matches the shared viewport-based size target.
-     *
-     * @returns {number} The icon size to render within the Lightning stage
+     * @returns {number} The icon width to render within the Lightning stage
      */
-    iconSize(): number {
+    iconWidth(): number {
+      // @ts-ignore `this` contains the reactive props provided at runtime
+      const overlayModel: CenteredIconOverlayModel = this
+        .overlayModel as CenteredIconOverlayModel;
+
       // @ts-ignore `this` contains the reactive props provided at runtime
       const stageW: number = this.stageW as number;
 
@@ -56,15 +57,48 @@ const Icon: IconFactory = Blits.Component("Icon", {
       // @ts-ignore `this` contains the reactive props provided at runtime
       const viewportH: number = this.viewportH as number;
 
-      return getStageCompensatedIconSize(
-        getBrandOverlayIconSize(viewportW, viewportH),
-        {
-          stageWidth: stageW,
-          stageHeight: stageH,
-          viewportWidth: viewportW,
-          viewportHeight: viewportH,
-        },
-      );
+      const layoutSize: { width: number; height: number } =
+        overlayModel.getLayoutSize(viewportW, viewportH);
+
+      return getStageCompensatedElementSize(layoutSize.width, {
+        stageWidth: stageW,
+        stageHeight: stageH,
+        viewportWidth: viewportW,
+        viewportHeight: viewportH,
+      });
+    },
+
+    /**
+     * @brief Computes the rendered icon height in stage coordinates
+     *
+     * @returns {number} The icon height to render within the Lightning stage
+     */
+    iconHeight(): number {
+      // @ts-ignore `this` contains the reactive props provided at runtime
+      const overlayModel: CenteredIconOverlayModel = this
+        .overlayModel as CenteredIconOverlayModel;
+
+      // @ts-ignore `this` contains the reactive props provided at runtime
+      const stageW: number = this.stageW as number;
+
+      // @ts-ignore `this` contains the reactive props provided at runtime
+      const stageH: number = this.stageH as number;
+
+      // @ts-ignore `this` contains the reactive props provided at runtime
+      const viewportW: number = this.viewportW as number;
+
+      // @ts-ignore `this` contains the reactive props provided at runtime
+      const viewportH: number = this.viewportH as number;
+
+      const layoutSize: { width: number; height: number } =
+        overlayModel.getLayoutSize(viewportW, viewportH);
+
+      return getStageCompensatedElementSize(layoutSize.height, {
+        stageWidth: stageW,
+        stageHeight: stageH,
+        viewportWidth: viewportW,
+        viewportHeight: viewportH,
+      });
     },
 
     /**
@@ -82,8 +116,8 @@ const Icon: IconFactory = Blits.Component("Icon", {
   // Render the icon centered at half mount
   template: `<Element
       :src="$iconSource"
-      :w="$iconSize"
-      :h="$iconSize"
+      :w="$iconWidth"
+      :h="$iconHeight"
       :x="$stageW / 2"
       :y="$stageH / 2"
       fit="contain"
