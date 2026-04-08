@@ -9,12 +9,10 @@
 import {
   type CenteredIconOverlayModel,
   DemoExperienceFactory,
+  type ForegroundUiElementSize,
   type MeditationExperience,
 } from "@meditation-surf/core";
-import {
-  BRAND_OVERLAY_ICON_SOURCE,
-  type NativeBrandOverlayImageStyle,
-} from "@meditation-surf/core/brand/native";
+import { BRAND_OVERLAY_ICON_SOURCE } from "@meditation-surf/core/brand/native";
 import { useVideoPlayer, type VideoPlayer, VideoView } from "expo-video";
 import { type JSX, useEffect } from "react";
 import {
@@ -61,29 +59,6 @@ const iconStyle: ImageStyle = {
   resizeMode: "contain",
 };
 
-/**
- * @brief Convert the shared centered icon overlay model into a native image style
- *
- * @param overlayIconModel - Shared overlay icon model
- * @param availableWidth - Window width available to the icon
- * @param availableHeight - Window height available to the icon
- *
- * @returns React Native image dimensions for the centered icon
- */
-function getNativeOverlayIconStyle(
-  overlayIconModel: CenteredIconOverlayModel,
-  availableWidth: number,
-  availableHeight: number,
-): NativeBrandOverlayImageStyle {
-  const layoutSize: { width: number; height: number } =
-    overlayIconModel.getLayoutSize(availableWidth, availableHeight);
-
-  return {
-    width: layoutSize.width,
-    height: layoutSize.height,
-  };
-}
-
 export default function App(): JSX.Element {
   const windowDimensions: { width: number; height: number } =
     useWindowDimensions();
@@ -105,9 +80,8 @@ export default function App(): JSX.Element {
     throw new Error("Expected the demo experience to expose a centered icon.");
   }
 
-  const dynamicIconStyle: NativeBrandOverlayImageStyle =
-    getNativeOverlayIconStyle(
-      overlayIconModel,
+  const dynamicIconStyle: ForegroundUiElementSize =
+    overlayIconModel.getLayoutSize(
       windowDimensions.width,
       windowDimensions.height,
     );

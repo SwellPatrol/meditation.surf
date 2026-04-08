@@ -7,55 +7,34 @@
  */
 
 export { MeditationExperience } from "./MeditationExperience";
-export { DemoCatalogClient } from "./api/catalogClient";
-export type { CatalogClient } from "./api/catalogClient";
+export {
+  BackgroundVideoModel,
+  type BackgroundVideoPlaybackPolicy,
+} from "./BackgroundVideoModel";
+export {
+  CenteredIconOverlayModel,
+  DEMO_CENTERED_ICON_OVERLAY,
+} from "./CenteredIconOverlayModel";
+export type { CatalogClient } from "./api/CatalogClient";
+export { DemoCatalogClient } from "./api/DemoCatalogClient";
 export type {
   AnalyticsEventName,
   AnalyticsEventPayloadMap,
 } from "./analytics/events";
-export {
-  BRAND_OVERLAY_ICON_ASPECT_RATIO,
-  BRAND_OVERLAY_ICON_MAX_SIZE_PX,
-  BRAND_OVERLAY_ICON_VIEWPORT_RATIO,
-  getBrandOverlayIconSize,
-} from "./brand/overlay";
-export { DEMO_CATALOG, DEMO_SURF_VIDEO } from "./catalog/demoCatalog";
-export {
-  Catalog,
-  CatalogSection,
-  MediaItem,
-  type AppCatalog,
-  type CatalogCategory,
-  type MediaContent,
-} from "./catalog/types";
-export { DemoExperienceFactory } from "./demoExperienceFactory";
-export {
-  BackgroundVideoModel,
-  DemoBackgroundVideo,
-  DEMO_BACKGROUND_VIDEO_POLICY,
-  createDemoBackgroundVideo,
-  getDemoBackgroundVideoSource,
-} from "./demoBackgroundVideo";
-export type {
-  BackgroundVideoPlaybackPolicy,
-  DemoBackgroundVideoPolicy,
-} from "./demoBackgroundVideo";
-export {
-  CenteredIconOverlayModel,
-  DEMO_CENTERED_ICON_OVERLAY,
-  ForegroundUiElement,
-  ForegroundUiModel,
-} from "./foregroundUi";
+export { Catalog, CatalogSection, MediaItem } from "./catalog";
+export type { CatalogInit, CatalogSectionInit, MediaItemInit } from "./catalog";
+export { DemoCatalog } from "./catalog/DemoCatalog";
+export { DemoBackgroundVideo } from "./DemoBackgroundVideo";
+export { DemoExperienceFactory } from "./DemoExperienceFactory";
+export { ForegroundUiElement } from "./ForegroundUiElement";
 export type {
   ForegroundUiElementPlacement,
   ForegroundUiElementSize,
-} from "./foregroundUi";
+} from "./ForegroundUiElement";
+export { ForegroundUiModel } from "./ForegroundUiModel";
 export {
-  clampAudioVolume,
-  DEFAULT_AUDIO_PREFERENCES,
-  normalizeAudioPreferences,
-} from "./preferences/audioPreferences";
-export type {
   AudioPreferences,
-  AudioPreferencesStorage,
-} from "./preferences/audioPreferences";
+  type AudioPreferencesInit,
+} from "./preferences/AudioPreferences";
+export type { AudioPreferencesStorage } from "./preferences/AudioPreferencesStorage";
+export { BrowserAudioPreferencesStorage } from "./preferences/BrowserAudioPreferencesStorage";

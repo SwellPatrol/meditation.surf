@@ -6,9 +6,15 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { DEMO_CATALOG } from "./catalog/demoCatalog";
-import { createDemoBackgroundVideo } from "./demoBackgroundVideo";
-import { DEMO_CENTERED_ICON_OVERLAY, ForegroundUiModel } from "./foregroundUi";
+import { BackgroundVideoModel } from "./BackgroundVideoModel";
+import { Catalog } from "./catalog";
+import { DemoCatalog } from "./catalog/DemoCatalog";
+import {
+  CenteredIconOverlayModel,
+  DEMO_CENTERED_ICON_OVERLAY,
+} from "./CenteredIconOverlayModel";
+import { DemoBackgroundVideo } from "./DemoBackgroundVideo";
+import { ForegroundUiModel } from "./ForegroundUiModel";
 import { MeditationExperience } from "./MeditationExperience";
 
 /**
@@ -24,16 +30,14 @@ export class DemoExperienceFactory {
    * @returns Shared demo experience with background video and foreground UI
    */
   public static create(): MeditationExperience {
-    const backgroundVideo: ReturnType<typeof createDemoBackgroundVideo> =
-      createDemoBackgroundVideo();
+    const backgroundVideo: BackgroundVideoModel = DemoBackgroundVideo.create();
+    const centeredIconOverlay: CenteredIconOverlayModel =
+      DEMO_CENTERED_ICON_OVERLAY;
     const foregroundUi: ForegroundUiModel = new ForegroundUiModel([
-      DEMO_CENTERED_ICON_OVERLAY,
+      centeredIconOverlay,
     ]);
+    const catalog: Catalog = DemoCatalog.getCatalog();
 
-    return new MeditationExperience(
-      backgroundVideo,
-      foregroundUi,
-      DEMO_CATALOG,
-    );
+    return new MeditationExperience(backgroundVideo, foregroundUi, catalog);
   }
 }

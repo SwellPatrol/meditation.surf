@@ -7,61 +7,10 @@
  */
 
 import {
-  type AudioPreferences,
+  AudioPreferences,
   type AudioPreferencesStorage,
-  normalizeAudioPreferences,
+  BrowserAudioPreferencesStorage,
 } from "@meditation-surf/core";
-
-/**
- * Browser local-storage implementation of the shared audio preference storage.
- */
-class BrowserAudioPreferencesStorage implements AudioPreferencesStorage {
-  // Storage key for the mute flag
-  private static readonly MUTED_KEY: string = "audioMuted";
-
-  // Storage key for the volume level
-  private static readonly VOLUME_KEY: string = "audioVolume";
-
-  /**
-   * @brief Load persisted preferences from browser storage
-   *
-   * @returns A complete preference model with safe defaults
-   */
-  public load(): AudioPreferences {
-    const mutedValue: string | null = window.localStorage.getItem(
-      BrowserAudioPreferencesStorage.MUTED_KEY,
-    );
-    const volumeValue: string | null = window.localStorage.getItem(
-      BrowserAudioPreferencesStorage.VOLUME_KEY,
-    );
-    const parsedVolume: number =
-      volumeValue === null ? Number.NaN : parseFloat(volumeValue);
-
-    return normalizeAudioPreferences({
-      muted: mutedValue === null ? undefined : mutedValue === "true",
-      volume: Number.isNaN(parsedVolume) ? undefined : parsedVolume,
-    });
-  }
-
-  /**
-   * @brief Save shared audio preferences into browser storage
-   *
-   * @param preferences - Shared preference model to persist
-   */
-  public save(preferences: AudioPreferences): void {
-    const normalizedPreferences: AudioPreferences =
-      normalizeAudioPreferences(preferences);
-
-    window.localStorage.setItem(
-      BrowserAudioPreferencesStorage.MUTED_KEY,
-      normalizedPreferences.muted ? "true" : "false",
-    );
-    window.localStorage.setItem(
-      BrowserAudioPreferencesStorage.VOLUME_KEY,
-      normalizedPreferences.volume.toString(),
-    );
-  }
-}
 
 /**
  * @brief Persisted audio configuration for the video player
@@ -80,7 +29,9 @@ export class AudioState {
    * @returns `true` when audio should be muted
    */
   public static isMuted(): boolean {
-    return AudioState.storage.load().muted;
+    const audioPreferences: AudioPreferences = AudioState.storage.load();
+
+    return audioPreferences.muted;
   }
 
   /**
@@ -89,7 +40,9 @@ export class AudioState {
    * @returns Volume level clamped to [0, 1]
    */
   public static getVolume(): number {
-    return AudioState.storage.load().volume;
+    const audioPreferences: AudioPreferences = AudioState.storage.load();
+
+    return audioPreferences.volume;
   }
 
   /**
@@ -98,10 +51,9 @@ export class AudioState {
    * @param muted - Whether audio should be muted
    */
   public static setMuted(muted: boolean): void {
-    AudioState.storage.save({
-      muted,
-      volume: AudioState.getVolume(),
-    });
+    const audioPreferences: AudioPreferences = AudioState.storage.load();
+
+    AudioState.storage.save(audioPreferences.withMuted(muted));
   }
 
   /**
@@ -110,10 +62,9 @@ export class AudioState {
    * @param volume - Volume value in [0, 1]
    */
   public static setVolume(volume: number): void {
-    AudioState.storage.save({
-      muted: AudioState.isMuted(),
-      volume,
-    });
+    const audioPreferences: AudioPreferences = AudioState.storage.load();
+
+    AudioState.storage.save(audioPreferences.withVolume(volume));
   }
 }
 

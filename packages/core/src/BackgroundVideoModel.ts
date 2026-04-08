@@ -8,8 +8,6 @@
 
 import type { PlaybackSource } from "@meditation-surf/player-core";
 
-import { DEMO_SURF_VIDEO } from "./catalog/demoCatalog";
-
 /**
  * @brief Playback policy for a runtime-agnostic background video model
  */
@@ -62,52 +60,4 @@ export class BackgroundVideoModel {
   public getPlaybackPolicy(): BackgroundVideoPlaybackPolicy {
     return this.playbackPolicy;
   }
-}
-
-/**
- * @brief Shared product-level playback behavior for the demo background video
- *
- * Each app still owns its own player wiring and fullscreen presentation.
- */
-export const DEMO_BACKGROUND_VIDEO_POLICY: BackgroundVideoPlaybackPolicy = {
-  autoplay: true,
-  loop: true,
-  muted: true,
-  playsInline: true,
-  objectFit: "cover",
-};
-
-/**
- * @brief Concrete background model for the current demo scene
- */
-export class DemoBackgroundVideo extends BackgroundVideoModel {
-  /**
-   * @brief Create the canonical demo background video model
-   */
-  public constructor() {
-    super(DEMO_SURF_VIDEO.getPlaybackSource(), DEMO_BACKGROUND_VIDEO_POLICY);
-  }
-}
-
-/**
- * @brief Backward-compatible alias kept during the domain-model transition
- */
-export type DemoBackgroundVideoPolicy = BackgroundVideoPlaybackPolicy;
-
-/**
- * @brief Return the canonical demo background video model
- *
- * @returns Shared demo background video object
- */
-export function createDemoBackgroundVideo(): DemoBackgroundVideo {
-  return new DemoBackgroundVideo();
-}
-
-/**
- * @brief Return the shared demo playback source used by the background treatment
- *
- * @returns The playback source used for the demo background video
- */
-export function getDemoBackgroundVideoSource(): PlaybackSource {
-  return createDemoBackgroundVideo().getPlaybackSource();
 }

@@ -6,60 +6,10 @@
  * See the file LICENSE.txt for more information.
  */
 
-/**
- * @brief Shared placement modes supported by the foreground UI model
- */
-export type ForegroundUiElementPlacement = "center";
-
-/**
- * @brief Shared layout size returned for foreground UI elements
- */
-export type ForegroundUiElementSize = {
-  width: number;
-  height: number;
-};
-
-/**
- * @brief Runtime-agnostic base class for foreground UI elements
- *
- * Apps render these elements differently, but they can all consume a shared
- * object model that describes placement and sizing intent.
- */
-export abstract class ForegroundUiElement {
-  public readonly id: string;
-  public readonly placement: ForegroundUiElementPlacement;
-
-  /**
-   * @brief Create a foreground UI element with a stable identity and placement
-   *
-   * @param id - Stable element identifier
-   * @param placement - Shared placement mode
-   */
-  protected constructor(id: string, placement: ForegroundUiElementPlacement) {
-    this.id = id;
-    this.placement = placement;
-  }
-
-  /**
-   * @brief Return the semantic element type used by runtime adapters
-   *
-   * @returns String key describing the element kind
-   */
-  public abstract getElementType(): string;
-
-  /**
-   * @brief Compute the element size for a viewport
-   *
-   * @param availableWidth - Viewport width available to the element
-   * @param availableHeight - Viewport height available to the element
-   *
-   * @returns Shared width and height guidance for renderers
-   */
-  public abstract getLayoutSize(
-    availableWidth: number,
-    availableHeight: number,
-  ): ForegroundUiElementSize;
-}
+import {
+  ForegroundUiElement,
+  type ForegroundUiElementSize,
+} from "./ForegroundUiElement";
 
 /**
  * @brief Centered brand icon overlay shown over the background video
@@ -134,50 +84,6 @@ export class CenteredIconOverlayModel extends ForegroundUiElement {
       width: iconSize,
       height: iconSize / this.aspectRatio,
     };
-  }
-}
-
-/**
- * @brief Runtime-agnostic collection of foreground UI elements
- */
-export class ForegroundUiModel {
-  private readonly elements: ForegroundUiElement[];
-
-  /**
-   * @brief Create a foreground UI model from a list of shared elements
-   *
-   * @param elements - Ordered foreground elements rendered above video
-   */
-  public constructor(elements: ForegroundUiElement[]) {
-    this.elements = elements;
-  }
-
-  /**
-   * @brief Return all foreground elements in render order
-   *
-   * @returns A shallow copy of the shared foreground element list
-   */
-  public getElements(): ForegroundUiElement[] {
-    return [...this.elements];
-  }
-
-  /**
-   * @brief Return the centered icon overlay when present
-   *
-   * @returns The first centered icon overlay, or `null` if one is absent
-   */
-  public getCenteredIconOverlay(): CenteredIconOverlayModel | null {
-    const centeredIconOverlay: ForegroundUiElement | undefined =
-      this.elements.find(
-        (element: ForegroundUiElement): boolean =>
-          element instanceof CenteredIconOverlayModel,
-      );
-
-    if (centeredIconOverlay instanceof CenteredIconOverlayModel) {
-      return centeredIconOverlay;
-    }
-
-    return null;
   }
 }
 

@@ -6,9 +6,9 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { Catalog, MediaItem } from "./catalog/types";
-import type { BackgroundVideoModel } from "./demoBackgroundVideo";
-import type { ForegroundUiModel } from "./foregroundUi";
+import type { BackgroundVideoModel } from "./BackgroundVideoModel";
+import type { Catalog, MediaItem } from "./catalog";
+import type { ForegroundUiModel } from "./ForegroundUiModel";
 
 /**
  * @brief Runtime-agnostic app scene for meditation.surf

@@ -6,10 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import {
-  clampAudioVolume,
-  DEFAULT_AUDIO_PREFERENCES,
-} from "@meditation-surf/core";
+import { AudioPreferences } from "@meditation-surf/core";
 import type {
   PlaybackController,
   PlaybackSource,
@@ -142,9 +139,12 @@ export class LightningPlaybackAdapter implements PlaybackController {
     const videoElement: HTMLVideoElement = this.ensureVideoElement();
 
     if (!this.initialized) {
+      const defaultAudioPreferences: AudioPreferences =
+        AudioPreferences.defaults();
+
       // Mute before initial playback so autoplay is more likely to succeed
       this.setMuted(true);
-      this.setVolume(DEFAULT_AUDIO_PREFERENCES.volume);
+      this.setVolume(defaultAudioPreferences.volume);
       this.initialized = true;
     }
 
@@ -266,7 +266,7 @@ export class LightningPlaybackAdapter implements PlaybackController {
    */
   public setVolume(volume: number): void {
     const videoElement: HTMLVideoElement = this.ensureVideoElement();
-    const clampedVolume: number = clampAudioVolume(volume);
+    const clampedVolume: number = AudioPreferences.clampVolume(volume);
     videoElement.volume = clampedVolume;
   }
 
