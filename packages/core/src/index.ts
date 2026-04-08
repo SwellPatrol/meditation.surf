@@ -11,12 +11,8 @@ export {
   BackgroundVideoModel,
   type BackgroundVideoPlaybackPolicy,
 } from "./BackgroundVideoModel";
-export {
-  CenteredIconOverlayModel,
-  DEMO_CENTERED_ICON_OVERLAY,
-} from "./CenteredIconOverlayModel";
+export { CenteredIconOverlayModel } from "./CenteredIconOverlayModel";
 export type { ICatalogClient } from "./api/ICatalogClient";
-export { DemoCatalogClient } from "./api/DemoCatalogClient";
 export {
   AppLaunchedAnalyticsEvent,
   type AppLaunchedAnalyticsEventApp,
@@ -35,10 +31,12 @@ export {
   PlaybackStartedAnalyticsEvent,
   type PlaybackStartedAnalyticsEventPayload,
 } from "./analytics/PlaybackStartedAnalyticsEvent";
-export { Catalog, CatalogSection, MediaItem } from "./catalog";
-export type { CatalogInit, CatalogSectionInit, MediaItemInit } from "./catalog";
-export { DemoCatalog } from "./catalog/DemoCatalog";
-export { DemoBackgroundVideo } from "./DemoBackgroundVideo";
+export { Catalog, type CatalogInit } from "./catalog/Catalog";
+export {
+  CatalogSection,
+  type CatalogSectionInit,
+} from "./catalog/CatalogSection";
+export { MediaItem, type MediaItemInit } from "./catalog/MediaItem";
 export { DemoExperienceFactory } from "./DemoExperienceFactory";
 export { ForegroundUiElement } from "./ForegroundUiElement";
 export type {

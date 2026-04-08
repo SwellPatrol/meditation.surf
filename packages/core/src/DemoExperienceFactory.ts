@@ -7,7 +7,7 @@
  */
 
 import { BackgroundVideoModel } from "./BackgroundVideoModel";
-import { Catalog } from "./catalog";
+import { Catalog } from "./catalog/Catalog";
 import { DemoCatalog } from "./catalog/DemoCatalog";
 import {
   CenteredIconOverlayModel,

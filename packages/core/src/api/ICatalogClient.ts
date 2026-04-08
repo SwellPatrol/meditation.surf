@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { Catalog } from "../catalog";
+import type { Catalog } from "../catalog/Catalog";
 
 /**
  * @brief Shared content client contract

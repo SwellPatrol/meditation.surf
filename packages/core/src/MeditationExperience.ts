@@ -7,7 +7,8 @@
  */
 
 import type { BackgroundVideoModel } from "./BackgroundVideoModel";
-import type { Catalog, MediaItem } from "./catalog";
+import type { Catalog } from "./catalog/Catalog";
+import type { MediaItem } from "./catalog/MediaItem";
 import type { ForegroundUiModel } from "./ForegroundUiModel";
 
 /**
