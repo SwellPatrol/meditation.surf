@@ -50,6 +50,7 @@ export class TvApp {
     const lightningApp: ReturnType<typeof Blits.Application> =
       createLightningApp({
         appLayoutController: this.experienceAdapter.appLayoutController,
+        overlayController: this.experienceAdapter.overlayController,
         viewportSync: this.viewportSync,
         onReady: (): void => {
           this.experienceAdapter.backgroundVideoController.initialize();

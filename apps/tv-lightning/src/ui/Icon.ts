@@ -31,7 +31,15 @@ type IconFactory = ReturnType<typeof Blits.Component>;
 const Icon: IconFactory = Blits.Component("Icon", {
   // Stage coordinates stay fixed for centering, while viewport dimensions
   // drive the shared icon sizing policy to match web and mobile behavior.
-  props: ["appLayoutController", "stageW", "stageH", "viewportW", "viewportH"],
+  props: [
+    "appLayoutController",
+    "fadeDurationMs",
+    "overlayAlpha",
+    "stageW",
+    "stageH",
+    "viewportW",
+    "viewportH",
+  ],
 
   computed: {
     /**
@@ -99,6 +107,7 @@ const Icon: IconFactory = Blits.Component("Icon", {
   // Render the icon centered at half mount
   template: `<Element
       :src="$iconSource"
+      :alpha.transition="{ value: $overlayAlpha, duration: $fadeDurationMs, easing: 'ease' }"
       :w="$iconWidth"
       :h="$iconHeight"
       :x="$stageW / 2"

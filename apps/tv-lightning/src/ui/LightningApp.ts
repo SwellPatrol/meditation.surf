@@ -7,6 +7,7 @@
  */
 
 import Blits from "@lightningjs/blits";
+import type { OverlayController, OverlayState } from "@meditation-surf/core";
 
 import {
   LIGHTNING_APP_HEIGHT,
@@ -21,6 +22,7 @@ type LightningAppFactory = ReturnType<typeof Blits.Application>;
 
 export type LightningAppOptions = {
   appLayoutController: TvAppLayoutController;
+  overlayController: OverlayController;
   viewportSync: TvViewportSync;
   onReady: () => void;
   onDestroy: () => void;
@@ -28,15 +30,20 @@ export type LightningAppOptions = {
 
 type LightningAppState = {
   appLayoutController: TvAppLayoutController;
+  fadeDurationMs: number;
+  overlayAlpha: number;
   stageW: number;
   stageH: number;
   viewportW: number;
   viewportH: number;
+  removeOverlaySubscription: (() => void) | null;
   stopViewportSync: (() => void) | null;
 };
 
 type LightningAppMethods = {
+  initializeOverlaySubscription(): void;
   initializeViewportSync(): void;
+  handleOverlayState(overlayState: OverlayState): void;
   tearDownViewportSync(): void;
 };
 
@@ -64,15 +71,29 @@ export function createLightningApp(
     state(): LightningAppState {
       return {
         appLayoutController: options.appLayoutController,
+        fadeDurationMs: options.overlayController.getConfig().fadeDurationMs,
+        overlayAlpha: 1,
         stageW: LIGHTNING_APP_WIDTH,
         stageH: LIGHTNING_APP_HEIGHT,
         viewportW: 0,
         viewportH: 0,
+        removeOverlaySubscription: null,
         stopViewportSync: null,
       };
     },
 
     methods: {
+      /**
+       * @brief Subscribe the Lightning root to the shared overlay state
+       */
+      initializeOverlaySubscription(): void {
+        this.removeOverlaySubscription = options.overlayController.subscribe(
+          (overlayState: OverlayState): void => {
+            this.handleOverlayState(overlayState);
+          },
+        );
+      },
+
       /**
        * @brief Subscribe to viewport updates emitted by the TV bootstrap layout helper
        */
@@ -86,6 +107,15 @@ export function createLightningApp(
       },
 
       /**
+       * @brief Map shared overlay visibility onto Lightning alpha
+       *
+       * @param overlayState - Shared overlay visibility snapshot
+       */
+      handleOverlayState(overlayState: OverlayState): void {
+        this.overlayAlpha = overlayState.visibility === "visible" ? 1 : 0;
+      },
+
+      /**
        * @brief Release the viewport subscription when the Lightning root is destroyed
        */
       tearDownViewportSync(): void {
@@ -93,6 +123,27 @@ export function createLightningApp(
           this.stopViewportSync();
           this.stopViewportSync = null;
         }
+
+        if (this.removeOverlaySubscription !== null) {
+          this.removeOverlaySubscription();
+          this.removeOverlaySubscription = null;
+        }
+      },
+    },
+
+    input: {
+      /**
+       * @brief Route TV remote enter presses into the shared overlay controller
+       */
+      enter(): void {
+        options.overlayController.dispatch("INTERACT");
+      },
+
+      /**
+       * @brief Treat space like a select action in browser-hosted TV development
+       */
+      space(): void {
+        options.overlayController.dispatch("INTERACT");
       },
     },
 
@@ -110,6 +161,7 @@ export function createLightningApp(
        * UI lifecycle stays separate from media playback internals.
        */
       ready(): void {
+        this.initializeOverlaySubscription();
         this.initializeViewportSync();
         options.onReady();
       },
@@ -127,6 +179,8 @@ export function createLightningApp(
     template: `<Element :w="$stageW" :h="$stageH">
       <Icon
         :appLayoutController="$appLayoutController"
+        :fadeDurationMs="$fadeDurationMs"
+        :overlayAlpha="$overlayAlpha"
         :stageW="$stageW"
         :stageH="$stageH"
         :viewportW="$viewportW"

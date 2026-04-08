@@ -10,10 +10,18 @@ import {
   type CenteredOverlaySize,
   DemoExperienceFactory,
   type MeditationExperience,
+  type OverlayState,
 } from "@meditation-surf/core";
 import { useVideoPlayer, type VideoPlayer, VideoView } from "expo-video";
-import { type JSX, useEffect } from "react";
-import { Image, useWindowDimensions, View } from "react-native";
+import { type JSX, useEffect, useRef } from "react";
+import {
+  Animated,
+  Easing,
+  Pressable,
+  type PressableProps,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
 import { ExpoApp } from "./src/bootstrap/ExpoApp";
 import { ExpoExperienceAdapter } from "./src/experience/ExpoExperienceAdapter";
@@ -25,6 +33,9 @@ export default function App(): JSX.Element {
   const experienceAdapter: ExpoExperienceAdapter = app.getExperienceAdapter();
   const windowDimensions: { width: number; height: number } =
     useWindowDimensions();
+  const overlayOpacity: Animated.Value = useRef<Animated.Value>(
+    new Animated.Value(1),
+  ).current;
   const videoPlayer: VideoPlayer = useVideoPlayer(
     experienceAdapter.backgroundVideoController.createVideoSource(),
     (player: VideoPlayer): void => {
@@ -36,6 +47,20 @@ export default function App(): JSX.Element {
     // On web, play() needs to run after the underlying <video> has mounted.
     experienceAdapter.backgroundVideoController.startPlayback(videoPlayer);
   }, [videoPlayer]);
+
+  useEffect((): (() => void) => {
+    return experienceAdapter.overlayController.subscribe(
+      (overlayState: OverlayState): void => {
+        Animated.timing(overlayOpacity, {
+          toValue: overlayState.visibility === "visible" ? 1 : 0,
+          duration:
+            experienceAdapter.overlayController.getConfig().fadeDurationMs,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }).start();
+      },
+    );
+  }, [experienceAdapter, overlayOpacity]);
 
   const dynamicIconStyle: CenteredOverlaySize =
     experienceAdapter.appLayoutController.getCenteredOverlaySize(
@@ -53,9 +78,15 @@ export default function App(): JSX.Element {
       experienceAdapter.backgroundVideoController.getVideoViewProps()
         .playsInline,
   };
+  const pressableProps: PressableProps = {
+    onPress: (): void => {
+      experienceAdapter.overlayController.dispatch("INTERACT");
+    },
+    style: experienceAdapter.appLayoutController.getContainerStyle(),
+  };
 
   return (
-    <View style={experienceAdapter.appLayoutController.getContainerStyle()}>
+    <Pressable {...pressableProps}>
       <VideoView
         contentFit={videoViewProps.objectFit}
         nativeControls={false}
@@ -67,15 +98,18 @@ export default function App(): JSX.Element {
         pointerEvents="none"
         style={experienceAdapter.appLayoutController.getForegroundLayerStyle()}
       >
-        <Image
+        <Animated.Image
           resizeMode="contain"
           source={experienceAdapter.appLayoutController.getCenteredOverlaySource()}
           style={[
             experienceAdapter.appLayoutController.getCenteredOverlayStyle(),
             dynamicIconStyle,
+            {
+              opacity: overlayOpacity,
+            },
           ]}
         />
       </View>
-    </View>
+    </Pressable>
   );
 }

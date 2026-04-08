@@ -6,7 +6,10 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { MeditationExperience } from "@meditation-surf/core";
+import type {
+  MeditationExperience,
+  OverlayController,
+} from "@meditation-surf/core";
 
 import { WebAppLayoutController } from "../layout/WebAppLayoutController";
 import { WebBackgroundVideoController } from "../playback/WebBackgroundVideoController";
@@ -20,6 +23,7 @@ import { WebBackgroundVideoController } from "../playback/WebBackgroundVideoCont
 export class WebExperienceAdapter {
   public readonly appLayoutController: WebAppLayoutController;
   public readonly backgroundVideoController: WebBackgroundVideoController;
+  public readonly overlayController: OverlayController;
 
   /**
    * @brief Build web runtime adapters for the shared experience
@@ -31,5 +35,6 @@ export class WebExperienceAdapter {
     this.backgroundVideoController = new WebBackgroundVideoController(
       experience.appLayout.getBackgroundLayer(),
     );
+    this.overlayController = experience.getOverlayController();
   }
 }

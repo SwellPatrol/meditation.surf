@@ -6,7 +6,10 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { MeditationExperience } from "@meditation-surf/core";
+import type {
+  MeditationExperience,
+  OverlayController,
+} from "@meditation-surf/core";
 
 import { ExpoAppLayoutController } from "../layout/ExpoAppLayoutController";
 import { ExpoBackgroundVideoController } from "../playback/ExpoBackgroundVideoController";
@@ -20,6 +23,7 @@ import { ExpoBackgroundVideoController } from "../playback/ExpoBackgroundVideoCo
 export class ExpoExperienceAdapter {
   public readonly appLayoutController: ExpoAppLayoutController;
   public readonly backgroundVideoController: ExpoBackgroundVideoController;
+  public readonly overlayController: OverlayController;
 
   /**
    * @brief Build Expo runtime adapters for the shared experience
@@ -33,5 +37,6 @@ export class ExpoExperienceAdapter {
     this.backgroundVideoController = new ExpoBackgroundVideoController(
       experience.appLayout.getBackgroundLayer(),
     );
+    this.overlayController = experience.getOverlayController();
   }
 }

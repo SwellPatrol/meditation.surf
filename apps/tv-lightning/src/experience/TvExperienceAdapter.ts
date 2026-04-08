@@ -6,7 +6,10 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { MeditationExperience } from "@meditation-surf/core";
+import type {
+  MeditationExperience,
+  OverlayController,
+} from "@meditation-surf/core";
 
 import { TvAppLayoutController } from "../layout/TvAppLayoutController";
 import lightningPlaybackAdapter from "../playback/LightningPlaybackAdapter";
@@ -21,6 +24,7 @@ import { TvBackgroundVideoController } from "../playback/TvBackgroundVideoContro
 export class TvExperienceAdapter {
   public readonly appLayoutController: TvAppLayoutController;
   public readonly backgroundVideoController: TvBackgroundVideoController;
+  public readonly overlayController: OverlayController;
 
   /**
    * @brief Build TV runtime adapters for the shared experience
@@ -34,5 +38,6 @@ export class TvExperienceAdapter {
       experience.appLayout.getBackgroundLayer(),
       lightningPlaybackAdapter,
     );
+    this.overlayController = experience.getOverlayController();
   }
 }

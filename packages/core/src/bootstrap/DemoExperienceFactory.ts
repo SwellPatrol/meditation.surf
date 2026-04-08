@@ -18,6 +18,7 @@ import {
   CenteredIconOverlayModel,
   DEMO_CENTERED_ICON_OVERLAY,
 } from "../ui/CenteredIconOverlayModel";
+import { OverlayController } from "../ui/OverlayController";
 
 /**
  * @brief Factory that assembles the current demo meditation experience
@@ -40,7 +41,8 @@ export class DemoExperienceFactory {
       new ForegroundLayerLayout(centeredIconOverlay),
     );
     const catalog: Catalog = DemoCatalog.getCatalog();
+    const overlayController: OverlayController = new OverlayController();
 
-    return new MeditationExperience(appLayout, catalog);
+    return new MeditationExperience(appLayout, catalog, overlayController);
   }
 }

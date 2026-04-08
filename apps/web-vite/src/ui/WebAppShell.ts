@@ -18,8 +18,7 @@ import { WebAppLayoutController } from "../layout/WebAppLayoutController";
 export class WebAppShell {
   public readonly backgroundVideoElement: HTMLVideoElement;
   public readonly centeredOverlayElement: HTMLImageElement;
-
-  private readonly mountElement: HTMLDivElement;
+  public readonly mountElement: HTMLDivElement;
 
   /**
    * @brief Build the DOM shell for the web app

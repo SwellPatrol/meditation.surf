@@ -11,6 +11,7 @@ import type { MediaItem } from "../catalog/MediaItem";
 import type { AppLayout } from "../layout/AppLayout";
 import type { ForegroundLayerLayout } from "../layout/ForegroundLayerLayout";
 import type { BackgroundVideoModel } from "../playback/BackgroundVideoModel";
+import type { OverlayController } from "../ui/OverlayController";
 
 /**
  * @brief Runtime-agnostic app scene for meditation.surf
@@ -22,16 +23,23 @@ import type { BackgroundVideoModel } from "../playback/BackgroundVideoModel";
 export class MeditationExperience {
   public readonly appLayout: AppLayout;
   public readonly catalog: Catalog;
+  public readonly overlayController: OverlayController;
 
   /**
    * @brief Create a meditation experience from its domain submodels
    *
    * @param appLayout - Shared app-surface layout model
    * @param catalog - Shared content catalog model
+   * @param overlayController - Shared overlay interaction state controller
    */
-  public constructor(appLayout: AppLayout, catalog: Catalog) {
+  public constructor(
+    appLayout: AppLayout,
+    catalog: Catalog,
+    overlayController: OverlayController,
+  ) {
     this.appLayout = appLayout;
     this.catalog = catalog;
+    this.overlayController = overlayController;
   }
 
   /**
@@ -50,6 +58,15 @@ export class MeditationExperience {
    */
   public getForegroundLayer(): ForegroundLayerLayout {
     return this.appLayout.getForegroundLayer();
+  }
+
+  /**
+   * @brief Return the shared centered-overlay interaction controller
+   *
+   * @returns Shared overlay interaction controller
+   */
+  public getOverlayController(): OverlayController {
+    return this.overlayController;
   }
 
   /**
