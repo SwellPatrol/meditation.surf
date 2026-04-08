@@ -9,6 +9,9 @@
 import type {
   BackgroundLayerLayout,
   BackgroundVideoPlaybackPolicy,
+  MediaItem,
+  PlaybackSequenceController,
+  PlaybackSequenceState,
 } from "@meditation-surf/core";
 import type {
   PlaybackSource,
@@ -27,8 +30,10 @@ type ShakaPlayer = InstanceType<ShakaModule["Player"]>;
  */
 export class WebBackgroundVideoController {
   private readonly backgroundLayer: BackgroundLayerLayout;
+  private readonly playbackSequenceController: PlaybackSequenceController;
   private readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
   private activeShakaPlayer: ShakaPlayer | null;
+  private removePlaybackSequenceSubscription: (() => void) | null;
 
   /**
    * @brief Capture the shared experience consumed by the web background player
@@ -37,11 +42,14 @@ export class WebBackgroundVideoController {
    */
   public constructor(
     backgroundLayer: BackgroundLayerLayout,
+    playbackSequenceController: PlaybackSequenceController,
     playbackVisualReadinessController: PlaybackVisualReadinessController,
   ) {
     this.backgroundLayer = backgroundLayer;
+    this.playbackSequenceController = playbackSequenceController;
     this.playbackVisualReadinessController = playbackVisualReadinessController;
     this.activeShakaPlayer = null;
+    this.removePlaybackSequenceSubscription = null;
   }
 
   /**
@@ -77,9 +85,15 @@ export class WebBackgroundVideoController {
    * @returns A promise that resolves after playback has been attempted
    */
   public async start(videoElement: HTMLVideoElement): Promise<void> {
-    this.playbackVisualReadinessController.beginLoading();
-    this.installFirstRenderedFrameObserver(videoElement);
-    this.activeShakaPlayer = await this.load(videoElement);
+    this.removePlaybackSequenceSubscription =
+      this.playbackSequenceController.subscribe(
+        (playbackSequenceState: PlaybackSequenceState): void => {
+          void this.handlePlaybackSequenceState(
+            videoElement,
+            playbackSequenceState,
+          );
+        },
+      );
   }
 
   /**
@@ -88,6 +102,9 @@ export class WebBackgroundVideoController {
    * @returns A promise that resolves after the Shaka player has been destroyed
    */
   public async destroy(): Promise<void> {
+    this.removePlaybackSequenceSubscription?.();
+    this.removePlaybackSequenceSubscription = null;
+
     if (this.activeShakaPlayer === null) {
       return;
     }
@@ -122,6 +139,30 @@ export class WebBackgroundVideoController {
         error,
       );
     }
+  }
+
+  /**
+   * @brief Sync the DOM video element to the shared active item
+   *
+   * @param videoElement - DOM video element used for background playback
+   * @param playbackSequenceState - Shared playback sequence snapshot
+   */
+  private async handlePlaybackSequenceState(
+    videoElement: HTMLVideoElement,
+    playbackSequenceState: PlaybackSequenceState,
+  ): Promise<void> {
+    const activeItem: MediaItem | null = playbackSequenceState.activeItem;
+
+    if (activeItem === null) {
+      return;
+    }
+
+    this.playbackVisualReadinessController.beginLoading();
+    this.installFirstRenderedFrameObserver(videoElement);
+    this.activeShakaPlayer = await this.load(
+      videoElement,
+      activeItem.getPlaybackSource(),
+    );
   }
 
   /**
@@ -176,10 +217,8 @@ export class WebBackgroundVideoController {
    */
   private async load(
     videoElement: HTMLVideoElement,
+    playbackSource: PlaybackSource,
   ): Promise<ShakaPlayer | null> {
-    const playbackSource: PlaybackSource = this.backgroundLayer
-      .getBackgroundVideo()
-      .getPlaybackSource();
     const playbackPolicy: BackgroundVideoPlaybackPolicy = this.backgroundLayer
       .getBackgroundVideo()
       .getPlaybackPolicy();

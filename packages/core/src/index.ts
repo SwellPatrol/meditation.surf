@@ -20,6 +20,11 @@ export {
   BackgroundVideoModel,
   type BackgroundVideoPlaybackPolicy,
 } from "./playback/BackgroundVideoModel";
+export {
+  PlaybackSequenceController,
+  type PlaybackSequenceListener,
+  type PlaybackSequenceState,
+} from "./playback/PlaybackSequenceController";
 export { CenteredIconOverlayModel } from "./ui/CenteredIconOverlayModel";
 export {
   OverlayController,

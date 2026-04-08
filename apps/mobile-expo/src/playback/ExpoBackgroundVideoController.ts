@@ -9,6 +9,9 @@
 import type {
   BackgroundLayerLayout,
   BackgroundVideoPlaybackPolicy,
+  MediaItem,
+  PlaybackSequenceController,
+  PlaybackSequenceState,
 } from "@meditation-surf/core";
 import type {
   PlaybackSource,
@@ -25,6 +28,7 @@ import type { VideoPlayer, VideoSource } from "expo-video";
  */
 export class ExpoBackgroundVideoController {
   private readonly backgroundLayer: BackgroundLayerLayout;
+  private readonly playbackSequenceController: PlaybackSequenceController;
   private readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
 
   /**
@@ -34,9 +38,11 @@ export class ExpoBackgroundVideoController {
    */
   public constructor(
     backgroundLayer: BackgroundLayerLayout,
+    playbackSequenceController: PlaybackSequenceController,
     playbackVisualReadinessController: PlaybackVisualReadinessController,
   ) {
     this.backgroundLayer = backgroundLayer;
+    this.playbackSequenceController = playbackSequenceController;
     this.playbackVisualReadinessController = playbackVisualReadinessController;
   }
 
@@ -46,14 +52,10 @@ export class ExpoBackgroundVideoController {
    * @returns Expo video source metadata for the runtime player
    */
   public createVideoSource(): VideoSource {
-    const playbackSource: PlaybackSource = this.backgroundLayer
-      .getBackgroundVideo()
-      .getPlaybackSource();
-
-    return {
-      contentType: "hls",
-      uri: playbackSource.url,
-    };
+    return this.createExpoVideoSource(
+      this.playbackSequenceController.getActiveItem()?.getPlaybackSource() ??
+        this.backgroundLayer.getBackgroundVideo().getPlaybackSource(),
+    );
   }
 
   /**
@@ -81,6 +83,21 @@ export class ExpoBackgroundVideoController {
   }
 
   /**
+   * @brief Subscribe the Expo player to shared active-item changes
+   *
+   * @param player - Expo video player instance
+   *
+   * @returns Cleanup callback that removes the active-item subscription
+   */
+  public connectPlayer(player: VideoPlayer): () => void {
+    return this.playbackSequenceController.subscribe(
+      (playbackSequenceState: PlaybackSequenceState): void => {
+        this.handlePlaybackSequenceState(player, playbackSequenceState);
+      },
+    );
+  }
+
+  /**
    * @brief Return the VideoView props owned by the shared playback policy
    *
    * @returns Expo VideoView configuration derived from the shared model
@@ -102,5 +119,40 @@ export class ExpoBackgroundVideoController {
       },
       playsInline: playbackPolicy.playsInline,
     };
+  }
+
+  /**
+   * @brief Build Expo's source object from the shared playback source
+   *
+   * @param playbackSource - Shared playback source metadata
+   *
+   * @returns Expo-specific source object
+   */
+  private createExpoVideoSource(playbackSource: PlaybackSource): VideoSource {
+    return {
+      contentType: "hls",
+      uri: playbackSource.url,
+    };
+  }
+
+  /**
+   * @brief Apply active-item changes to the Expo player instance
+   *
+   * @param player - Expo video player instance
+   * @param playbackSequenceState - Shared playback sequence snapshot
+   */
+  private handlePlaybackSequenceState(
+    player: VideoPlayer,
+    playbackSequenceState: PlaybackSequenceState,
+  ): void {
+    const activeItem: MediaItem | null = playbackSequenceState.activeItem;
+
+    if (activeItem === null) {
+      return;
+    }
+
+    this.playbackVisualReadinessController.beginLoading();
+    player.replace(this.createExpoVideoSource(activeItem.getPlaybackSource()));
+    player.play();
   }
 }

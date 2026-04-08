@@ -11,10 +11,11 @@ import {
   DemoExperienceFactory,
   type MeditationExperience,
   type OverlayState,
+  type PlaybackSequenceState,
 } from "@meditation-surf/core";
 import type { PlaybackVisualReadinessState } from "@meditation-surf/player-core";
 import { useVideoPlayer, type VideoPlayer, VideoView } from "expo-video";
-import { type JSX, useEffect, useRef } from "react";
+import { type JSX, useEffect, useRef, useState } from "react";
 import {
   Animated,
   Easing,
@@ -32,9 +33,11 @@ const app: ExpoApp = new ExpoApp(experience);
 
 export default function App(): JSX.Element {
   const experienceAdapter: ExpoExperienceAdapter = app.getExperienceAdapter();
-  const overlayTitle: string = experienceAdapter.overlayTitle;
   const windowDimensions: { width: number; height: number } =
     useWindowDimensions();
+  const [overlayTitle, setOverlayTitle] = useState<string>(
+    experienceAdapter.playbackSequenceController.getActiveItemTitle() ?? "",
+  );
   const loadingOpacity: Animated.Value = useRef<Animated.Value>(
     new Animated.Value(1),
   ).current;
@@ -48,10 +51,22 @@ export default function App(): JSX.Element {
     },
   );
 
-  useEffect((): void => {
-    // On web, play() needs to run after the underlying <video> has mounted.
-    experienceAdapter.backgroundVideoController.startPlayback(videoPlayer);
-  }, [videoPlayer]);
+  useEffect((): (() => void) => {
+    const removePlaybackSequenceSubscription: () => void =
+      experienceAdapter.backgroundVideoController.connectPlayer(videoPlayer);
+
+    return (): void => {
+      removePlaybackSequenceSubscription();
+    };
+  }, [experienceAdapter, videoPlayer]);
+
+  useEffect((): (() => void) => {
+    return experienceAdapter.playbackSequenceController.subscribe(
+      (playbackSequenceState: PlaybackSequenceState): void => {
+        setOverlayTitle(playbackSequenceState.activeItem?.title ?? "");
+      },
+    );
+  }, [experienceAdapter]);
 
   useEffect((): (() => void) => {
     return experienceAdapter.playbackVisualReadinessController.subscribe(

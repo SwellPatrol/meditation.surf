@@ -9,6 +9,7 @@
 import type {
   MeditationExperience,
   OverlayController,
+  PlaybackSequenceController,
 } from "@meditation-surf/core";
 import type { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
@@ -25,8 +26,8 @@ import { TvBackgroundVideoController } from "../playback/TvBackgroundVideoContro
 export class TvExperienceAdapter {
   public readonly appLayoutController: TvAppLayoutController;
   public readonly backgroundVideoController: TvBackgroundVideoController;
-  public readonly overlayTitle: string;
   public readonly overlayController: OverlayController;
+  public readonly playbackSequenceController: PlaybackSequenceController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
 
   /**
@@ -45,11 +46,13 @@ export class TvExperienceAdapter {
     this.backgroundVideoController = new TvBackgroundVideoController(
       experience,
       experience.appLayout.getBackgroundLayer(),
+      experience.getPlaybackSequenceController(),
       lightningPlaybackAdapter,
       playbackVisualReadinessController,
     );
-    this.overlayTitle = experience.getFeaturedItemTitle() ?? "";
     this.overlayController = experience.getOverlayController();
+    this.playbackSequenceController =
+      experience.getPlaybackSequenceController();
     this.playbackVisualReadinessController = playbackVisualReadinessController;
   }
 }

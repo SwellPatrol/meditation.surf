@@ -16,6 +16,7 @@ import { BackgroundLayerLayout } from "../layout/BackgroundLayerLayout";
 import { ForegroundLayerLayout } from "../layout/ForegroundLayerLayout";
 import { BackgroundVideoModel } from "../playback/BackgroundVideoModel";
 import { DemoBackgroundVideo } from "../playback/DemoBackgroundVideo";
+import { PlaybackSequenceController } from "../playback/PlaybackSequenceController";
 import {
   CenteredIconOverlayModel,
   DEMO_CENTERED_ICON_OVERLAY,
@@ -46,12 +47,18 @@ export class DemoExperienceFactory {
     const overlayController: OverlayController = new OverlayController();
     const playbackVisualReadinessController: PlaybackVisualReadinessController =
       new PlaybackVisualReadinessController();
+    const playbackSequenceController: PlaybackSequenceController =
+      new PlaybackSequenceController(
+        catalog,
+        playbackVisualReadinessController,
+      );
 
     return new MeditationExperience(
       appLayout,
       catalog,
       overlayController,
       playbackVisualReadinessController,
+      playbackSequenceController,
     );
   }
 }

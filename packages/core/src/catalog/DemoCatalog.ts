@@ -31,8 +31,23 @@ export class DemoCatalog {
     ),
   );
 
+  private static readonly DOLBY_ATMOS_SPEAKER_TEST: MediaItem = new MediaItem(
+    "dolby-atmos-speaker-test",
+    "Dolby Atmos Speaker Test",
+    "A Dolby Atmos demo clip for speaker testing.",
+    new PlaybackSource(
+      "https://stream.mux.com/whqnGD00ducpABKumM02GTcWDAfGhwczU3LH1rHptzqOU.m3u8",
+      "application/x-mpegURL",
+      undefined,
+      "stereo",
+    ),
+  );
+
   private static readonly CATALOG: Catalog = new Catalog([
-    new CatalogSection("featured", "Featured", [DemoCatalog.SURF_VIDEO]),
+    new CatalogSection("featured", "Featured", [
+      DemoCatalog.SURF_VIDEO,
+      DemoCatalog.DOLBY_ATMOS_SPEAKER_TEST,
+    ]),
   ]);
 
   /**
@@ -42,6 +57,15 @@ export class DemoCatalog {
    */
   public static getSurfVideo(): MediaItem {
     return DemoCatalog.SURF_VIDEO;
+  }
+
+  /**
+   * @brief Return the shared Dolby Atmos demo item
+   *
+   * @returns Demo media item used for speaker testing
+   */
+  public static getDolbyAtmosSpeakerTest(): MediaItem {
+    return DemoCatalog.DOLBY_ATMOS_SPEAKER_TEST;
   }
 
   /**

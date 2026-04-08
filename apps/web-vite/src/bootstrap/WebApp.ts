@@ -6,7 +6,11 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { MeditationExperience, OverlayState } from "@meditation-surf/core";
+import type {
+  MeditationExperience,
+  OverlayState,
+  PlaybackSequenceState,
+} from "@meditation-surf/core";
 import type { PlaybackVisualReadinessState } from "@meditation-surf/player-core";
 
 import { WebExperienceAdapter } from "../experience/WebExperienceAdapter";
@@ -26,6 +30,7 @@ export class WebApp {
   private readonly handleResize: () => void;
   private removeLoadingSubscription: (() => void) | null;
   private removeOverlaySubscription: (() => void) | null;
+  private removePlaybackSequenceSubscription: (() => void) | null;
 
   /**
    * @brief Assemble the runtime-specific web app around a shared experience
@@ -36,15 +41,19 @@ export class WebApp {
     this.experienceAdapter = new WebExperienceAdapter(experience);
     this.shell = new WebAppShell(
       this.experienceAdapter.appLayoutController,
-      this.experienceAdapter.overlayTitle,
+      this.experienceAdapter.playbackSequenceController.getActiveItemTitle() ??
+        "",
     );
     this.removeLoadingSubscription = null;
     this.removeOverlaySubscription = null;
+    this.removePlaybackSequenceSubscription = null;
     this.handleBeforeUnload = (): void => {
       this.removeLoadingSubscription?.();
       this.removeLoadingSubscription = null;
       this.removeOverlaySubscription?.();
       this.removeOverlaySubscription = null;
+      this.removePlaybackSequenceSubscription?.();
+      this.removePlaybackSequenceSubscription = null;
       void this.experienceAdapter.backgroundVideoController.destroy();
     };
     this.handlePointerDown = (): void => {
@@ -83,6 +92,13 @@ export class WebApp {
         (overlayState: OverlayState): void => {
           this.shell.overlayUiElement.style.opacity =
             overlayState.visibility === "visible" ? "1" : "0";
+        },
+      );
+    this.removePlaybackSequenceSubscription =
+      this.experienceAdapter.playbackSequenceController.subscribe(
+        (playbackSequenceState: PlaybackSequenceState): void => {
+          this.shell.overlayUiElement.textContent =
+            playbackSequenceState.activeItem?.title ?? "";
         },
       );
     this.shell.fullscreenInteractionElement.addEventListener(

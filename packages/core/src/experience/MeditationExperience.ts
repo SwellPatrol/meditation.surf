@@ -13,6 +13,7 @@ import type { MediaItem } from "../catalog/MediaItem";
 import type { AppLayout } from "../layout/AppLayout";
 import type { ForegroundLayerLayout } from "../layout/ForegroundLayerLayout";
 import type { BackgroundVideoModel } from "../playback/BackgroundVideoModel";
+import type { PlaybackSequenceController } from "../playback/PlaybackSequenceController";
 import type { OverlayController } from "../ui/OverlayController";
 
 /**
@@ -27,6 +28,7 @@ export class MeditationExperience {
   public readonly catalog: Catalog;
   public readonly overlayController: OverlayController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
+  public readonly playbackSequenceController: PlaybackSequenceController;
 
   /**
    * @brief Create a meditation experience from its domain submodels
@@ -35,17 +37,20 @@ export class MeditationExperience {
    * @param catalog - Shared content catalog model
    * @param overlayController - Shared overlay interaction state controller
    * @param playbackVisualReadinessController - Shared playback visual readiness controller
+   * @param playbackSequenceController - Shared active-item playback sequence controller
    */
   public constructor(
     appLayout: AppLayout,
     catalog: Catalog,
     overlayController: OverlayController,
     playbackVisualReadinessController: PlaybackVisualReadinessController,
+    playbackSequenceController: PlaybackSequenceController,
   ) {
     this.appLayout = appLayout;
     this.catalog = catalog;
     this.overlayController = overlayController;
     this.playbackVisualReadinessController = playbackVisualReadinessController;
+    this.playbackSequenceController = playbackSequenceController;
   }
 
   /**
@@ -85,12 +90,39 @@ export class MeditationExperience {
   }
 
   /**
+   * @brief Return the shared playback sequence controller
+   *
+   * @returns Shared active-item sequence controller
+   */
+  public getPlaybackSequenceController(): PlaybackSequenceController {
+    return this.playbackSequenceController;
+  }
+
+  /**
    * @brief Return the featured item chosen by the catalog
    *
    * @returns The featured media item, or `null` when the catalog is empty
    */
   public getFeaturedItem(): MediaItem | null {
     return this.catalog.getFeaturedItem();
+  }
+
+  /**
+   * @brief Return the item currently chosen for playback
+   *
+   * @returns Active runtime media item, or `null` when the sequence is empty
+   */
+  public getActiveItem(): MediaItem | null {
+    return this.playbackSequenceController.getActiveItem();
+  }
+
+  /**
+   * @brief Return the title shown for the currently active item
+   *
+   * @returns Active item title, or `null` when the sequence is empty
+   */
+  public getActiveItemTitle(): string | null {
+    return this.playbackSequenceController.getActiveItemTitle();
   }
 
   /**

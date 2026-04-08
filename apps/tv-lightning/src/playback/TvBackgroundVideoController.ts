@@ -10,6 +10,8 @@ import type {
   BackgroundLayerLayout,
   MediaItem,
   MeditationExperience,
+  PlaybackSequenceController,
+  PlaybackSequenceState,
 } from "@meditation-surf/core";
 import type {
   IPlaybackController,
@@ -26,6 +28,7 @@ import type {
 export class TvBackgroundVideoController {
   private readonly experience: MeditationExperience;
   private readonly backgroundLayer: BackgroundLayerLayout;
+  private readonly playbackSequenceController: PlaybackSequenceController;
   private readonly playbackController: IPlaybackController & {
     setDisplayBounds(
       left: number,
@@ -35,6 +38,7 @@ export class TvBackgroundVideoController {
     ): void;
   };
   private readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
+  private removePlaybackSequenceSubscription: (() => void) | null;
 
   /**
    * @brief Build the TV background playback controller
@@ -46,6 +50,7 @@ export class TvBackgroundVideoController {
   public constructor(
     experience: MeditationExperience,
     backgroundLayer: BackgroundLayerLayout,
+    playbackSequenceController: PlaybackSequenceController,
     playbackController: IPlaybackController & {
       setDisplayBounds(
         left: number,
@@ -58,8 +63,10 @@ export class TvBackgroundVideoController {
   ) {
     this.experience = experience;
     this.backgroundLayer = backgroundLayer;
+    this.playbackSequenceController = playbackSequenceController;
     this.playbackController = playbackController;
     this.playbackVisualReadinessController = playbackVisualReadinessController;
+    this.removePlaybackSequenceSubscription = null;
   }
 
   /**
@@ -75,11 +82,12 @@ export class TvBackgroundVideoController {
    * @returns A promise that resolves after playback has been attempted
    */
   public async start(): Promise<void> {
-    const playbackSource: PlaybackSource = this.getPlaybackSource();
-
-    this.playbackVisualReadinessController.beginLoading();
-    await this.playbackController.load(playbackSource);
-    await this.playbackController.play();
+    this.removePlaybackSequenceSubscription =
+      this.playbackSequenceController.subscribe(
+        (playbackSequenceState: PlaybackSequenceState): void => {
+          void this.handlePlaybackSequenceState(playbackSequenceState);
+        },
+      );
   }
 
   /**
@@ -105,6 +113,8 @@ export class TvBackgroundVideoController {
    * @returns A promise that resolves after playback teardown finishes
    */
   public async destroy(): Promise<void> {
+    this.removePlaybackSequenceSubscription?.();
+    this.removePlaybackSequenceSubscription = null;
     await this.playbackController.destroy();
   }
 
@@ -114,11 +124,28 @@ export class TvBackgroundVideoController {
    * @returns Playback source chosen by the shared experience
    */
   private getPlaybackSource(): PlaybackSource {
-    const featuredItem: MediaItem | null = this.experience.getFeaturedItem();
+    const activeItem: MediaItem | null = this.experience.getActiveItem();
 
     return (
-      featuredItem?.getPlaybackSource() ??
+      activeItem?.getPlaybackSource() ??
       this.backgroundLayer.getBackgroundVideo().getPlaybackSource()
     );
+  }
+
+  /**
+   * @brief Apply active-item changes to the TV playback adapter
+   *
+   * @param playbackSequenceState - Shared playback sequence snapshot
+   */
+  private async handlePlaybackSequenceState(
+    playbackSequenceState: PlaybackSequenceState,
+  ): Promise<void> {
+    const activeItem: MediaItem | null = playbackSequenceState.activeItem;
+    const playbackSource: PlaybackSource =
+      activeItem?.getPlaybackSource() ?? this.getPlaybackSource();
+
+    this.playbackVisualReadinessController.beginLoading();
+    await this.playbackController.load(playbackSource);
+    await this.playbackController.play();
   }
 }

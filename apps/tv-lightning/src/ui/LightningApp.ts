@@ -7,7 +7,12 @@
  */
 
 import Blits from "@lightningjs/blits";
-import type { OverlayController, OverlayState } from "@meditation-surf/core";
+import type {
+  OverlayController,
+  OverlayState,
+  PlaybackSequenceController,
+  PlaybackSequenceState,
+} from "@meditation-surf/core";
 import type {
   PlaybackVisualReadinessController,
   PlaybackVisualReadinessState,
@@ -27,8 +32,8 @@ type LightningAppFactory = ReturnType<typeof Blits.Application>;
 
 export type LightningAppOptions = {
   appLayoutController: TvAppLayoutController;
-  overlayTitle: string;
   overlayController: OverlayController;
+  playbackSequenceController: PlaybackSequenceController;
   playbackVisualReadinessController: PlaybackVisualReadinessController;
   viewportSync: TvViewportSync;
   onReady: () => void;
@@ -47,13 +52,18 @@ type LightningAppState = {
   viewportH: number;
   removeLoadingSubscription: (() => void) | null;
   removeOverlaySubscription: (() => void) | null;
+  removePlaybackSequenceSubscription: (() => void) | null;
   stopViewportSync: (() => void) | null;
 };
 
 type LightningAppMethods = {
   initializeLoadingSubscription(): void;
   initializeOverlaySubscription(): void;
+  initializePlaybackSequenceSubscription(): void;
   initializeViewportSync(): void;
+  handlePlaybackSequenceState(
+    playbackSequenceState: PlaybackSequenceState,
+  ): void;
   handlePlaybackVisualReadinessState(
     playbackVisualReadinessState: PlaybackVisualReadinessState,
   ): void;
@@ -87,7 +97,8 @@ export function createLightningApp(
         appLayoutController: options.appLayoutController,
         fadeDurationMs: options.overlayController.getConfig().fadeDurationMs,
         loadingAlpha: 1,
-        overlayTitle: options.overlayTitle,
+        overlayTitle:
+          options.playbackSequenceController.getActiveItemTitle() ?? "",
         overlayAlpha: 0,
         stageW: LIGHTNING_APP_WIDTH,
         stageH: LIGHTNING_APP_HEIGHT,
@@ -95,6 +106,7 @@ export function createLightningApp(
         viewportH: 0,
         removeLoadingSubscription: null,
         removeOverlaySubscription: null,
+        removePlaybackSequenceSubscription: null,
         stopViewportSync: null,
       };
     },
@@ -128,6 +140,18 @@ export function createLightningApp(
       },
 
       /**
+       * @brief Subscribe the Lightning root to shared active-item changes
+       */
+      initializePlaybackSequenceSubscription(): void {
+        this.removePlaybackSequenceSubscription =
+          options.playbackSequenceController.subscribe(
+            (playbackSequenceState: PlaybackSequenceState): void => {
+              this.handlePlaybackSequenceState(playbackSequenceState);
+            },
+          );
+      },
+
+      /**
        * @brief Subscribe to viewport updates emitted by the TV bootstrap layout helper
        */
       initializeViewportSync(): void {
@@ -137,6 +161,17 @@ export function createLightningApp(
             this.viewportH = viewportSize.height;
           },
         );
+      },
+
+      /**
+       * @brief Map the shared active item onto the rendered overlay title
+       *
+       * @param playbackSequenceState - Shared playback sequence snapshot
+       */
+      handlePlaybackSequenceState(
+        playbackSequenceState: PlaybackSequenceState,
+      ): void {
+        this.overlayTitle = playbackSequenceState.activeItem?.title ?? "";
       },
 
       /**
@@ -172,6 +207,11 @@ export function createLightningApp(
         if (this.stopViewportSync !== null) {
           this.stopViewportSync();
           this.stopViewportSync = null;
+        }
+
+        if (this.removePlaybackSequenceSubscription !== null) {
+          this.removePlaybackSequenceSubscription();
+          this.removePlaybackSequenceSubscription = null;
         }
 
         if (this.removeOverlaySubscription !== null) {
@@ -214,6 +254,7 @@ export function createLightningApp(
       ready(): void {
         this.initializeLoadingSubscription();
         this.initializeOverlaySubscription();
+        this.initializePlaybackSequenceSubscription();
         this.initializeViewportSync();
         options.onReady();
       },
