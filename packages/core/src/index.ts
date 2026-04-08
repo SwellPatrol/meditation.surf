@@ -17,10 +17,24 @@ export {
 } from "./CenteredIconOverlayModel";
 export type { CatalogClient } from "./api/CatalogClient";
 export { DemoCatalogClient } from "./api/DemoCatalogClient";
-export type {
-  AnalyticsEventName,
-  AnalyticsEventPayloadMap,
-} from "./analytics/events";
+export {
+  AppLaunchedAnalyticsEvent,
+  type AppLaunchedAnalyticsEventApp,
+  type AppLaunchedAnalyticsEventPayload,
+} from "./analytics/AppLaunchedAnalyticsEvent";
+export {
+  AudioPreferencesChangedAnalyticsEvent,
+  type AudioPreferencesChangedAnalyticsEventPayload,
+} from "./analytics/AudioPreferencesChangedAnalyticsEvent";
+export {
+  CatalogLoadedAnalyticsEvent,
+  type CatalogLoadedAnalyticsEventPayload,
+} from "./analytics/CatalogLoadedAnalyticsEvent";
+export type { IAnalyticsEvent } from "./analytics/IAnalyticsEvent";
+export {
+  PlaybackStartedAnalyticsEvent,
+  type PlaybackStartedAnalyticsEventPayload,
+} from "./analytics/PlaybackStartedAnalyticsEvent";
 export { Catalog, CatalogSection, MediaItem } from "./catalog";
 export type { CatalogInit, CatalogSectionInit, MediaItemInit } from "./catalog";
 export { DemoCatalog } from "./catalog/DemoCatalog";
