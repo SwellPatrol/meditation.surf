@@ -12,6 +12,7 @@ export { AppLayout } from "./layout/AppLayout";
 export { BackgroundLayerLayout } from "./layout/BackgroundLayerLayout";
 export {
   CenteredOverlayLayout,
+  DEMO_CENTERED_OVERLAY_LAYOUT,
   type CenteredOverlayPlacement,
   type CenteredOverlaySize,
 } from "./layout/CenteredOverlayLayout";
@@ -25,7 +26,6 @@ export {
   type PlaybackSequenceListener,
   type PlaybackSequenceState,
 } from "./playback/PlaybackSequenceController";
-export { CenteredIconOverlayModel } from "./ui/CenteredIconOverlayModel";
 export {
   OverlayController,
   type OverlayConfig,

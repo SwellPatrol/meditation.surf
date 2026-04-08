@@ -89,3 +89,9 @@ export class CenteredOverlayLayout {
     };
   }
 }
+
+/**
+ * @brief Shared centered overlay used by the demo experience
+ */
+export const DEMO_CENTERED_OVERLAY_LAYOUT: CenteredOverlayLayout =
+  new CenteredOverlayLayout("brand-icon-overlay", 1, 240, 0.32);

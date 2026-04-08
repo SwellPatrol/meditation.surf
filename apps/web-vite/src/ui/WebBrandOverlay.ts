@@ -16,14 +16,14 @@ export class WebBrandOverlay {
    * @brief Keep the overlay icon centered and sized from the shared scene model
    *
    * @param overlayIconElement - DOM image element that renders the brand icon
-   * @param overlayIconModel - Shared layout model for the centered icon overlay
+   * @param overlayLayout - Shared layout model for the centered overlay
    */
   public applyLayout(
     overlayIconElement: HTMLImageElement,
-    overlayIconModel: CenteredOverlayLayout,
+    overlayLayout: CenteredOverlayLayout,
   ): void {
     const layoutSize: { width: number; height: number } =
-      overlayIconModel.getLayoutSize(window.innerWidth, window.innerHeight);
+      overlayLayout.getLayoutSize(window.innerWidth, window.innerHeight);
 
     overlayIconElement.style.width = `${layoutSize.width}px`;
     overlayIconElement.style.height = `${layoutSize.height}px`;

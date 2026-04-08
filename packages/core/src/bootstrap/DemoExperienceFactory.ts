@@ -13,14 +13,14 @@ import { DemoCatalog } from "../catalog/DemoCatalog";
 import { MeditationExperience } from "../experience/MeditationExperience";
 import { AppLayout } from "../layout/AppLayout";
 import { BackgroundLayerLayout } from "../layout/BackgroundLayerLayout";
+import {
+  CenteredOverlayLayout,
+  DEMO_CENTERED_OVERLAY_LAYOUT,
+} from "../layout/CenteredOverlayLayout";
 import { ForegroundLayerLayout } from "../layout/ForegroundLayerLayout";
 import { BackgroundVideoModel } from "../playback/BackgroundVideoModel";
 import { DemoBackgroundVideo } from "../playback/DemoBackgroundVideo";
 import { PlaybackSequenceController } from "../playback/PlaybackSequenceController";
-import {
-  CenteredIconOverlayModel,
-  DEMO_CENTERED_ICON_OVERLAY,
-} from "../ui/CenteredIconOverlayModel";
 import { OverlayController } from "../ui/OverlayController";
 
 /**
@@ -37,11 +37,11 @@ export class DemoExperienceFactory {
    */
   public static create(): MeditationExperience {
     const backgroundVideo: BackgroundVideoModel = DemoBackgroundVideo.create();
-    const centeredIconOverlay: CenteredIconOverlayModel =
-      DEMO_CENTERED_ICON_OVERLAY;
+    const centeredOverlayLayout: CenteredOverlayLayout =
+      DEMO_CENTERED_OVERLAY_LAYOUT;
     const appLayout: AppLayout = new AppLayout(
       new BackgroundLayerLayout(backgroundVideo),
-      new ForegroundLayerLayout(centeredIconOverlay),
+      new ForegroundLayerLayout(centeredOverlayLayout),
     );
     const catalog: Catalog = DemoCatalog.getCatalog();
     const overlayController: OverlayController = new OverlayController();

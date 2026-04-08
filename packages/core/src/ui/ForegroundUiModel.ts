@@ -6,26 +6,24 @@
  * See the file LICENSE.txt for more information.
  */
 
+import { CenteredOverlayLayout } from "../layout/CenteredOverlayLayout";
 import type { ForegroundLayerLayout } from "../layout/ForegroundLayerLayout";
-import { CenteredIconOverlayModel } from "./CenteredIconOverlayModel";
 import { ForegroundUiElement } from "./ForegroundUiElement";
 
-type LegacyForegroundUiModelElement =
-  | ForegroundUiElement
-  | CenteredIconOverlayModel;
+type ForegroundUiModelElement = ForegroundUiElement | CenteredOverlayLayout;
 
 /**
  * @brief Runtime-agnostic collection of foreground UI elements
  */
 export class ForegroundUiModel {
-  private readonly elements: LegacyForegroundUiModelElement[];
+  private readonly elements: ForegroundUiModelElement[];
 
   /**
    * @brief Create a foreground UI model from a list of shared elements
    *
    * @param elements - Ordered foreground elements rendered above video
    */
-  public constructor(elements: LegacyForegroundUiModelElement[]) {
+  public constructor(elements: ForegroundUiModelElement[]) {
     this.elements = elements;
   }
 
@@ -34,43 +32,41 @@ export class ForegroundUiModel {
    *
    * @returns A shallow copy of the shared foreground element list
    */
-  public getElements(): LegacyForegroundUiModelElement[] {
+  public getElements(): ForegroundUiModelElement[] {
     return [...this.elements];
   }
 
   /**
-   * @brief Return the centered icon overlay when present
+   * @brief Return the centered overlay when present
    *
-   * @returns The first centered icon overlay, or `null` if one is absent
+   * @returns The first centered overlay, or `null` if one is absent
    */
-  public getCenteredIconOverlay(): CenteredIconOverlayModel | null {
-    const centeredIconOverlay: LegacyForegroundUiModelElement | undefined =
+  public getCenteredOverlay(): CenteredOverlayLayout | null {
+    const centeredOverlay: ForegroundUiModelElement | undefined =
       this.elements.find(
-        (element: LegacyForegroundUiModelElement): boolean =>
-          element instanceof CenteredIconOverlayModel,
+        (element: ForegroundUiModelElement): boolean =>
+          element instanceof CenteredOverlayLayout,
       );
 
-    if (centeredIconOverlay instanceof CenteredIconOverlayModel) {
-      return centeredIconOverlay;
+    if (centeredOverlay instanceof CenteredOverlayLayout) {
+      return centeredOverlay;
     }
 
     return null;
   }
 
   /**
-   * @brief Build a legacy foreground UI model from the shared foreground layer
+   * @brief Build a foreground UI model from the shared foreground layer
    *
    * @param foregroundLayer - Shared foreground layer layout
    *
-   * @returns Foreground UI wrapper for older consumers
+   * @returns Foreground UI wrapper for shared consumers
    */
   public static fromForegroundLayer(
     foregroundLayer: ForegroundLayerLayout,
   ): ForegroundUiModel {
-    const centeredOverlay: CenteredIconOverlayModel | null =
-      foregroundLayer.getCenteredOverlay() instanceof CenteredIconOverlayModel
-        ? (foregroundLayer.getCenteredOverlay() as CenteredIconOverlayModel)
-        : null;
+    const centeredOverlay: CenteredOverlayLayout | null =
+      foregroundLayer.getCenteredOverlay();
 
     return new ForegroundUiModel(
       centeredOverlay === null ? [] : [centeredOverlay],
