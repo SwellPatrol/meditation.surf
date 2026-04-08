@@ -21,34 +21,28 @@ Install dependencies:
 pnpm install
 ```
 
+Check for dependency vulnerabilities:
+
+```sh
+pnpm audit-ci
+```
+
 Run the TV app in development mode:
 
 ```sh
-pnpm dev-tv
+pnpm dev:tv
 ```
 
 Run the Expo app in development mode:
 
 ```sh
-pnpm dev-m
+pnpm dev:mobile
 ```
 
-Build the TV app:
+Run the web app in development mode:
 
 ```sh
-pnpm build-tv
-```
-
-Build the Expo app:
-
-```sh
-pnpm build-m
-```
-
-Use the root default dev command when you want the TV app:
-
-```sh
-pnpm dev
+pnpm dev:web
 ```
 
 Run the repository checks:
