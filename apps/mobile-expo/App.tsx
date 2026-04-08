@@ -32,6 +32,7 @@ const app: ExpoApp = new ExpoApp(experience);
 
 export default function App(): JSX.Element {
   const experienceAdapter: ExpoExperienceAdapter = app.getExperienceAdapter();
+  const overlayTitle: string = experienceAdapter.overlayTitle;
   const windowDimensions: { width: number; height: number } =
     useWindowDimensions();
   const loadingOpacity: Animated.Value = useRef<Animated.Value>(
@@ -80,7 +81,7 @@ export default function App(): JSX.Element {
     );
   }, [experienceAdapter, overlayOpacity]);
 
-  const dynamicIconStyle: CenteredOverlaySize =
+  const dynamicLoadingIconStyle: CenteredOverlaySize =
     experienceAdapter.appLayoutController.getCenteredOverlaySize(
       windowDimensions.width,
       windowDimensions.height,
@@ -126,7 +127,7 @@ export default function App(): JSX.Element {
           source={experienceAdapter.appLayoutController.getCenteredOverlaySource()}
           style={[
             experienceAdapter.appLayoutController.getCenteredOverlayStyle(),
-            dynamicIconStyle,
+            dynamicLoadingIconStyle,
             {
               opacity: loadingOpacity,
             },
@@ -134,20 +135,22 @@ export default function App(): JSX.Element {
         />
       </View>
       <View
+        accessible={false}
         pointerEvents="none"
         style={experienceAdapter.appLayoutController.getOverlayUiPlaneStyle()}
       >
-        <Animated.Image
-          resizeMode="contain"
-          source={experienceAdapter.appLayoutController.getCenteredOverlaySource()}
+        <Animated.Text
+          accessibilityRole="header"
+          allowFontScaling={true}
           style={[
-            experienceAdapter.appLayoutController.getCenteredOverlayStyle(),
-            dynamicIconStyle,
+            experienceAdapter.appLayoutController.getOverlayTitleStyle(),
             {
               opacity: overlayOpacity,
             },
           ]}
-        />
+        >
+          {overlayTitle}
+        </Animated.Text>
       </View>
     </Pressable>
   );

@@ -20,12 +20,14 @@ import {
 import { TvAppLayoutController } from "../layout/TvAppLayoutController";
 import { TvViewportSync } from "../layout/TvViewportSync";
 import Icon from "./Icon";
+import OverlayTitle from "./OverlayTitle";
 
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
 
 export type LightningAppOptions = {
   appLayoutController: TvAppLayoutController;
+  overlayTitle: string;
   overlayController: OverlayController;
   playbackVisualReadinessController: PlaybackVisualReadinessController;
   viewportSync: TvViewportSync;
@@ -37,6 +39,7 @@ type LightningAppState = {
   appLayoutController: TvAppLayoutController;
   fadeDurationMs: number;
   loadingAlpha: number;
+  overlayTitle: string;
   overlayAlpha: number;
   stageW: number;
   stageH: number;
@@ -84,6 +87,7 @@ export function createLightningApp(
         appLayoutController: options.appLayoutController,
         fadeDurationMs: options.overlayController.getConfig().fadeDurationMs,
         loadingAlpha: 1,
+        overlayTitle: options.overlayTitle,
         overlayAlpha: 0,
         stageW: LIGHTNING_APP_WIDTH,
         stageH: LIGHTNING_APP_HEIGHT,
@@ -196,6 +200,7 @@ export function createLightningApp(
     // Register child components available in the template
     components: {
       Icon,
+      OverlayTitle,
     },
 
     // No computed properties for the stage itself
@@ -222,7 +227,7 @@ export function createLightningApp(
       },
     },
 
-    // Render the icon component centered on a black canvas
+    // Render separate loading and overlay UI planes on the fixed TV stage
     template: `<Element :w="$stageW" :h="$stageH">
       <Icon
         :appLayoutController="$appLayoutController"
@@ -233,14 +238,12 @@ export function createLightningApp(
         :viewportW="$viewportW"
         :viewportH="$viewportH"
       />
-      <Icon
-        :appLayoutController="$appLayoutController"
+      <OverlayTitle
         :alpha="$overlayAlpha"
         :fadeDurationMs="$fadeDurationMs"
         :stageW="$stageW"
         :stageH="$stageH"
-        :viewportW="$viewportW"
-        :viewportH="$viewportH"
+        :title="$overlayTitle"
       />
     </Element>`,
   });

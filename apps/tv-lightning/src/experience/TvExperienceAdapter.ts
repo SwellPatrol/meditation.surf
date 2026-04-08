@@ -25,6 +25,7 @@ import { TvBackgroundVideoController } from "../playback/TvBackgroundVideoContro
 export class TvExperienceAdapter {
   public readonly appLayoutController: TvAppLayoutController;
   public readonly backgroundVideoController: TvBackgroundVideoController;
+  public readonly overlayTitle: string;
   public readonly overlayController: OverlayController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
 
@@ -47,6 +48,7 @@ export class TvExperienceAdapter {
       lightningPlaybackAdapter,
       playbackVisualReadinessController,
     );
+    this.overlayTitle = experience.getFeaturedItemTitle() ?? "";
     this.overlayController = experience.getOverlayController();
     this.playbackVisualReadinessController = playbackVisualReadinessController;
   }

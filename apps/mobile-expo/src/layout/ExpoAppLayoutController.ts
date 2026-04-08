@@ -12,7 +12,7 @@ import type {
   CenteredOverlaySize,
 } from "@meditation-surf/core";
 import { BRAND_OVERLAY_ICON_SOURCE } from "@meditation-surf/core/brand/native";
-import type { ImageStyle, ViewStyle } from "react-native";
+import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
 
 /**
  * @brief Adapt the shared app layout into Expo-specific view layout state
@@ -45,6 +45,21 @@ export class ExpoAppLayoutController {
 
   private static readonly CENTERED_OVERLAY_STYLE: ImageStyle = {
     resizeMode: "contain",
+  };
+
+  private static readonly OVERLAY_TITLE_STYLE: TextStyle = {
+    color: "#FFFFFF",
+    fontSize: 32,
+    fontWeight: "600",
+    maxWidth: "85%",
+    paddingHorizontal: 24,
+    textAlign: "center",
+    textShadowColor: "#000000",
+    textShadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    textShadowRadius: 6,
   };
 
   private readonly appLayout: AppLayout;
@@ -101,6 +116,15 @@ export class ExpoAppLayoutController {
    */
   public getCenteredOverlayStyle(): ImageStyle {
     return ExpoAppLayoutController.CENTERED_OVERLAY_STYLE;
+  }
+
+  /**
+   * @brief Return the base title style for the overlay UI plane
+   *
+   * @returns React Native text style applied to the current item title
+   */
+  public getOverlayTitleStyle(): TextStyle {
+    return ExpoAppLayoutController.OVERLAY_TITLE_STYLE;
   }
 
   /**

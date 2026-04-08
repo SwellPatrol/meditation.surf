@@ -24,6 +24,7 @@ import { ExpoBackgroundVideoController } from "../playback/ExpoBackgroundVideoCo
 export class ExpoExperienceAdapter {
   public readonly appLayoutController: ExpoAppLayoutController;
   public readonly backgroundVideoController: ExpoBackgroundVideoController;
+  public readonly overlayTitle: string;
   public readonly overlayController: OverlayController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
 
@@ -40,6 +41,7 @@ export class ExpoExperienceAdapter {
       experience.appLayout.getBackgroundLayer(),
       experience.getPlaybackVisualReadinessController(),
     );
+    this.overlayTitle = experience.getFeaturedItemTitle() ?? "";
     this.overlayController = experience.getOverlayController();
     this.playbackVisualReadinessController =
       experience.getPlaybackVisualReadinessController();

@@ -19,25 +19,31 @@ export class WebAppShell {
   public readonly backgroundVideoElement: HTMLVideoElement;
   public readonly fullscreenInteractionElement: HTMLButtonElement;
   public readonly loadingOverlayElement: HTMLImageElement;
-  public readonly overlayUiElement: HTMLImageElement;
+  public readonly overlayUiElement: HTMLHeadingElement;
   public readonly mountElement: HTMLDivElement;
 
   /**
    * @brief Build the DOM shell for the web app
    *
    * @param appLayoutController - Runtime adapter for the shared app layout
+   * @param overlayTitle - Human-readable title rendered in the overlay UI plane
    */
-  public constructor(appLayoutController: WebAppLayoutController) {
+  public constructor(
+    appLayoutController: WebAppLayoutController,
+    overlayTitle: string,
+  ) {
     this.mountElement = this.getMountElement();
     this.backgroundVideoElement = document.createElement("video");
     this.fullscreenInteractionElement = document.createElement("button");
     this.loadingOverlayElement =
       appLayoutController.createCenteredOverlayElement();
-    this.overlayUiElement = appLayoutController.createCenteredOverlayElement();
-    const loadingPlaneElement: HTMLDivElement =
-      this.createOverlayPlaneElement("loading-plane");
+    this.overlayUiElement = this.createOverlayTitleElement(overlayTitle);
+    const loadingPlaneElement: HTMLDivElement = this.createOverlayPlaneElement(
+      "loading-plane",
+      false,
+    );
     const overlayUiPlaneElement: HTMLDivElement =
-      this.createOverlayPlaneElement("overlay-ui-plane");
+      this.createOverlayPlaneElement("overlay-ui-plane", true);
 
     this.backgroundVideoElement.className = "background-video";
     this.fullscreenInteractionElement.className = "interaction-surface";
@@ -53,10 +59,10 @@ export class WebAppShell {
      *
      * The loading plane is visible immediately, so its icon must receive its
      * initial width and height before the first paint. The overlay UI plane is
-     * sized here as well so both planes start from the same shared geometry.
+     * independent text, so only the loading plane consumes the shared overlay
+     * sizing guidance.
      */
     appLayoutController.applyCenteredOverlayLayout(this.loadingOverlayElement);
-    appLayoutController.applyCenteredOverlayLayout(this.overlayUiElement);
     loadingPlaneElement.append(this.loadingOverlayElement);
     overlayUiPlaneElement.append(this.overlayUiElement);
     this.mountElement.append(
@@ -84,17 +90,41 @@ export class WebAppShell {
   }
 
   /**
-   * @brief Create a fullscreen plane that centers a single overlay icon
+   * @brief Create the semantic title element rendered inside the overlay UI plane
+   *
+   * @param overlayTitle - Human-readable title rendered above the video
+   *
+   * @returns DOM heading element used for the overlay UI title
+   */
+  private createOverlayTitleElement(overlayTitle: string): HTMLHeadingElement {
+    const overlayTitleElement: HTMLHeadingElement =
+      document.createElement("h1");
+
+    overlayTitleElement.className = "overlay-title";
+    overlayTitleElement.textContent = overlayTitle;
+
+    return overlayTitleElement;
+  }
+
+  /**
+   * @brief Create a fullscreen plane that centers a single overlay child
    *
    * @param className - Plane-specific CSS class name
+   * @param isAccessible - Whether assistive technology should read this plane
    *
    * @returns DOM element that centers its child across the viewport
    */
-  private createOverlayPlaneElement(className: string): HTMLDivElement {
+  private createOverlayPlaneElement(
+    className: string,
+    isAccessible: boolean,
+  ): HTMLDivElement {
     const overlayPlaneElement: HTMLDivElement = document.createElement("div");
 
     overlayPlaneElement.className = className;
-    overlayPlaneElement.setAttribute("aria-hidden", "true");
+
+    if (!isAccessible) {
+      overlayPlaneElement.setAttribute("aria-hidden", "true");
+    }
 
     return overlayPlaneElement;
   }

@@ -24,6 +24,7 @@ import { WebBackgroundVideoController } from "../playback/WebBackgroundVideoCont
 export class WebExperienceAdapter {
   public readonly appLayoutController: WebAppLayoutController;
   public readonly backgroundVideoController: WebBackgroundVideoController;
+  public readonly overlayTitle: string;
   public readonly overlayController: OverlayController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
 
@@ -38,6 +39,7 @@ export class WebExperienceAdapter {
       experience.appLayout.getBackgroundLayer(),
       experience.getPlaybackVisualReadinessController(),
     );
+    this.overlayTitle = experience.getFeaturedItemTitle() ?? "";
     this.overlayController = experience.getOverlayController();
     this.playbackVisualReadinessController =
       experience.getPlaybackVisualReadinessController();

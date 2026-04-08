@@ -92,4 +92,18 @@ export class MeditationExperience {
   public getFeaturedItem(): MediaItem | null {
     return this.catalog.getFeaturedItem();
   }
+
+  /**
+   * @brief Return the title shown for the currently featured item
+   *
+   * This keeps the current display-title intent in shared code without
+   * introducing a larger playback metadata model before the product needs one.
+   *
+   * @returns The featured item title, or `null` when the catalog is empty
+   */
+  public getFeaturedItemTitle(): string | null {
+    const featuredItem: MediaItem | null = this.getFeaturedItem();
+
+    return featuredItem?.title ?? null;
+  }
 }

@@ -34,7 +34,10 @@ export class WebApp {
    */
   public constructor(experience: MeditationExperience) {
     this.experienceAdapter = new WebExperienceAdapter(experience);
-    this.shell = new WebAppShell(this.experienceAdapter.appLayoutController);
+    this.shell = new WebAppShell(
+      this.experienceAdapter.appLayoutController,
+      this.experienceAdapter.overlayTitle,
+    );
     this.removeLoadingSubscription = null;
     this.removeOverlaySubscription = null;
     this.handleBeforeUnload = (): void => {
@@ -51,9 +54,6 @@ export class WebApp {
       this.experienceAdapter.appLayoutController.applyCenteredOverlayLayout(
         this.shell.loadingOverlayElement,
       );
-      this.experienceAdapter.appLayoutController.applyCenteredOverlayLayout(
-        this.shell.overlayUiElement,
-      );
     };
   }
 
@@ -68,9 +68,6 @@ export class WebApp {
     );
     this.experienceAdapter.appLayoutController.applyCenteredOverlayLayout(
       this.shell.loadingOverlayElement,
-    );
-    this.experienceAdapter.appLayoutController.applyCenteredOverlayLayout(
-      this.shell.overlayUiElement,
     );
     this.shell.loadingOverlayElement.style.transition = `opacity ${this.experienceAdapter.overlayController.getConfig().fadeDurationMs}ms ease`;
     this.shell.overlayUiElement.style.transition = `opacity ${this.experienceAdapter.overlayController.getConfig().fadeDurationMs}ms ease`;
