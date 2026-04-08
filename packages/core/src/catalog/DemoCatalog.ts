@@ -19,26 +19,21 @@ import { MediaItem } from "./MediaItem";
  * of scattering cross-file helper constants.
  */
 export class DemoCatalog {
-  private static readonly SURF_VIDEO: MediaItem = new MediaItem({
-    id: "swellpatrol-featured-break",
-    title: "Featured Break",
-    description: "A calm featured surf stream used as shared sample content.",
-    playbackSource: new PlaybackSource({
-      url: "https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8",
-      mimeType: "application/x-mpegURL",
-      audioProfile: "stereo",
-    }),
-  });
+  private static readonly SURF_VIDEO: MediaItem = new MediaItem(
+    "swellpatrol-featured-break",
+    "Featured Break",
+    "A calm featured surf stream used as shared sample content.",
+    new PlaybackSource(
+      "https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8",
+      "application/x-mpegURL",
+      undefined,
+      "stereo",
+    ),
+  );
 
-  private static readonly CATALOG: Catalog = new Catalog({
-    sections: [
-      new CatalogSection({
-        id: "featured",
-        title: "Featured",
-        items: [DemoCatalog.SURF_VIDEO],
-      }),
-    ],
-  });
+  private static readonly CATALOG: Catalog = new Catalog([
+    new CatalogSection("featured", "Featured", [DemoCatalog.SURF_VIDEO]),
+  ]);
 
   /**
    * @brief Return the shared demo surf video

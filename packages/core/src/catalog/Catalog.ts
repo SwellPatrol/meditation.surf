@@ -10,13 +10,6 @@ import { CatalogSection } from "./CatalogSection";
 import { MediaItem } from "./MediaItem";
 
 /**
- * @brief Constructor data used to build a catalog domain object
- */
-export type CatalogInit = {
-  sections: CatalogSection[];
-};
-
-/**
  * @brief Shared catalog payload returned by content clients
  *
  * The catalog provides small domain methods for the "featured content" shape
@@ -28,10 +21,10 @@ export class Catalog {
   /**
    * @brief Create a catalog from pre-built section objects
    *
-   * @param init - Raw data used to build the catalog
+   * @param sections - Pre-built section objects owned by the catalog
    */
-  public constructor(init: CatalogInit) {
-    this.sections = init.sections;
+  public constructor(sections: CatalogSection[]) {
+    this.sections = sections;
   }
 
   /**

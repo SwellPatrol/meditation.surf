@@ -9,15 +9,6 @@
 import { MediaItem } from "./MediaItem";
 
 /**
- * @brief Constructor data used to build a catalog section domain object
- */
-export type CatalogSectionInit = {
-  id: string;
-  title: string;
-  items: MediaItem[];
-};
-
-/**
  * @brief A catalog grouping shown by frontend-specific navigation and layout layers
  *
  * The section owns a concrete list of media items and exposes small helper
@@ -31,12 +22,14 @@ export class CatalogSection {
   /**
    * @brief Create a catalog section from a title and item collection
    *
-   * @param init - Raw data used to build the section
+   * @param id - Stable section identifier
+   * @param title - Human-readable section title
+   * @param items - Section-owned media items
    */
-  public constructor(init: CatalogSectionInit) {
-    this.id = init.id;
-    this.title = init.title;
-    this.items = init.items;
+  public constructor(id: string, title: string, items: MediaItem[]) {
+    this.id = id;
+    this.title = title;
+    this.items = items;
   }
 
   /**

@@ -9,16 +9,6 @@
 import type { AudioProfile } from "./AudioProfile";
 
 /**
- * @brief Constructor data used to build a playback source domain object
- */
-export type PlaybackSourceInit = {
-  url: string;
-  mimeType?: string;
-  posterUrl?: string;
-  audioProfile?: AudioProfile;
-};
-
-/**
  * @brief Platform-agnostic media source details shared by all runtimes
  *
  * Platform-specific player implementations decide how to consume this shared
@@ -33,13 +23,21 @@ export class PlaybackSource {
   /**
    * @brief Create a playback source from stable media metadata
    *
-   * @param init - Raw source metadata shared across runtimes
+   * @param url - Shared media source URL
+   * @param mimeType - Optional explicit MIME type for the source
+   * @param posterUrl - Optional poster image URL
+   * @param audioProfile - Optional shared audio profile metadata
    */
-  public constructor(init: PlaybackSourceInit) {
-    this.url = init.url;
-    this.mimeType = init.mimeType;
-    this.posterUrl = init.posterUrl;
-    this.audioProfile = init.audioProfile;
+  public constructor(
+    url: string,
+    mimeType?: string,
+    posterUrl?: string,
+    audioProfile?: AudioProfile,
+  ) {
+    this.url = url;
+    this.mimeType = mimeType;
+    this.posterUrl = posterUrl;
+    this.audioProfile = audioProfile;
   }
 
   /**

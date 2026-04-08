@@ -38,12 +38,9 @@ export {
   PlaybackStartedAnalyticsEvent,
   type PlaybackStartedAnalyticsEventPayload,
 } from "./analytics/PlaybackStartedAnalyticsEvent";
-export { Catalog, type CatalogInit } from "./catalog/Catalog";
-export {
-  CatalogSection,
-  type CatalogSectionInit,
-} from "./catalog/CatalogSection";
-export { MediaItem, type MediaItemInit } from "./catalog/MediaItem";
+export { Catalog } from "./catalog/Catalog";
+export { CatalogSection } from "./catalog/CatalogSection";
+export { MediaItem } from "./catalog/MediaItem";
 export { DemoExperienceFactory } from "./DemoExperienceFactory";
 export { ForegroundUiElement } from "./ForegroundUiElement";
 export type {

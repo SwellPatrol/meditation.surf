@@ -10,16 +10,6 @@ import { PlaybackSource } from "./PlaybackSource";
 import { type PlaybackStatus, PlaybackStatuses } from "./PlaybackStatuses";
 
 /**
- * @brief Constructor data used to build a playback state domain object
- */
-export type PlaybackStateInit = {
-  status: PlaybackStatus;
-  source: PlaybackSource | null;
-  muted: boolean;
-  volume: number;
-};
-
-/**
  * @brief Minimal playback state model shared across app boundaries
  *
  * This immutable domain object captures the core playback state shared by
@@ -34,13 +24,21 @@ export class PlaybackState {
   /**
    * @brief Create a playback state from stable shared playback data
    *
-   * @param init - Shared playback state values
+   * @param status - Shared playback lifecycle status
+   * @param source - Shared playback source or `null` when unloaded
+   * @param muted - Whether playback should be muted
+   * @param volume - Shared playback volume value
    */
-  public constructor(init: PlaybackStateInit) {
-    this.status = init.status;
-    this.source = init.source;
-    this.muted = init.muted;
-    this.volume = init.volume;
+  public constructor(
+    status: PlaybackStatus,
+    source: PlaybackSource | null,
+    muted: boolean,
+    volume: number,
+  ) {
+    this.status = status;
+    this.source = source;
+    this.muted = muted;
+    this.volume = volume;
   }
 
   /**
@@ -65,12 +63,7 @@ export class PlaybackState {
    * @returns New playback state with the provided status
    */
   public withStatus(status: PlaybackStatus): PlaybackState {
-    return new PlaybackState({
-      status,
-      source: this.source,
-      muted: this.muted,
-      volume: this.volume,
-    });
+    return new PlaybackState(status, this.source, this.muted, this.volume);
   }
 
   /**
@@ -81,12 +74,7 @@ export class PlaybackState {
    * @returns New playback state with the provided source
    */
   public withSource(source: PlaybackSource | null): PlaybackState {
-    return new PlaybackState({
-      status: this.status,
-      source,
-      muted: this.muted,
-      volume: this.volume,
-    });
+    return new PlaybackState(this.status, source, this.muted, this.volume);
   }
 
   /**
@@ -97,12 +85,7 @@ export class PlaybackState {
    * @returns New playback state with the provided mute flag
    */
   public withMuted(muted: boolean): PlaybackState {
-    return new PlaybackState({
-      status: this.status,
-      source: this.source,
-      muted,
-      volume: this.volume,
-    });
+    return new PlaybackState(this.status, this.source, muted, this.volume);
   }
 
   /**
@@ -113,11 +96,6 @@ export class PlaybackState {
    * @returns New playback state with the provided volume
    */
   public withVolume(volume: number): PlaybackState {
-    return new PlaybackState({
-      status: this.status,
-      source: this.source,
-      muted: this.muted,
-      volume,
-    });
+    return new PlaybackState(this.status, this.source, this.muted, volume);
   }
 }

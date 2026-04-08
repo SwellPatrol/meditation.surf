@@ -9,16 +9,6 @@
 import type { PlaybackSource } from "@meditation-surf/player-core";
 
 /**
- * @brief Constructor data used to build a media item domain object
- */
-export type MediaItemInit = {
-  id: string;
-  title: string;
-  description: string;
-  playbackSource: PlaybackSource;
-};
-
-/**
  * @brief A single piece of playable meditation content
  *
  * This object keeps content metadata and playback information together so
@@ -33,13 +23,21 @@ export class MediaItem {
   /**
    * @brief Create a media item from stable content metadata
    *
-   * @param init - Raw data used to build the item
+   * @param id - Stable media item identifier
+   * @param title - Human-readable media item title
+   * @param description - Media item description shown by app layers
+   * @param playbackSource - Shared playback source metadata
    */
-  public constructor(init: MediaItemInit) {
-    this.id = init.id;
-    this.title = init.title;
-    this.description = init.description;
-    this.playbackSource = init.playbackSource;
+  public constructor(
+    id: string,
+    title: string,
+    description: string,
+    playbackSource: PlaybackSource,
+  ) {
+    this.id = id;
+    this.title = title;
+    this.description = description;
+    this.playbackSource = playbackSource;
   }
 
   /**
