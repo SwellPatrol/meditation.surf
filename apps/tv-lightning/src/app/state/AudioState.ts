@@ -8,8 +8,8 @@
 
 import {
   AudioPreferences,
-  type AudioPreferencesStorage,
   BrowserAudioPreferencesStorage,
+  type IAudioPreferencesStorage,
 } from "@meditation-surf/core";
 
 /**
@@ -20,7 +20,7 @@ import {
  */
 export class AudioState {
   // Shared storage implementation used by the TV app
-  private static readonly storage: AudioPreferencesStorage =
+  private static readonly storage: IAudioPreferencesStorage =
     new BrowserAudioPreferencesStorage();
 
   /**

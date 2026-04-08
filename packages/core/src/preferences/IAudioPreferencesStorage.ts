@@ -14,7 +14,7 @@ import type { AudioPreferences } from "./AudioPreferences";
  * Each frontend remains free to choose its own persistence backend while the
  * shared core model stays consistent.
  */
-export interface AudioPreferencesStorage {
+export interface IAudioPreferencesStorage {
   /**
    * @brief Load persisted audio preferences
    *

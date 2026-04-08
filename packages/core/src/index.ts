@@ -15,7 +15,7 @@ export {
   CenteredIconOverlayModel,
   DEMO_CENTERED_ICON_OVERLAY,
 } from "./CenteredIconOverlayModel";
-export type { CatalogClient } from "./api/CatalogClient";
+export type { ICatalogClient } from "./api/ICatalogClient";
 export { DemoCatalogClient } from "./api/DemoCatalogClient";
 export {
   AppLaunchedAnalyticsEvent,
@@ -50,5 +50,5 @@ export {
   AudioPreferences,
   type AudioPreferencesInit,
 } from "./preferences/AudioPreferences";
-export type { AudioPreferencesStorage } from "./preferences/AudioPreferencesStorage";
+export type { IAudioPreferencesStorage } from "./preferences/IAudioPreferencesStorage";
 export { BrowserAudioPreferencesStorage } from "./preferences/BrowserAudioPreferencesStorage";

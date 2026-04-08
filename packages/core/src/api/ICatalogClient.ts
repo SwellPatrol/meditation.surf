@@ -13,7 +13,7 @@ import type { Catalog } from "../catalog";
  *
  * Frontend apps can compose this with their own loading and caching strategy.
  */
-export interface CatalogClient {
+export interface ICatalogClient {
   /**
    * @brief Get the application catalog
    *

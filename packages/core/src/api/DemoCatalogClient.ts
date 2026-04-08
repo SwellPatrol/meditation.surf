@@ -8,14 +8,14 @@
 
 import type { Catalog } from "../catalog";
 import { DemoCatalog } from "../catalog/DemoCatalog";
-import type { CatalogClient } from "./CatalogClient";
+import type { ICatalogClient } from "./ICatalogClient";
 
 /**
  * @brief In-memory client that serves the shared demo catalog
  *
  * This implementation returns the static demo catalog without remote fetching.
  */
-export class DemoCatalogClient implements CatalogClient {
+export class DemoCatalogClient implements ICatalogClient {
   /**
    * @brief Get the demo catalog
    *

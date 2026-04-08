@@ -10,7 +10,7 @@ import {
   AudioPreferences,
   type AudioPreferencesInit,
 } from "./AudioPreferences";
-import type { AudioPreferencesStorage } from "./AudioPreferencesStorage";
+import type { IAudioPreferencesStorage } from "./IAudioPreferencesStorage";
 
 /**
  * @brief Browser local-storage implementation for shared audio preferences
@@ -18,7 +18,7 @@ import type { AudioPreferencesStorage } from "./AudioPreferencesStorage";
  * This keeps the persistence adapter class-based while still allowing each app
  * to decide whether browser storage is the right runtime backend.
  */
-export class BrowserAudioPreferencesStorage implements AudioPreferencesStorage {
+export class BrowserAudioPreferencesStorage implements IAudioPreferencesStorage {
   private static readonly MUTED_KEY: string = "audioMuted";
   private static readonly VOLUME_KEY: string = "audioVolume";
 
