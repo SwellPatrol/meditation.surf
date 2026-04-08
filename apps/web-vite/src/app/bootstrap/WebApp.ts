@@ -8,9 +8,8 @@
 
 import type { MeditationExperience } from "@meditation-surf/core";
 
-import { WebAppLayoutController } from "./WebAppLayoutController";
-import { WebAppShell } from "./WebAppShell";
-import { WebBackgroundVideoController } from "./WebBackgroundVideoController";
+import { WebExperienceAdapter } from "../experience/WebExperienceAdapter";
+import { WebAppShell } from "../ui/WebAppShell";
 
 /**
  * @brief Top-level lifecycle owner for the web app
@@ -19,9 +18,8 @@ import { WebBackgroundVideoController } from "./WebBackgroundVideoController";
  * thin, while still consuming the shared meditation experience as its scene.
  */
 export class WebApp {
+  private readonly experienceAdapter: WebExperienceAdapter;
   private readonly shell: WebAppShell;
-  private readonly appLayoutController: WebAppLayoutController;
-  private readonly backgroundVideoController: WebBackgroundVideoController;
   private readonly handleBeforeUnload: () => void;
   private readonly handleResize: () => void;
 
@@ -31,16 +29,13 @@ export class WebApp {
    * @param experience - Shared meditation experience
    */
   public constructor(experience: MeditationExperience) {
-    this.appLayoutController = new WebAppLayoutController(experience.appLayout);
-    this.backgroundVideoController = new WebBackgroundVideoController(
-      experience.appLayout.getBackgroundLayer(),
-    );
-    this.shell = new WebAppShell(this.appLayoutController);
+    this.experienceAdapter = new WebExperienceAdapter(experience);
+    this.shell = new WebAppShell(this.experienceAdapter.appLayoutController);
     this.handleBeforeUnload = (): void => {
-      void this.backgroundVideoController.destroy();
+      void this.experienceAdapter.backgroundVideoController.destroy();
     };
     this.handleResize = (): void => {
-      this.appLayoutController.applyCenteredOverlayLayout(
+      this.experienceAdapter.appLayoutController.applyCenteredOverlayLayout(
         this.shell.centeredOverlayElement,
       );
     };
@@ -52,15 +47,15 @@ export class WebApp {
    * @returns A promise that resolves after startup work has been kicked off
    */
   public async start(): Promise<void> {
-    this.backgroundVideoController.configureElement(
+    this.experienceAdapter.backgroundVideoController.configureElement(
       this.shell.backgroundVideoElement,
     );
-    this.appLayoutController.applyCenteredOverlayLayout(
+    this.experienceAdapter.appLayoutController.applyCenteredOverlayLayout(
       this.shell.centeredOverlayElement,
     );
     window.addEventListener("beforeunload", this.handleBeforeUnload);
     window.addEventListener("resize", this.handleResize);
-    await this.backgroundVideoController.start(
+    await this.experienceAdapter.backgroundVideoController.start(
       this.shell.backgroundVideoElement,
     );
   }

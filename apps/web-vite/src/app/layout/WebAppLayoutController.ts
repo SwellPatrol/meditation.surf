@@ -13,7 +13,7 @@ import type {
 } from "@meditation-surf/core";
 import { BRAND_OVERLAY_ICON_URL } from "@meditation-surf/core/brand/web";
 
-import { WebBrandOverlay } from "./WebBrandOverlay";
+import { WebBrandOverlay } from "../ui/WebBrandOverlay";
 
 /**
  * @brief Adapt the shared app layout into web-specific DOM layout behavior

@@ -8,7 +8,7 @@
 
 import type { MeditationExperience } from "@meditation-surf/core";
 
-import { ExpoExperienceAdapter } from "./ExpoExperienceAdapter";
+import { ExpoExperienceAdapter } from "../experience/ExpoExperienceAdapter";
 
 /**
  * @brief Top-level lifecycle owner for the Expo app layer

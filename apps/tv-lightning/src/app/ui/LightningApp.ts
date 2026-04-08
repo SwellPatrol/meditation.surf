@@ -8,13 +8,13 @@
 
 import Blits from "@lightningjs/blits";
 
-import Icon from "../../components/common/Icon";
 import {
   LIGHTNING_APP_HEIGHT,
   LIGHTNING_APP_WIDTH,
 } from "../layout/StageLayout";
+import { TvAppLayoutController } from "../layout/TvAppLayoutController";
 import { TvViewportSync } from "../layout/TvViewportSync";
-import { TvAppLayoutController } from "./TvAppLayoutController";
+import Icon from "./Icon";
 
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;

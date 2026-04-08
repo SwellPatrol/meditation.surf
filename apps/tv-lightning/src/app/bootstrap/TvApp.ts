@@ -9,15 +9,13 @@
 import Blits from "@lightningjs/blits";
 import type { MeditationExperience } from "@meditation-surf/core";
 
+import { TvExperienceAdapter } from "../experience/TvExperienceAdapter";
 import {
   LIGHTNING_APP_HEIGHT,
   LIGHTNING_APP_WIDTH,
 } from "../layout/StageLayout";
 import { TvViewportSync } from "../layout/TvViewportSync";
-import lightningPlaybackAdapter from "../playback/LightningPlaybackAdapter";
-import { TvBackgroundVideoController } from "../playback/TvBackgroundVideoController";
 import { createLightningApp } from "../ui/LightningApp";
-import { TvAppLayoutController } from "../ui/TvAppLayoutController";
 
 /**
  * @brief Top-level lifecycle owner for the TV Lightning app
@@ -26,8 +24,7 @@ import { TvAppLayoutController } from "../ui/TvAppLayoutController";
  * runtime-specific adaptation of the shared meditation experience.
  */
 export class TvApp {
-  private readonly backgroundVideoController: TvBackgroundVideoController;
-  private readonly appLayoutController: TvAppLayoutController;
+  private readonly experienceAdapter: TvExperienceAdapter;
   private readonly viewportSync: TvViewportSync;
   private readonly handleBeforeUnload: () => void;
 
@@ -37,15 +34,10 @@ export class TvApp {
    * @param experience - Shared meditation experience
    */
   public constructor(experience: MeditationExperience) {
-    this.backgroundVideoController = new TvBackgroundVideoController(
-      experience,
-      experience.appLayout.getBackgroundLayer(),
-      lightningPlaybackAdapter,
-    );
-    this.appLayoutController = new TvAppLayoutController(experience.appLayout);
+    this.experienceAdapter = new TvExperienceAdapter(experience);
     this.viewportSync = new TvViewportSync();
     this.handleBeforeUnload = (): void => {
-      void this.backgroundVideoController.destroy();
+      void this.experienceAdapter.backgroundVideoController.destroy();
       this.viewportSync.destroy();
     };
   }
@@ -57,14 +49,14 @@ export class TvApp {
     const mountElement: HTMLElement = this.getMountElement();
     const lightningApp: ReturnType<typeof Blits.Application> =
       createLightningApp({
-        appLayoutController: this.appLayoutController,
+        appLayoutController: this.experienceAdapter.appLayoutController,
         viewportSync: this.viewportSync,
         onReady: (): void => {
-          this.backgroundVideoController.initialize();
-          void this.backgroundVideoController.start();
+          this.experienceAdapter.backgroundVideoController.initialize();
+          void this.experienceAdapter.backgroundVideoController.start();
         },
         onDestroy: (): void => {
-          void this.backgroundVideoController.destroy();
+          void this.experienceAdapter.backgroundVideoController.destroy();
           this.viewportSync.destroy();
         },
       });
@@ -78,7 +70,7 @@ export class TvApp {
     this.viewportSync.start(
       mountElement,
       (left: number, top: number, width: number, height: number): void => {
-        this.backgroundVideoController.setDisplayBounds(
+        this.experienceAdapter.backgroundVideoController.setDisplayBounds(
           left,
           top,
           width,

@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { WebAppLayoutController } from "./WebAppLayoutController";
+import { WebAppLayoutController } from "../layout/WebAppLayoutController";
 
 /**
  * @brief Own the DOM shell used by the web demo surface

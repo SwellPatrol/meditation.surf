@@ -9,7 +9,7 @@
 import Blits from "@lightningjs/blits";
 import { BRAND_OVERLAY_ICON_URL } from "@meditation-surf/core/brand/web";
 
-import { TvAppLayoutController } from "../../app/ui/TvAppLayoutController";
+import { TvAppLayoutController } from "../layout/TvAppLayoutController";
 
 /**
  * @brief Type alias for the factory returned by Blits.Component

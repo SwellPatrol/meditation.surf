@@ -6,16 +6,16 @@
  * See the file LICENSE.txt for more information.
  */
 
-import "./styles.css";
+import "./app/ui/styles.css";
 
 import {
   DemoExperienceFactory,
   type MeditationExperience,
 } from "@meditation-surf/core";
 
-import { WebApp } from "./WebApp";
+import { WebAppLauncher } from "./app/bootstrap/WebAppLauncher";
 
 const experience: MeditationExperience = DemoExperienceFactory.create();
-const app: WebApp = new WebApp(experience);
+const appLauncher: WebAppLauncher = new WebAppLauncher(experience);
 
-void app.start();
+void appLauncher.launch();

@@ -8,8 +8,8 @@
 
 import type { MeditationExperience } from "@meditation-surf/core";
 
-import { ExpoAppLayoutController } from "./ExpoAppLayoutController";
-import { ExpoBackgroundVideoController } from "./ExpoBackgroundVideoController";
+import { ExpoAppLayoutController } from "../layout/ExpoAppLayoutController";
+import { ExpoBackgroundVideoController } from "../playback/ExpoBackgroundVideoController";
 
 /**
  * @brief Group Expo runtime adapters around a shared meditation experience
