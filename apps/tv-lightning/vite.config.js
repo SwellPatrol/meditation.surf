@@ -12,6 +12,7 @@ import {
   preCompiler,
   reactivityGuard,
 } from "@lightningjs/blits/vite";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
@@ -26,9 +27,51 @@ const coreEntry = fileURLToPath(
 const coreBrandWebEntry = fileURLToPath(
   new URL("../../packages/core/src/brand/web.ts", import.meta.url),
 );
+const sharedBrandIconEntry = fileURLToPath(
+  new URL("../../packages/core/src/brand/icon-1500x1500.png", import.meta.url),
+);
 const playerCoreEntry = fileURLToPath(
   new URL("../../packages/player-core/src/index.ts", import.meta.url),
 );
+const sharedBrandIconPublicPath = "/assets/icon-1500x1500.png";
+
+/**
+ * @brief Serves and emits the shared brand icon at the TV app's existing public URL
+ *
+ * The TV app keeps its stable `/assets/icon-1500x1500.png` path for HTML and
+ * manifest metadata, while the bytes come from the canonical asset in
+ * `packages/core`.
+ *
+ * @returns {import("vite").Plugin} Vite plugin that maps the public icon path
+ */
+function createSharedBrandIconPlugin() {
+  return {
+    name: "shared-brand-icon",
+
+    configureServer(server) {
+      server.middlewares.use((request, response, next) => {
+        const requestPath = request.url?.split("?")[0];
+
+        if (requestPath !== sharedBrandIconPublicPath) {
+          next();
+          return;
+        }
+
+        response.setHeader("Content-Type", "image/png");
+        response.setHeader("Cache-Control", "no-cache");
+        response.end(readFileSync(sharedBrandIconEntry));
+      });
+    },
+
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: sharedBrandIconPublicPath.slice(1),
+        source: readFileSync(sharedBrandIconEntry),
+      });
+    },
+  };
+}
 
 // Vite configuration for the LightningJS-based application. The configuration
 // is intentionally simple and primarily enables the Blits plugin along with the
@@ -46,6 +89,7 @@ export default defineConfig({
     blitsFileConverter(),
     reactivityGuard(),
     preCompiler(),
+    createSharedBrandIconPlugin(),
   ],
 
   server: {
