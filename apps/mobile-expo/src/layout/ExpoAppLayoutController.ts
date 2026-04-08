@@ -33,7 +33,7 @@ export class ExpoAppLayoutController {
     width: "100%",
   };
 
-  private static readonly FOREGROUND_LAYER_STYLE: ViewStyle = {
+  private static readonly CENTERED_FULLSCREEN_PLANE_STYLE: ViewStyle = {
     alignItems: "center",
     bottom: 0,
     justifyContent: "center",
@@ -77,12 +77,21 @@ export class ExpoAppLayoutController {
   }
 
   /**
-   * @brief Return the fullscreen foreground layer style
+   * @brief Return the fullscreen loading plane style
    *
-   * @returns Fullscreen style for the foreground overlay layer
+   * @returns Fullscreen style for the loading icon plane
    */
-  public getForegroundLayerStyle(): ViewStyle {
-    return ExpoAppLayoutController.FOREGROUND_LAYER_STYLE;
+  public getLoadingPlaneStyle(): ViewStyle {
+    return ExpoAppLayoutController.CENTERED_FULLSCREEN_PLANE_STYLE;
+  }
+
+  /**
+   * @brief Return the fullscreen overlay UI plane style
+   *
+   * @returns Fullscreen style for the overlay UI icon plane
+   */
+  public getOverlayUiPlaneStyle(): ViewStyle {
+    return ExpoAppLayoutController.CENTERED_FULLSCREEN_PLANE_STYLE;
   }
 
   /**

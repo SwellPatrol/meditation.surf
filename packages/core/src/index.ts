@@ -21,12 +21,10 @@ export {
   type BackgroundVideoPlaybackPolicy,
 } from "./playback/BackgroundVideoModel";
 export { CenteredIconOverlayModel } from "./ui/CenteredIconOverlayModel";
-export { IdleTimer } from "./ui/IdleTimer";
 export {
   OverlayController,
   type OverlayConfig,
   type OverlayEventType,
-  type OverlayPhase,
   type OverlayState,
   type OverlayStateListener,
   type OverlayVisibility,

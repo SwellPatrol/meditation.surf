@@ -23,6 +23,7 @@ type IconFactory = ReturnType<typeof Blits.Component>;
  * into fixed-stage Lightning sizing.
  *
  * @property {TvAppLayoutController} appLayoutController TV layout adapter
+ * @property {number} alpha The current icon alpha owned by the parent state
  * @property {number} stageW The Lightning stage width in pixels
  * @property {number} stageH The Lightning stage height in pixels
  * @property {number} viewportW The browser viewport width in pixels
@@ -33,8 +34,8 @@ const Icon: IconFactory = Blits.Component("Icon", {
   // drive the shared icon sizing policy to match web and mobile behavior.
   props: [
     "appLayoutController",
+    "alpha",
     "fadeDurationMs",
-    "overlayAlpha",
     "stageW",
     "stageH",
     "viewportW",
@@ -107,7 +108,7 @@ const Icon: IconFactory = Blits.Component("Icon", {
   // Render the icon centered at half mount
   template: `<Element
       :src="$iconSource"
-      :alpha.transition="{ value: $overlayAlpha, duration: $fadeDurationMs, easing: 'ease' }"
+      :alpha.transition="{ value: $alpha, duration: $fadeDurationMs, easing: 'ease' }"
       :w="$iconWidth"
       :h="$iconHeight"
       :x="$stageW / 2"

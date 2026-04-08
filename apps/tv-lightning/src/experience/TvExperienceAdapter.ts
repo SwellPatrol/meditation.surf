@@ -10,6 +10,7 @@ import type {
   MeditationExperience,
   OverlayController,
 } from "@meditation-surf/core";
+import type { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
 import { TvAppLayoutController } from "../layout/TvAppLayoutController";
 import lightningPlaybackAdapter from "../playback/LightningPlaybackAdapter";
@@ -25,6 +26,7 @@ export class TvExperienceAdapter {
   public readonly appLayoutController: TvAppLayoutController;
   public readonly backgroundVideoController: TvBackgroundVideoController;
   public readonly overlayController: OverlayController;
+  public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
 
   /**
    * @brief Build TV runtime adapters for the shared experience
@@ -32,12 +34,20 @@ export class TvExperienceAdapter {
    * @param experience - Shared meditation experience
    */
   public constructor(experience: MeditationExperience) {
+    const playbackVisualReadinessController: PlaybackVisualReadinessController =
+      experience.getPlaybackVisualReadinessController();
+
+    lightningPlaybackAdapter.setPlaybackVisualReadinessController(
+      playbackVisualReadinessController,
+    );
     this.appLayoutController = new TvAppLayoutController(experience.appLayout);
     this.backgroundVideoController = new TvBackgroundVideoController(
       experience,
       experience.appLayout.getBackgroundLayer(),
       lightningPlaybackAdapter,
+      playbackVisualReadinessController,
     );
     this.overlayController = experience.getOverlayController();
+    this.playbackVisualReadinessController = playbackVisualReadinessController;
   }
 }

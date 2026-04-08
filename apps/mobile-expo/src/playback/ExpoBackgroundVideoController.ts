@@ -10,7 +10,10 @@ import type {
   BackgroundLayerLayout,
   BackgroundVideoPlaybackPolicy,
 } from "@meditation-surf/core";
-import type { PlaybackSource } from "@meditation-surf/player-core";
+import type {
+  PlaybackSource,
+  PlaybackVisualReadinessController,
+} from "@meditation-surf/player-core";
 import type { VideoPlayer, VideoSource } from "expo-video";
 
 /**
@@ -22,14 +25,19 @@ import type { VideoPlayer, VideoSource } from "expo-video";
  */
 export class ExpoBackgroundVideoController {
   private readonly backgroundLayer: BackgroundLayerLayout;
+  private readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
 
   /**
    * @brief Capture the shared background video model used by the Expo app
    *
    * @param backgroundLayer - Shared fullscreen background layer
    */
-  public constructor(backgroundLayer: BackgroundLayerLayout) {
+  public constructor(
+    backgroundLayer: BackgroundLayerLayout,
+    playbackVisualReadinessController: PlaybackVisualReadinessController,
+  ) {
     this.backgroundLayer = backgroundLayer;
+    this.playbackVisualReadinessController = playbackVisualReadinessController;
   }
 
   /**
@@ -68,6 +76,7 @@ export class ExpoBackgroundVideoController {
    * @param player - Expo video player instance
    */
   public startPlayback(player: VideoPlayer): void {
+    this.playbackVisualReadinessController.beginLoading();
     player.play();
   }
 
@@ -78,6 +87,7 @@ export class ExpoBackgroundVideoController {
    */
   public getVideoViewProps(): {
     contentFit: "cover";
+    onFirstFrameRender: () => void;
     playsInline: boolean;
   } {
     const playbackPolicy: BackgroundVideoPlaybackPolicy = this.backgroundLayer
@@ -86,6 +96,10 @@ export class ExpoBackgroundVideoController {
 
     return {
       contentFit: playbackPolicy.objectFit,
+      // Expo Video emits this after the first frame is rendered into VideoView.
+      onFirstFrameRender: (): void => {
+        this.playbackVisualReadinessController.markVisualReady();
+      },
       playsInline: playbackPolicy.playsInline,
     };
   }

@@ -14,6 +14,7 @@ import type {
 import type {
   IPlaybackController,
   PlaybackSource,
+  PlaybackVisualReadinessController,
 } from "@meditation-surf/player-core";
 
 /**
@@ -33,6 +34,7 @@ export class TvBackgroundVideoController {
       height: number,
     ): void;
   };
+  private readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
 
   /**
    * @brief Build the TV background playback controller
@@ -52,10 +54,12 @@ export class TvBackgroundVideoController {
         height: number,
       ): void;
     },
+    playbackVisualReadinessController: PlaybackVisualReadinessController,
   ) {
     this.experience = experience;
     this.backgroundLayer = backgroundLayer;
     this.playbackController = playbackController;
+    this.playbackVisualReadinessController = playbackVisualReadinessController;
   }
 
   /**
@@ -73,6 +77,7 @@ export class TvBackgroundVideoController {
   public async start(): Promise<void> {
     const playbackSource: PlaybackSource = this.getPlaybackSource();
 
+    this.playbackVisualReadinessController.beginLoading();
     await this.playbackController.load(playbackSource);
     await this.playbackController.play();
   }

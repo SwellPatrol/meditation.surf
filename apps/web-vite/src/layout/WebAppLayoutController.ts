@@ -33,21 +33,6 @@ export class WebAppLayoutController {
   }
 
   /**
-   * @brief Create the DOM layer that hosts foreground UI
-   *
-   * @returns DOM element representing the fullscreen foreground layer
-   */
-  public createForegroundLayerElement(): HTMLDivElement {
-    const foregroundLayerElement: HTMLDivElement =
-      document.createElement("div");
-
-    foregroundLayerElement.className = "foreground-layer";
-    foregroundLayerElement.setAttribute("aria-hidden", "true");
-
-    return foregroundLayerElement;
-  }
-
-  /**
    * @brief Create the centered overlay element for the current app surface
    *
    * @returns DOM image element representing the centered overlay

@@ -51,6 +51,8 @@ export class TvApp {
       createLightningApp({
         appLayoutController: this.experienceAdapter.appLayoutController,
         overlayController: this.experienceAdapter.overlayController,
+        playbackVisualReadinessController:
+          this.experienceAdapter.playbackVisualReadinessController,
         viewportSync: this.viewportSync,
         onReady: (): void => {
           this.experienceAdapter.backgroundVideoController.initialize();

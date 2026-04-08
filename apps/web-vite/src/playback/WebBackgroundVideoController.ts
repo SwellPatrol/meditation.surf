@@ -10,7 +10,10 @@ import type {
   BackgroundLayerLayout,
   BackgroundVideoPlaybackPolicy,
 } from "@meditation-surf/core";
-import type { PlaybackSource } from "@meditation-surf/player-core";
+import type {
+  PlaybackSource,
+  PlaybackVisualReadinessController,
+} from "@meditation-surf/player-core";
 
 type ShakaModule =
   (typeof import("shaka-player/dist/shaka-player.compiled.js"))["default"];
@@ -24,6 +27,7 @@ type ShakaPlayer = InstanceType<ShakaModule["Player"]>;
  */
 export class WebBackgroundVideoController {
   private readonly backgroundLayer: BackgroundLayerLayout;
+  private readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
   private activeShakaPlayer: ShakaPlayer | null;
 
   /**
@@ -31,8 +35,12 @@ export class WebBackgroundVideoController {
    *
    * @param backgroundLayer - Shared fullscreen background layer
    */
-  public constructor(backgroundLayer: BackgroundLayerLayout) {
+  public constructor(
+    backgroundLayer: BackgroundLayerLayout,
+    playbackVisualReadinessController: PlaybackVisualReadinessController,
+  ) {
     this.backgroundLayer = backgroundLayer;
+    this.playbackVisualReadinessController = playbackVisualReadinessController;
     this.activeShakaPlayer = null;
   }
 
@@ -69,6 +77,8 @@ export class WebBackgroundVideoController {
    * @returns A promise that resolves after playback has been attempted
    */
   public async start(videoElement: HTMLVideoElement): Promise<void> {
+    this.playbackVisualReadinessController.beginLoading();
+    this.installFirstRenderedFrameObserver(videoElement);
     this.activeShakaPlayer = await this.load(videoElement);
   }
 
@@ -112,6 +122,49 @@ export class WebBackgroundVideoController {
         error,
       );
     }
+  }
+
+  /**
+   * @brief Observe the first visually rendered frame for the current video load
+   *
+   * Browsers that support `requestVideoFrameCallback()` can report when a
+   * frame has actually been presented. Older engines fall back to `loadeddata`,
+   * which is the closest practical signal that the first frame is displayable.
+   *
+   * @param videoElement - DOM video element used for background playback
+   */
+  private installFirstRenderedFrameObserver(
+    videoElement: HTMLVideoElement,
+  ): void {
+    const hasVideoFrameCallbackApi: boolean =
+      "requestVideoFrameCallback" in videoElement;
+
+    if (hasVideoFrameCallbackApi) {
+      const listenForRenderedFrame = (): void => {
+        (
+          videoElement as HTMLVideoElement & {
+            requestVideoFrameCallback(callback: () => void): number;
+          }
+        ).requestVideoFrameCallback((): void => {
+          this.playbackVisualReadinessController.markVisualReady();
+        });
+      };
+
+      videoElement.addEventListener("loadeddata", listenForRenderedFrame, {
+        once: true,
+      });
+      return;
+    }
+
+    videoElement.addEventListener(
+      "loadeddata",
+      (): void => {
+        this.playbackVisualReadinessController.markVisualReady();
+      },
+      {
+        once: true,
+      },
+    );
   }
 
   /**

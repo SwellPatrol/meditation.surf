@@ -7,6 +7,7 @@
  */
 
 import type { MeditationExperience, OverlayState } from "@meditation-surf/core";
+import type { PlaybackVisualReadinessState } from "@meditation-surf/player-core";
 
 import { WebExperienceAdapter } from "../experience/WebExperienceAdapter";
 import { WebAppShell } from "../ui/WebAppShell";
@@ -23,6 +24,7 @@ export class WebApp {
   private readonly handleBeforeUnload: () => void;
   private readonly handlePointerDown: () => void;
   private readonly handleResize: () => void;
+  private removeLoadingSubscription: (() => void) | null;
   private removeOverlaySubscription: (() => void) | null;
 
   /**
@@ -33,8 +35,11 @@ export class WebApp {
   public constructor(experience: MeditationExperience) {
     this.experienceAdapter = new WebExperienceAdapter(experience);
     this.shell = new WebAppShell(this.experienceAdapter.appLayoutController);
+    this.removeLoadingSubscription = null;
     this.removeOverlaySubscription = null;
     this.handleBeforeUnload = (): void => {
+      this.removeLoadingSubscription?.();
+      this.removeLoadingSubscription = null;
       this.removeOverlaySubscription?.();
       this.removeOverlaySubscription = null;
       void this.experienceAdapter.backgroundVideoController.destroy();
@@ -44,7 +49,10 @@ export class WebApp {
     };
     this.handleResize = (): void => {
       this.experienceAdapter.appLayoutController.applyCenteredOverlayLayout(
-        this.shell.centeredOverlayElement,
+        this.shell.loadingOverlayElement,
+      );
+      this.experienceAdapter.appLayoutController.applyCenteredOverlayLayout(
+        this.shell.overlayUiElement,
       );
     };
   }
@@ -59,17 +67,28 @@ export class WebApp {
       this.shell.backgroundVideoElement,
     );
     this.experienceAdapter.appLayoutController.applyCenteredOverlayLayout(
-      this.shell.centeredOverlayElement,
+      this.shell.loadingOverlayElement,
     );
-    this.shell.centeredOverlayElement.style.transition = `opacity ${this.experienceAdapter.overlayController.getConfig().fadeDurationMs}ms ease`;
+    this.experienceAdapter.appLayoutController.applyCenteredOverlayLayout(
+      this.shell.overlayUiElement,
+    );
+    this.shell.loadingOverlayElement.style.transition = `opacity ${this.experienceAdapter.overlayController.getConfig().fadeDurationMs}ms ease`;
+    this.shell.overlayUiElement.style.transition = `opacity ${this.experienceAdapter.overlayController.getConfig().fadeDurationMs}ms ease`;
+    this.removeLoadingSubscription =
+      this.experienceAdapter.playbackVisualReadinessController.subscribe(
+        (playbackVisualReadinessState: PlaybackVisualReadinessState): void => {
+          this.shell.loadingOverlayElement.style.opacity =
+            playbackVisualReadinessState.readiness === "loading" ? "1" : "0";
+        },
+      );
     this.removeOverlaySubscription =
       this.experienceAdapter.overlayController.subscribe(
         (overlayState: OverlayState): void => {
-          this.shell.centeredOverlayElement.style.opacity =
+          this.shell.overlayUiElement.style.opacity =
             overlayState.visibility === "visible" ? "1" : "0";
         },
       );
-    this.shell.mountElement.addEventListener(
+    this.shell.fullscreenInteractionElement.addEventListener(
       "pointerdown",
       this.handlePointerDown,
     );

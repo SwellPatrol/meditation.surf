@@ -8,6 +8,10 @@
 
 import Blits from "@lightningjs/blits";
 import type { OverlayController, OverlayState } from "@meditation-surf/core";
+import type {
+  PlaybackVisualReadinessController,
+  PlaybackVisualReadinessState,
+} from "@meditation-surf/player-core";
 
 import {
   LIGHTNING_APP_HEIGHT,
@@ -23,6 +27,7 @@ type LightningAppFactory = ReturnType<typeof Blits.Application>;
 export type LightningAppOptions = {
   appLayoutController: TvAppLayoutController;
   overlayController: OverlayController;
+  playbackVisualReadinessController: PlaybackVisualReadinessController;
   viewportSync: TvViewportSync;
   onReady: () => void;
   onDestroy: () => void;
@@ -31,18 +36,24 @@ export type LightningAppOptions = {
 type LightningAppState = {
   appLayoutController: TvAppLayoutController;
   fadeDurationMs: number;
+  loadingAlpha: number;
   overlayAlpha: number;
   stageW: number;
   stageH: number;
   viewportW: number;
   viewportH: number;
+  removeLoadingSubscription: (() => void) | null;
   removeOverlaySubscription: (() => void) | null;
   stopViewportSync: (() => void) | null;
 };
 
 type LightningAppMethods = {
+  initializeLoadingSubscription(): void;
   initializeOverlaySubscription(): void;
   initializeViewportSync(): void;
+  handlePlaybackVisualReadinessState(
+    playbackVisualReadinessState: PlaybackVisualReadinessState,
+  ): void;
   handleOverlayState(overlayState: OverlayState): void;
   tearDownViewportSync(): void;
 };
@@ -72,17 +83,35 @@ export function createLightningApp(
       return {
         appLayoutController: options.appLayoutController,
         fadeDurationMs: options.overlayController.getConfig().fadeDurationMs,
-        overlayAlpha: 1,
+        loadingAlpha: 1,
+        overlayAlpha: 0,
         stageW: LIGHTNING_APP_WIDTH,
         stageH: LIGHTNING_APP_HEIGHT,
         viewportW: 0,
         viewportH: 0,
+        removeLoadingSubscription: null,
         removeOverlaySubscription: null,
         stopViewportSync: null,
       };
     },
 
     methods: {
+      /**
+       * @brief Subscribe the Lightning root to playback visual readiness
+       */
+      initializeLoadingSubscription(): void {
+        this.removeLoadingSubscription =
+          options.playbackVisualReadinessController.subscribe(
+            (
+              playbackVisualReadinessState: PlaybackVisualReadinessState,
+            ): void => {
+              this.handlePlaybackVisualReadinessState(
+                playbackVisualReadinessState,
+              );
+            },
+          );
+      },
+
       /**
        * @brief Subscribe the Lightning root to the shared overlay state
        */
@@ -107,6 +136,18 @@ export function createLightningApp(
       },
 
       /**
+       * @brief Map playback visual readiness onto the loading icon alpha
+       *
+       * @param playbackVisualReadinessState - Shared playback readiness snapshot
+       */
+      handlePlaybackVisualReadinessState(
+        playbackVisualReadinessState: PlaybackVisualReadinessState,
+      ): void {
+        this.loadingAlpha =
+          playbackVisualReadinessState.readiness === "loading" ? 1 : 0;
+      },
+
+      /**
        * @brief Map shared overlay visibility onto Lightning alpha
        *
        * @param overlayState - Shared overlay visibility snapshot
@@ -119,6 +160,11 @@ export function createLightningApp(
        * @brief Release the viewport subscription when the Lightning root is destroyed
        */
       tearDownViewportSync(): void {
+        if (this.removeLoadingSubscription !== null) {
+          this.removeLoadingSubscription();
+          this.removeLoadingSubscription = null;
+        }
+
         if (this.stopViewportSync !== null) {
           this.stopViewportSync();
           this.stopViewportSync = null;
@@ -161,6 +207,7 @@ export function createLightningApp(
        * UI lifecycle stays separate from media playback internals.
        */
       ready(): void {
+        this.initializeLoadingSubscription();
         this.initializeOverlaySubscription();
         this.initializeViewportSync();
         options.onReady();
@@ -179,8 +226,17 @@ export function createLightningApp(
     template: `<Element :w="$stageW" :h="$stageH">
       <Icon
         :appLayoutController="$appLayoutController"
+        :alpha="$loadingAlpha"
         :fadeDurationMs="$fadeDurationMs"
-        :overlayAlpha="$overlayAlpha"
+        :stageW="$stageW"
+        :stageH="$stageH"
+        :viewportW="$viewportW"
+        :viewportH="$viewportH"
+      />
+      <Icon
+        :appLayoutController="$appLayoutController"
+        :alpha="$overlayAlpha"
+        :fadeDurationMs="$fadeDurationMs"
         :stageW="$stageW"
         :stageH="$stageH"
         :viewportW="$viewportW"

@@ -6,29 +6,21 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { IdleTimer } from "./IdleTimer";
-
 /**
  * @brief Shared semantic visibility for the centered overlay
  */
 export type OverlayVisibility = "visible" | "hidden";
 
 /**
- * @brief Shared semantic lifecycle for overlay interaction
- */
-export type OverlayPhase = "resting" | "interacting";
-
-/**
  * @brief Shared overlay event names routed from app-specific input handling
  */
-export type OverlayEventType = "INTERACT" | "IDLE_TIMEOUT" | "RESET";
+export type OverlayEventType = "INTERACT" | "SHOW" | "HIDE" | "RESET";
 
 /**
  * @brief Shared overlay configuration consumed by each app surface
  */
 export type OverlayConfig = {
   fadeDurationMs: number;
-  idleTimeoutMs: number;
 };
 
 /**
@@ -36,7 +28,6 @@ export type OverlayConfig = {
  */
 export type OverlayState = {
   visibility: OverlayVisibility;
-  phase: OverlayPhase;
 };
 
 /**
@@ -49,17 +40,15 @@ export type OverlayStateListener = (state: OverlayState) => void;
  *
  * Apps dispatch semantic interaction events into this controller, then render
  * and animate the resulting state in a runtime-specific way. That keeps the
- * product intent shared across surfaces while leaving temporary fade effects
- * easy to delete later.
+ * shared UI activation intent consistent without mixing it into playback
+ * loading semantics.
  */
 export class OverlayController {
   private static readonly DEFAULT_CONFIG: OverlayConfig = {
     fadeDurationMs: 350,
-    idleTimeoutMs: 2200,
   };
 
   private readonly config: OverlayConfig;
-  private readonly idleTimer: IdleTimer;
   private readonly stateListeners: Set<OverlayStateListener>;
 
   private state: OverlayState;
@@ -74,11 +63,9 @@ export class OverlayController {
       ...OverlayController.DEFAULT_CONFIG,
       ...config,
     };
-    this.idleTimer = new IdleTimer();
     this.stateListeners = new Set<OverlayStateListener>();
     this.state = {
-      visibility: "visible",
-      phase: "resting",
+      visibility: "hidden",
     };
   }
 
@@ -125,23 +112,22 @@ export class OverlayController {
    * @param eventType - Shared interaction event type
    */
   public dispatch(eventType: OverlayEventType): void {
-    if (eventType === "INTERACT") {
-      this.handleInteractEvent();
-      return;
-    }
-
-    if (eventType === "IDLE_TIMEOUT") {
+    if (eventType === "INTERACT" || eventType === "SHOW") {
       this.transitionTo({
         visibility: "visible",
-        phase: "resting",
       });
       return;
     }
 
-    this.idleTimer.clear();
+    if (eventType === "HIDE") {
+      this.transitionTo({
+        visibility: "hidden",
+      });
+      return;
+    }
+
     this.transitionTo({
-      visibility: "visible",
-      phase: "resting",
+      visibility: "hidden",
     });
   }
 
@@ -149,21 +135,7 @@ export class OverlayController {
    * @brief Cancel any pending timeout work owned by the controller
    */
   public destroy(): void {
-    this.idleTimer.clear();
     this.stateListeners.clear();
-  }
-
-  /**
-   * @brief Hide the overlay and restart the idle timer after interaction
-   */
-  private handleInteractEvent(): void {
-    this.transitionTo({
-      visibility: "hidden",
-      phase: "interacting",
-    });
-    this.idleTimer.restart(this.config.idleTimeoutMs, (): void => {
-      this.dispatch("IDLE_TIMEOUT");
-    });
   }
 
   /**
@@ -172,10 +144,7 @@ export class OverlayController {
    * @param nextState - New shared overlay state
    */
   private transitionTo(nextState: OverlayState): void {
-    if (
-      this.state.visibility === nextState.visibility &&
-      this.state.phase === nextState.phase
-    ) {
+    if (this.state.visibility === nextState.visibility) {
       return;
     }
 

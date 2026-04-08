@@ -25,3 +25,9 @@ export { PlaybackVolumeChangedEvent } from "./events/PlaybackVolumeChangedEvent"
 export { PlaybackState } from "./state/PlaybackState";
 export type { PlaybackStatus } from "./state/PlaybackStatuses";
 export { PlaybackStatuses } from "./state/PlaybackStatuses";
+export {
+  PlaybackVisualReadinessController,
+  type PlaybackVisualReadiness,
+  type PlaybackVisualReadinessListener,
+  type PlaybackVisualReadinessState,
+} from "./state/PlaybackVisualReadinessController";

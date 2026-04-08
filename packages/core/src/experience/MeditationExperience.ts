@@ -6,6 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
+
 import type { Catalog } from "../catalog/Catalog";
 import type { MediaItem } from "../catalog/MediaItem";
 import type { AppLayout } from "../layout/AppLayout";
@@ -24,6 +26,7 @@ export class MeditationExperience {
   public readonly appLayout: AppLayout;
   public readonly catalog: Catalog;
   public readonly overlayController: OverlayController;
+  public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
 
   /**
    * @brief Create a meditation experience from its domain submodels
@@ -31,15 +34,18 @@ export class MeditationExperience {
    * @param appLayout - Shared app-surface layout model
    * @param catalog - Shared content catalog model
    * @param overlayController - Shared overlay interaction state controller
+   * @param playbackVisualReadinessController - Shared playback visual readiness controller
    */
   public constructor(
     appLayout: AppLayout,
     catalog: Catalog,
     overlayController: OverlayController,
+    playbackVisualReadinessController: PlaybackVisualReadinessController,
   ) {
     this.appLayout = appLayout;
     this.catalog = catalog;
     this.overlayController = overlayController;
+    this.playbackVisualReadinessController = playbackVisualReadinessController;
   }
 
   /**
@@ -67,6 +73,15 @@ export class MeditationExperience {
    */
   public getOverlayController(): OverlayController {
     return this.overlayController;
+  }
+
+  /**
+   * @brief Return the shared playback visual readiness controller
+   *
+   * @returns Shared loading-versus-visual-ready playback controller
+   */
+  public getPlaybackVisualReadinessController(): PlaybackVisualReadinessController {
+    return this.playbackVisualReadinessController;
   }
 
   /**

@@ -12,6 +12,7 @@ import {
   type MeditationExperience,
   type OverlayState,
 } from "@meditation-surf/core";
+import type { PlaybackVisualReadinessState } from "@meditation-surf/player-core";
 import { useVideoPlayer, type VideoPlayer, VideoView } from "expo-video";
 import { type JSX, useEffect, useRef } from "react";
 import {
@@ -33,8 +34,11 @@ export default function App(): JSX.Element {
   const experienceAdapter: ExpoExperienceAdapter = app.getExperienceAdapter();
   const windowDimensions: { width: number; height: number } =
     useWindowDimensions();
-  const overlayOpacity: Animated.Value = useRef<Animated.Value>(
+  const loadingOpacity: Animated.Value = useRef<Animated.Value>(
     new Animated.Value(1),
+  ).current;
+  const overlayOpacity: Animated.Value = useRef<Animated.Value>(
+    new Animated.Value(0),
   ).current;
   const videoPlayer: VideoPlayer = useVideoPlayer(
     experienceAdapter.backgroundVideoController.createVideoSource(),
@@ -47,6 +51,20 @@ export default function App(): JSX.Element {
     // On web, play() needs to run after the underlying <video> has mounted.
     experienceAdapter.backgroundVideoController.startPlayback(videoPlayer);
   }, [videoPlayer]);
+
+  useEffect((): (() => void) => {
+    return experienceAdapter.playbackVisualReadinessController.subscribe(
+      (playbackVisualReadinessState: PlaybackVisualReadinessState): void => {
+        Animated.timing(loadingOpacity, {
+          toValue: playbackVisualReadinessState.readiness === "loading" ? 1 : 0,
+          duration:
+            experienceAdapter.overlayController.getConfig().fadeDurationMs,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }).start();
+      },
+    );
+  }, [experienceAdapter, loadingOpacity]);
 
   useEffect((): (() => void) => {
     return experienceAdapter.overlayController.subscribe(
@@ -69,11 +87,15 @@ export default function App(): JSX.Element {
     );
   const videoViewProps: {
     objectFit: "cover";
+    onFirstFrameRender: () => void;
     playsInline: boolean;
   } = {
     objectFit:
       experienceAdapter.backgroundVideoController.getVideoViewProps()
         .contentFit,
+    onFirstFrameRender:
+      experienceAdapter.backgroundVideoController.getVideoViewProps()
+        .onFirstFrameRender,
     playsInline:
       experienceAdapter.backgroundVideoController.getVideoViewProps()
         .playsInline,
@@ -90,13 +112,30 @@ export default function App(): JSX.Element {
       <VideoView
         contentFit={videoViewProps.objectFit}
         nativeControls={false}
+        onFirstFrameRender={videoViewProps.onFirstFrameRender}
         player={videoPlayer}
         playsInline={videoViewProps.playsInline}
         style={experienceAdapter.appLayoutController.getBackgroundLayerStyle()}
       />
       <View
         pointerEvents="none"
-        style={experienceAdapter.appLayoutController.getForegroundLayerStyle()}
+        style={experienceAdapter.appLayoutController.getLoadingPlaneStyle()}
+      >
+        <Animated.Image
+          resizeMode="contain"
+          source={experienceAdapter.appLayoutController.getCenteredOverlaySource()}
+          style={[
+            experienceAdapter.appLayoutController.getCenteredOverlayStyle(),
+            dynamicIconStyle,
+            {
+              opacity: loadingOpacity,
+            },
+          ]}
+        />
+      </View>
+      <View
+        pointerEvents="none"
+        style={experienceAdapter.appLayoutController.getOverlayUiPlaneStyle()}
       >
         <Animated.Image
           resizeMode="contain"

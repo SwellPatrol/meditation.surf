@@ -10,6 +10,7 @@ import type {
   MeditationExperience,
   OverlayController,
 } from "@meditation-surf/core";
+import type { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
 import { WebAppLayoutController } from "../layout/WebAppLayoutController";
 import { WebBackgroundVideoController } from "../playback/WebBackgroundVideoController";
@@ -24,6 +25,7 @@ export class WebExperienceAdapter {
   public readonly appLayoutController: WebAppLayoutController;
   public readonly backgroundVideoController: WebBackgroundVideoController;
   public readonly overlayController: OverlayController;
+  public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
 
   /**
    * @brief Build web runtime adapters for the shared experience
@@ -34,7 +36,10 @@ export class WebExperienceAdapter {
     this.appLayoutController = new WebAppLayoutController(experience.appLayout);
     this.backgroundVideoController = new WebBackgroundVideoController(
       experience.appLayout.getBackgroundLayer(),
+      experience.getPlaybackVisualReadinessController(),
     );
     this.overlayController = experience.getOverlayController();
+    this.playbackVisualReadinessController =
+      experience.getPlaybackVisualReadinessController();
   }
 }

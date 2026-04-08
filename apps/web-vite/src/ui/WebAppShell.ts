@@ -17,7 +17,9 @@ import { WebAppLayoutController } from "../layout/WebAppLayoutController";
  */
 export class WebAppShell {
   public readonly backgroundVideoElement: HTMLVideoElement;
-  public readonly centeredOverlayElement: HTMLImageElement;
+  public readonly fullscreenInteractionElement: HTMLButtonElement;
+  public readonly loadingOverlayElement: HTMLImageElement;
+  public readonly overlayUiElement: HTMLImageElement;
   public readonly mountElement: HTMLDivElement;
 
   /**
@@ -28,16 +30,40 @@ export class WebAppShell {
   public constructor(appLayoutController: WebAppLayoutController) {
     this.mountElement = this.getMountElement();
     this.backgroundVideoElement = document.createElement("video");
-    this.centeredOverlayElement =
+    this.fullscreenInteractionElement = document.createElement("button");
+    this.loadingOverlayElement =
       appLayoutController.createCenteredOverlayElement();
-    const foregroundLayerElement: HTMLDivElement =
-      appLayoutController.createForegroundLayerElement();
+    this.overlayUiElement = appLayoutController.createCenteredOverlayElement();
+    const loadingPlaneElement: HTMLDivElement =
+      this.createOverlayPlaneElement("loading-plane");
+    const overlayUiPlaneElement: HTMLDivElement =
+      this.createOverlayPlaneElement("overlay-ui-plane");
 
     this.backgroundVideoElement.className = "background-video";
-    foregroundLayerElement.appendChild(this.centeredOverlayElement);
+    this.fullscreenInteractionElement.className = "interaction-surface";
+    this.fullscreenInteractionElement.type = "button";
+    this.fullscreenInteractionElement.setAttribute(
+      "aria-label",
+      "Show overlay controls",
+    );
+    this.loadingOverlayElement.classList.add("loading-icon");
+
+    /**
+     * @brief Prime both overlay planes with the shared centered sizing
+     *
+     * The loading plane is visible immediately, so its icon must receive its
+     * initial width and height before the first paint. The overlay UI plane is
+     * sized here as well so both planes start from the same shared geometry.
+     */
+    appLayoutController.applyCenteredOverlayLayout(this.loadingOverlayElement);
+    appLayoutController.applyCenteredOverlayLayout(this.overlayUiElement);
+    loadingPlaneElement.append(this.loadingOverlayElement);
+    overlayUiPlaneElement.append(this.overlayUiElement);
     this.mountElement.append(
       this.backgroundVideoElement,
-      foregroundLayerElement,
+      this.fullscreenInteractionElement,
+      loadingPlaneElement,
+      overlayUiPlaneElement,
     );
   }
 
@@ -55,5 +81,21 @@ export class WebAppShell {
     }
 
     return appRootElement;
+  }
+
+  /**
+   * @brief Create a fullscreen plane that centers a single overlay icon
+   *
+   * @param className - Plane-specific CSS class name
+   *
+   * @returns DOM element that centers its child across the viewport
+   */
+  private createOverlayPlaneElement(className: string): HTMLDivElement {
+    const overlayPlaneElement: HTMLDivElement = document.createElement("div");
+
+    overlayPlaneElement.className = className;
+    overlayPlaneElement.setAttribute("aria-hidden", "true");
+
+    return overlayPlaneElement;
   }
 }

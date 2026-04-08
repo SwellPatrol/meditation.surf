@@ -6,6 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
+import { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
+
 import { Catalog } from "../catalog/Catalog";
 import { DemoCatalog } from "../catalog/DemoCatalog";
 import { MeditationExperience } from "../experience/MeditationExperience";
@@ -42,7 +44,14 @@ export class DemoExperienceFactory {
     );
     const catalog: Catalog = DemoCatalog.getCatalog();
     const overlayController: OverlayController = new OverlayController();
+    const playbackVisualReadinessController: PlaybackVisualReadinessController =
+      new PlaybackVisualReadinessController();
 
-    return new MeditationExperience(appLayout, catalog, overlayController);
+    return new MeditationExperience(
+      appLayout,
+      catalog,
+      overlayController,
+      playbackVisualReadinessController,
+    );
   }
 }

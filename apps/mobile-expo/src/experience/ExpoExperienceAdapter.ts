@@ -10,6 +10,7 @@ import type {
   MeditationExperience,
   OverlayController,
 } from "@meditation-surf/core";
+import type { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
 import { ExpoAppLayoutController } from "../layout/ExpoAppLayoutController";
 import { ExpoBackgroundVideoController } from "../playback/ExpoBackgroundVideoController";
@@ -24,6 +25,7 @@ export class ExpoExperienceAdapter {
   public readonly appLayoutController: ExpoAppLayoutController;
   public readonly backgroundVideoController: ExpoBackgroundVideoController;
   public readonly overlayController: OverlayController;
+  public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
 
   /**
    * @brief Build Expo runtime adapters for the shared experience
@@ -36,7 +38,10 @@ export class ExpoExperienceAdapter {
     );
     this.backgroundVideoController = new ExpoBackgroundVideoController(
       experience.appLayout.getBackgroundLayer(),
+      experience.getPlaybackVisualReadinessController(),
     );
     this.overlayController = experience.getOverlayController();
+    this.playbackVisualReadinessController =
+      experience.getPlaybackVisualReadinessController();
   }
 }

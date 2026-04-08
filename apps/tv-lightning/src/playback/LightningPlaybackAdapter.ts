@@ -10,6 +10,7 @@ import { AudioPreferences } from "@meditation-surf/core";
 import type {
   IPlaybackController,
   PlaybackSource,
+  PlaybackVisualReadinessController,
 } from "@meditation-surf/player-core";
 
 import AudioState from "../state/AudioState";
@@ -44,6 +45,10 @@ export class LightningPlaybackAdapter implements IPlaybackController {
   // Active playback source, if one has been loaded
   private currentSource: PlaybackSource | null = null;
 
+  // Shared readiness model updated when the first video frame is actually shown
+  private playbackVisualReadinessController: PlaybackVisualReadinessController | null =
+    null;
+
   /**
    * @brief Accept fitted stage bounds from bootstrap code for API stability
    *
@@ -68,6 +73,17 @@ export class LightningPlaybackAdapter implements IPlaybackController {
     void top;
     void width;
     void height;
+  }
+
+  /**
+   * @brief Connect the shared readiness controller used by the TV playback path
+   *
+   * @param playbackVisualReadinessController - Shared readiness controller
+   */
+  public setPlaybackVisualReadinessController(
+    playbackVisualReadinessController: PlaybackVisualReadinessController,
+  ): void {
+    this.playbackVisualReadinessController = playbackVisualReadinessController;
   }
 
   /**
@@ -112,6 +128,54 @@ export class LightningPlaybackAdapter implements IPlaybackController {
       AudioState.setMuted(videoElement.muted);
       AudioState.setVolume(videoElement.volume);
     });
+  }
+
+  /**
+   * @brief Observe the first visually rendered frame for the current TV stream
+   *
+   * The Lightning TV runtime renders through a DOM video element. When the
+   * browser exposes `requestVideoFrameCallback()`, it gives the closest real
+   * first-frame-presented signal. Older engines fall back to `loadeddata`.
+   *
+   * @param videoElement - Video element used for fullscreen background playback
+   */
+  private installFirstRenderedFrameObserver(
+    videoElement: HTMLVideoElement,
+  ): void {
+    const playbackVisualReadinessController: PlaybackVisualReadinessController | null =
+      this.playbackVisualReadinessController;
+
+    if (playbackVisualReadinessController === null) {
+      return;
+    }
+
+    const hasVideoFrameCallbackApi: boolean =
+      "requestVideoFrameCallback" in videoElement;
+
+    if (hasVideoFrameCallbackApi) {
+      const listenForRenderedFrame = (): void => {
+        (
+          videoElement as HTMLVideoElement & {
+            requestVideoFrameCallback(callback: () => void): number;
+          }
+        ).requestVideoFrameCallback((): void => {
+          playbackVisualReadinessController.markVisualReady();
+        });
+      };
+
+      videoElement.addEventListener("loadeddata", listenForRenderedFrame, {
+        once: true,
+      });
+      return;
+    }
+
+    videoElement.addEventListener(
+      "loadeddata",
+      (): void => {
+        playbackVisualReadinessController.markVisualReady();
+      },
+      { once: true },
+    );
   }
 
   /**
@@ -190,6 +254,7 @@ export class LightningPlaybackAdapter implements IPlaybackController {
     // Mute before starting playback to maximize autoplay success
     this.setMuted(true);
     this.currentSource = source;
+    this.installFirstRenderedFrameObserver(videoElement);
 
     const restoreAudio: () => void = (): void => {
       const muted: boolean = AudioState.isMuted();
