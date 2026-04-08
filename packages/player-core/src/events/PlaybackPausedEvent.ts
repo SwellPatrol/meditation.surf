@@ -6,8 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
+import { PlaybackSource } from "../domain/PlaybackSource";
 import type { IPlaybackEvent } from "./IPlaybackEvent";
-import { PlaybackSource } from "./PlaybackSource";
 
 /**
  * @brief Payload emitted when playback is paused

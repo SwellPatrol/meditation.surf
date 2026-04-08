@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { PlaybackSource } from "./PlaybackSource";
+import { PlaybackSource } from "../domain/PlaybackSource";
 import { type PlaybackStatus, PlaybackStatuses } from "./PlaybackStatuses";
 
 /**

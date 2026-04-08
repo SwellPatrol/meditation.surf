@@ -6,16 +6,22 @@
  * See the file LICENSE.txt for more information.
  */
 
-export type { AudioProfile } from "./AudioProfile";
-export type { IPlaybackEvent } from "./IPlaybackEvent";
-export type { IPlaybackController } from "./IPlaybackController";
-export type { PlaybackStatus } from "./PlaybackStatuses";
-export { PlaybackDestroyedEvent } from "./PlaybackDestroyedEvent";
-export { PlaybackInitializedEvent } from "./PlaybackInitializedEvent";
-export { PlaybackLoadedEvent } from "./PlaybackLoadedEvent";
-export { PlaybackPausedEvent } from "./PlaybackPausedEvent";
-export { PlaybackPlayedEvent } from "./PlaybackPlayedEvent";
-export { PlaybackSource } from "./PlaybackSource";
-export { PlaybackState } from "./PlaybackState";
-export { PlaybackStatuses } from "./PlaybackStatuses";
-export { PlaybackVolumeChangedEvent } from "./PlaybackVolumeChangedEvent";
+/**
+ * @brief Public playback domain API shared across workspace packages
+ *
+ * This entrypoint intentionally exposes only the stable contracts, domain
+ * models, state objects, and playback events used by app-layer consumers.
+ */
+export type { IPlaybackController } from "./contracts/IPlaybackController";
+export type { AudioProfile } from "./domain/AudioProfile";
+export { PlaybackSource } from "./domain/PlaybackSource";
+export type { IPlaybackEvent } from "./events/IPlaybackEvent";
+export { PlaybackDestroyedEvent } from "./events/PlaybackDestroyedEvent";
+export { PlaybackInitializedEvent } from "./events/PlaybackInitializedEvent";
+export { PlaybackLoadedEvent } from "./events/PlaybackLoadedEvent";
+export { PlaybackPausedEvent } from "./events/PlaybackPausedEvent";
+export { PlaybackPlayedEvent } from "./events/PlaybackPlayedEvent";
+export { PlaybackVolumeChangedEvent } from "./events/PlaybackVolumeChangedEvent";
+export { PlaybackState } from "./state/PlaybackState";
+export type { PlaybackStatus } from "./state/PlaybackStatuses";
+export { PlaybackStatuses } from "./state/PlaybackStatuses";

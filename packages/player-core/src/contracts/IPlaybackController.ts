@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { PlaybackSource } from "./PlaybackSource";
+import type { PlaybackSource } from "../domain/PlaybackSource";
 
 /**
  * @brief Shared playback controller contract implemented separately per platform
