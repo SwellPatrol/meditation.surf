@@ -29,8 +29,11 @@ Only proceed if all commands succeed.
 - Avoid relying on global variables. Use module imports or scoped variables
   instead.
 - Comment style: use Doxygen-style `/** ... */` blocks; `@tag` lines have no trailing period; prose sentences inside block comments use periods; `//` comments use no trailing period when they are a single sentence and use periods when they contain multiple sentences. Insert newlines in doxy comments between tag types.
-- Class-first policy: new files whose primary export is a class must be named after that class in PascalCase.
-- Prefer introducing a small named class over adding more anonymous inline state logic, unless the existing file already has an obvious local pattern to extend.
+- New TypeScript source files must use PascalCase filenames by default.
+- Class-first policy: if a new file’s primary export is a class, the filename must match that class name exactly in PascalCase.
+- Do not create new lowercase-named TypeScript source files for new shared logic, helper modules, or architectural code.
+- Prefer introducing a small named class in a PascalCase file over adding anonymous inline state logic or lowercase utility modules, unless extending an existing local pattern clearly makes the code simpler.
+- Lowercase filenames are only acceptable when modifying an existing lowercase file that already belongs to an established convention in that part of the repo.
 - Start new files with the project copyright header (using the current year) whenever possible.
 
   For TypeScript or languages that use block comments:
