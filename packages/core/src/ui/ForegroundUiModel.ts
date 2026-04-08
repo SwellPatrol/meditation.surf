@@ -6,8 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { ForegroundLayerLayout } from "../layout/ForegroundLayerLayout";
 import { CenteredIconOverlayModel } from "./CenteredIconOverlayModel";
-import type { ForegroundLayerLayout } from "./ForegroundLayerLayout";
 import { ForegroundUiElement } from "./ForegroundUiElement";
 
 type LegacyForegroundUiModelElement =

@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { CenteredOverlayLayout } from "./CenteredOverlayLayout";
+import { CenteredOverlayLayout } from "../layout/CenteredOverlayLayout";
 
 /**
  * @brief Legacy alias for the centered icon overlay layout

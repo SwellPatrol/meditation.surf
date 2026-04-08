@@ -6,18 +6,18 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { AppLayout } from "./AppLayout";
-import { BackgroundLayerLayout } from "./BackgroundLayerLayout";
-import { BackgroundVideoModel } from "./BackgroundVideoModel";
-import { Catalog } from "./catalog/Catalog";
-import { DemoCatalog } from "./catalog/DemoCatalog";
+import { Catalog } from "../catalog/Catalog";
+import { DemoCatalog } from "../catalog/DemoCatalog";
+import { MeditationExperience } from "../experience/MeditationExperience";
+import { AppLayout } from "../layout/AppLayout";
+import { BackgroundLayerLayout } from "../layout/BackgroundLayerLayout";
+import { ForegroundLayerLayout } from "../layout/ForegroundLayerLayout";
+import { BackgroundVideoModel } from "../playback/BackgroundVideoModel";
+import { DemoBackgroundVideo } from "../playback/DemoBackgroundVideo";
 import {
   CenteredIconOverlayModel,
   DEMO_CENTERED_ICON_OVERLAY,
-} from "./CenteredIconOverlayModel";
-import { DemoBackgroundVideo } from "./DemoBackgroundVideo";
-import { ForegroundLayerLayout } from "./ForegroundLayerLayout";
-import { MeditationExperience } from "./MeditationExperience";
+} from "../ui/CenteredIconOverlayModel";
 
 /**
  * @brief Factory that assembles the current demo meditation experience

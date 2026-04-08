@@ -6,11 +6,11 @@
  * See the file LICENSE.txt for more information.
  */
 
+import { DemoCatalog } from "../catalog/DemoCatalog";
 import {
   BackgroundVideoModel,
   type BackgroundVideoPlaybackPolicy,
 } from "./BackgroundVideoModel";
-import { DemoCatalog } from "./catalog/DemoCatalog";
 
 /**
  * @brief Shared product-level playback behavior for the demo background video

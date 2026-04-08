@@ -6,19 +6,27 @@
  * See the file LICENSE.txt for more information.
  */
 
-export { AppLayout } from "./AppLayout";
-export { BackgroundLayerLayout } from "./BackgroundLayerLayout";
-export { MeditationExperience } from "./MeditationExperience";
-export {
-  BackgroundVideoModel,
-  type BackgroundVideoPlaybackPolicy,
-} from "./BackgroundVideoModel";
+export { DemoExperienceFactory } from "./bootstrap/DemoExperienceFactory";
+export { MeditationExperience } from "./experience/MeditationExperience";
+export { AppLayout } from "./layout/AppLayout";
+export { BackgroundLayerLayout } from "./layout/BackgroundLayerLayout";
 export {
   CenteredOverlayLayout,
   type CenteredOverlayPlacement,
   type CenteredOverlaySize,
-} from "./CenteredOverlayLayout";
-export { CenteredIconOverlayModel } from "./CenteredIconOverlayModel";
+} from "./layout/CenteredOverlayLayout";
+export { ForegroundLayerLayout } from "./layout/ForegroundLayerLayout";
+export {
+  BackgroundVideoModel,
+  type BackgroundVideoPlaybackPolicy,
+} from "./playback/BackgroundVideoModel";
+export { CenteredIconOverlayModel } from "./ui/CenteredIconOverlayModel";
+export { ForegroundUiElement } from "./ui/ForegroundUiElement";
+export type {
+  ForegroundUiElementPlacement,
+  ForegroundUiElementSize,
+} from "./ui/ForegroundUiElement";
+export { ForegroundUiModel } from "./ui/ForegroundUiModel";
 export type { ICatalogClient } from "./api/ICatalogClient";
 export {
   AppLaunchedAnalyticsEvent,
@@ -41,14 +49,6 @@ export {
 export { Catalog } from "./catalog/Catalog";
 export { CatalogSection } from "./catalog/CatalogSection";
 export { MediaItem } from "./catalog/MediaItem";
-export { DemoExperienceFactory } from "./DemoExperienceFactory";
-export { ForegroundUiElement } from "./ForegroundUiElement";
-export type {
-  ForegroundUiElementPlacement,
-  ForegroundUiElementSize,
-} from "./ForegroundUiElement";
-export { ForegroundLayerLayout } from "./ForegroundLayerLayout";
-export { ForegroundUiModel } from "./ForegroundUiModel";
 export {
   AudioPreferences,
   type AudioPreferencesInit,

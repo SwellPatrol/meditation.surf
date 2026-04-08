@@ -6,11 +6,11 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { AppLayout } from "./AppLayout";
-import type { BackgroundVideoModel } from "./BackgroundVideoModel";
-import type { Catalog } from "./catalog/Catalog";
-import type { MediaItem } from "./catalog/MediaItem";
-import type { ForegroundLayerLayout } from "./ForegroundLayerLayout";
+import type { Catalog } from "../catalog/Catalog";
+import type { MediaItem } from "../catalog/MediaItem";
+import type { AppLayout } from "../layout/AppLayout";
+import type { ForegroundLayerLayout } from "../layout/ForegroundLayerLayout";
+import type { BackgroundVideoModel } from "../playback/BackgroundVideoModel";
 
 /**
  * @brief Runtime-agnostic app scene for meditation.surf
