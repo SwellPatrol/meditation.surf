@@ -14,20 +14,20 @@ import {
   LIGHTNING_APP_WIDTH,
 } from "../layout/StageLayout";
 import { TvViewportSync } from "../layout/TvViewportSync";
-import { TvForegroundUiController } from "./TvForegroundUiController";
+import { TvAppLayoutController } from "./TvAppLayoutController";
 
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
 
 export type LightningAppOptions = {
-  foregroundUiController: TvForegroundUiController;
+  appLayoutController: TvAppLayoutController;
   viewportSync: TvViewportSync;
   onReady: () => void;
   onDestroy: () => void;
 };
 
 type LightningAppState = {
-  foregroundUiController: TvForegroundUiController;
+  appLayoutController: TvAppLayoutController;
   stageW: number;
   stageH: number;
   viewportW: number;
@@ -63,7 +63,7 @@ export function createLightningApp(
     // Keep the stage dimensions fixed for the TV-only experience.
     state(): LightningAppState {
       return {
-        foregroundUiController: options.foregroundUiController,
+        appLayoutController: options.appLayoutController,
         stageW: LIGHTNING_APP_WIDTH,
         stageH: LIGHTNING_APP_HEIGHT,
         viewportW: 0,
@@ -126,7 +126,7 @@ export function createLightningApp(
     // Render the icon component centered on a black canvas
     template: `<Element :w="$stageW" :h="$stageH">
       <Icon
-        :foregroundUiController="$foregroundUiController"
+        :appLayoutController="$appLayoutController"
         :stageW="$stageW"
         :stageH="$stageH"
         :viewportW="$viewportW"

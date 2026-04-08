@@ -6,10 +6,11 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { AppLayout } from "./AppLayout";
 import type { BackgroundVideoModel } from "./BackgroundVideoModel";
 import type { Catalog } from "./catalog/Catalog";
 import type { MediaItem } from "./catalog/MediaItem";
-import type { ForegroundUiModel } from "./ForegroundUiModel";
+import type { ForegroundLayerLayout } from "./ForegroundLayerLayout";
 
 /**
  * @brief Runtime-agnostic app scene for meditation.surf
@@ -19,25 +20,36 @@ import type { ForegroundUiModel } from "./ForegroundUiModel";
  * a clear model to adapt without centralizing rendering decisions.
  */
 export class MeditationExperience {
-  public readonly backgroundVideo: BackgroundVideoModel;
-  public readonly foregroundUi: ForegroundUiModel;
+  public readonly appLayout: AppLayout;
   public readonly catalog: Catalog;
 
   /**
    * @brief Create a meditation experience from its domain submodels
    *
-   * @param backgroundVideo - Shared background video model
-   * @param foregroundUi - Shared foreground UI model
+   * @param appLayout - Shared app-surface layout model
    * @param catalog - Shared content catalog model
    */
-  public constructor(
-    backgroundVideo: BackgroundVideoModel,
-    foregroundUi: ForegroundUiModel,
-    catalog: Catalog,
-  ) {
-    this.backgroundVideo = backgroundVideo;
-    this.foregroundUi = foregroundUi;
+  public constructor(appLayout: AppLayout, catalog: Catalog) {
+    this.appLayout = appLayout;
     this.catalog = catalog;
+  }
+
+  /**
+   * @brief Return the shared background video for the current app surface
+   *
+   * @returns Shared background video model
+   */
+  public getBackgroundVideo(): BackgroundVideoModel {
+    return this.appLayout.getBackgroundLayer().getBackgroundVideo();
+  }
+
+  /**
+   * @brief Return the shared foreground layer for the current app surface
+   *
+   * @returns Shared fullscreen foreground layer
+   */
+  public getForegroundLayer(): ForegroundLayerLayout {
+    return this.appLayout.getForegroundLayer();
   }
 
   /**

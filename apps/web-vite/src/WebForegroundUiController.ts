@@ -7,7 +7,7 @@
  */
 
 import type {
-  CenteredIconOverlayModel,
+  CenteredOverlayLayout,
   MeditationExperience,
 } from "@meditation-surf/core";
 import { BRAND_OVERLAY_ICON_URL } from "@meditation-surf/core/brand/web";
@@ -40,7 +40,7 @@ export class WebForegroundUiController {
    * @returns DOM image element representing the centered icon overlay
    */
   public createOverlayIconElement(): HTMLImageElement {
-    const overlayIconModel: CenteredIconOverlayModel =
+    const overlayIconModel: CenteredOverlayLayout =
       this.getCenteredIconOverlayModel();
     const overlayIconElement: HTMLImageElement = document.createElement("img");
 
@@ -58,7 +58,7 @@ export class WebForegroundUiController {
    * @param overlayIconElement - DOM image element rendered above the video
    */
   public applyLayout(overlayIconElement: HTMLImageElement): void {
-    const overlayIconModel: CenteredIconOverlayModel =
+    const overlayIconModel: CenteredOverlayLayout =
       this.getCenteredIconOverlayModel();
 
     this.brandOverlay.applyLayout(overlayIconElement, overlayIconModel);
@@ -69,13 +69,13 @@ export class WebForegroundUiController {
    *
    * @returns Shared centered icon overlay model
    */
-  private getCenteredIconOverlayModel(): CenteredIconOverlayModel {
-    const overlayIconModel: CenteredIconOverlayModel | null =
-      this.experience.foregroundUi.getCenteredIconOverlay();
+  private getCenteredIconOverlayModel(): CenteredOverlayLayout {
+    const overlayIconModel: CenteredOverlayLayout | null =
+      this.experience.appLayout.getForegroundLayer().getCenteredOverlay();
 
     if (overlayIconModel === null) {
       throw new Error(
-        "Expected the demo experience to expose a centered icon.",
+        "Expected the demo app layout to expose a centered overlay.",
       );
     }
 

@@ -9,7 +9,7 @@
 import Blits from "@lightningjs/blits";
 import { BRAND_OVERLAY_ICON_URL } from "@meditation-surf/core/brand/web";
 
-import { TvForegroundUiController } from "../../app/ui/TvForegroundUiController";
+import { TvAppLayoutController } from "../../app/ui/TvAppLayoutController";
 
 /**
  * @brief Type alias for the factory returned by Blits.Component
@@ -19,10 +19,10 @@ type IconFactory = ReturnType<typeof Blits.Component>;
 /**
  * @brief Reusable component that displays the app icon centered on the stage
  *
- * The TV foreground UI controller owns how the shared overlay model is adapted
+ * The TV app layout controller owns how the shared overlay model is adapted
  * into fixed-stage Lightning sizing.
  *
- * @property {TvForegroundUiController} foregroundUiController TV UI adapter
+ * @property {TvAppLayoutController} appLayoutController TV layout adapter
  * @property {number} stageW The Lightning stage width in pixels
  * @property {number} stageH The Lightning stage height in pixels
  * @property {number} viewportW The browser viewport width in pixels
@@ -31,13 +31,7 @@ type IconFactory = ReturnType<typeof Blits.Component>;
 const Icon: IconFactory = Blits.Component("Icon", {
   // Stage coordinates stay fixed for centering, while viewport dimensions
   // drive the shared icon sizing policy to match web and mobile behavior.
-  props: [
-    "foregroundUiController",
-    "stageW",
-    "stageH",
-    "viewportW",
-    "viewportH",
-  ],
+  props: ["appLayoutController", "stageW", "stageH", "viewportW", "viewportH"],
 
   computed: {
     /**
@@ -47,8 +41,8 @@ const Icon: IconFactory = Blits.Component("Icon", {
      */
     iconSize(): { width: number; height: number } {
       // @ts-ignore `this` contains the reactive props provided at runtime
-      const foregroundUiController: TvForegroundUiController = this
-        .foregroundUiController as TvForegroundUiController;
+      const appLayoutController: TvAppLayoutController = this
+        .appLayoutController as TvAppLayoutController;
 
       // @ts-ignore `this` contains the reactive props provided at runtime
       const stageW: number = this.stageW as number;
@@ -62,7 +56,7 @@ const Icon: IconFactory = Blits.Component("Icon", {
       // @ts-ignore `this` contains the reactive props provided at runtime
       const viewportH: number = this.viewportH as number;
 
-      return foregroundUiController.getStageIconSize(
+      return appLayoutController.getStageCenteredOverlaySize(
         stageW,
         stageH,
         viewportW,

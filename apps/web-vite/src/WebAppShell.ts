@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { WebForegroundUiController } from "./WebForegroundUiController";
+import { WebAppLayoutController } from "./WebAppLayoutController";
 
 /**
  * @brief Own the DOM shell used by the web demo surface
@@ -17,27 +17,29 @@ import { WebForegroundUiController } from "./WebForegroundUiController";
  */
 export class WebAppShell {
   public readonly backgroundVideoElement: HTMLVideoElement;
-  public readonly overlayIconElement: HTMLImageElement;
+  public readonly centeredOverlayElement: HTMLImageElement;
 
   private readonly mountElement: HTMLDivElement;
 
   /**
    * @brief Build the DOM shell for the web app
    *
-   * @param foregroundUiController - Runtime adapter for shared foreground UI
+   * @param appLayoutController - Runtime adapter for the shared app layout
    */
-  public constructor(foregroundUiController: WebForegroundUiController) {
+  public constructor(appLayoutController: WebAppLayoutController) {
     this.mountElement = this.getMountElement();
     this.backgroundVideoElement = document.createElement("video");
-    this.overlayIconElement = foregroundUiController.createOverlayIconElement();
-
-    const overlayElement: HTMLDivElement = document.createElement("div");
+    this.centeredOverlayElement =
+      appLayoutController.createCenteredOverlayElement();
+    const foregroundLayerElement: HTMLDivElement =
+      appLayoutController.createForegroundLayerElement();
 
     this.backgroundVideoElement.className = "background-video";
-    overlayElement.className = "overlay";
-    overlayElement.setAttribute("aria-hidden", "true");
-    overlayElement.appendChild(this.overlayIconElement);
-    this.mountElement.append(this.backgroundVideoElement, overlayElement);
+    foregroundLayerElement.appendChild(this.centeredOverlayElement);
+    this.mountElement.append(
+      this.backgroundVideoElement,
+      foregroundLayerElement,
+    );
   }
 
   /**

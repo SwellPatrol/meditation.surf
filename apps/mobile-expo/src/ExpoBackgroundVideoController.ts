@@ -7,7 +7,7 @@
  */
 
 import type {
-  BackgroundVideoModel,
+  BackgroundLayerLayout,
   BackgroundVideoPlaybackPolicy,
 } from "@meditation-surf/core";
 import type { PlaybackSource } from "@meditation-surf/player-core";
@@ -21,15 +21,15 @@ import type { VideoPlayer, VideoSource } from "expo-video";
  * configuration.
  */
 export class ExpoBackgroundVideoController {
-  private readonly backgroundVideo: BackgroundVideoModel;
+  private readonly backgroundLayer: BackgroundLayerLayout;
 
   /**
    * @brief Capture the shared background video model used by the Expo app
    *
-   * @param backgroundVideo - Shared background video model
+   * @param backgroundLayer - Shared fullscreen background layer
    */
-  public constructor(backgroundVideo: BackgroundVideoModel) {
-    this.backgroundVideo = backgroundVideo;
+  public constructor(backgroundLayer: BackgroundLayerLayout) {
+    this.backgroundLayer = backgroundLayer;
   }
 
   /**
@@ -38,8 +38,9 @@ export class ExpoBackgroundVideoController {
    * @returns Expo video source metadata for the runtime player
    */
   public createVideoSource(): VideoSource {
-    const playbackSource: PlaybackSource =
-      this.backgroundVideo.getPlaybackSource();
+    const playbackSource: PlaybackSource = this.backgroundLayer
+      .getBackgroundVideo()
+      .getPlaybackSource();
 
     return {
       contentType: "hls",
@@ -53,8 +54,9 @@ export class ExpoBackgroundVideoController {
    * @param player - Expo video player instance
    */
   public configurePlayer(player: VideoPlayer): void {
-    const playbackPolicy: BackgroundVideoPlaybackPolicy =
-      this.backgroundVideo.getPlaybackPolicy();
+    const playbackPolicy: BackgroundVideoPlaybackPolicy = this.backgroundLayer
+      .getBackgroundVideo()
+      .getPlaybackPolicy();
 
     player.loop = playbackPolicy.loop;
     player.muted = playbackPolicy.muted;
@@ -78,8 +80,9 @@ export class ExpoBackgroundVideoController {
     contentFit: "cover";
     playsInline: boolean;
   } {
-    const playbackPolicy: BackgroundVideoPlaybackPolicy =
-      this.backgroundVideo.getPlaybackPolicy();
+    const playbackPolicy: BackgroundVideoPlaybackPolicy = this.backgroundLayer
+      .getBackgroundVideo()
+      .getPlaybackPolicy();
 
     return {
       contentFit: playbackPolicy.objectFit,

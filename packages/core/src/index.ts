@@ -6,11 +6,18 @@
  * See the file LICENSE.txt for more information.
  */
 
+export { AppLayout } from "./AppLayout";
+export { BackgroundLayerLayout } from "./BackgroundLayerLayout";
 export { MeditationExperience } from "./MeditationExperience";
 export {
   BackgroundVideoModel,
   type BackgroundVideoPlaybackPolicy,
 } from "./BackgroundVideoModel";
+export {
+  CenteredOverlayLayout,
+  type CenteredOverlayPlacement,
+  type CenteredOverlaySize,
+} from "./CenteredOverlayLayout";
 export { CenteredIconOverlayModel } from "./CenteredIconOverlayModel";
 export type { ICatalogClient } from "./api/ICatalogClient";
 export {
@@ -43,6 +50,7 @@ export type {
   ForegroundUiElementPlacement,
   ForegroundUiElementSize,
 } from "./ForegroundUiElement";
+export { ForegroundLayerLayout } from "./ForegroundLayerLayout";
 export { ForegroundUiModel } from "./ForegroundUiModel";
 export {
   AudioPreferences,

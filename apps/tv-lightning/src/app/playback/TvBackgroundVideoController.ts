@@ -6,7 +6,11 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { MediaItem, MeditationExperience } from "@meditation-surf/core";
+import type {
+  BackgroundLayerLayout,
+  MediaItem,
+  MeditationExperience,
+} from "@meditation-surf/core";
 import type {
   IPlaybackController,
   PlaybackSource,
@@ -20,6 +24,7 @@ import type {
  */
 export class TvBackgroundVideoController {
   private readonly experience: MeditationExperience;
+  private readonly backgroundLayer: BackgroundLayerLayout;
   private readonly playbackController: IPlaybackController & {
     setDisplayBounds(
       left: number,
@@ -33,10 +38,12 @@ export class TvBackgroundVideoController {
    * @brief Build the TV background playback controller
    *
    * @param experience - Shared meditation experience
+   * @param backgroundLayer - Shared fullscreen background layer
    * @param playbackController - TV-specific playback adapter
    */
   public constructor(
     experience: MeditationExperience,
+    backgroundLayer: BackgroundLayerLayout,
     playbackController: IPlaybackController & {
       setDisplayBounds(
         left: number,
@@ -47,6 +54,7 @@ export class TvBackgroundVideoController {
     },
   ) {
     this.experience = experience;
+    this.backgroundLayer = backgroundLayer;
     this.playbackController = playbackController;
   }
 
@@ -105,7 +113,7 @@ export class TvBackgroundVideoController {
 
     return (
       featuredItem?.getPlaybackSource() ??
-      this.experience.backgroundVideo.getPlaybackSource()
+      this.backgroundLayer.getBackgroundVideo().getPlaybackSource()
     );
   }
 }

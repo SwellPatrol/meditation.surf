@@ -7,20 +7,25 @@
  */
 
 import { CenteredIconOverlayModel } from "./CenteredIconOverlayModel";
+import type { ForegroundLayerLayout } from "./ForegroundLayerLayout";
 import { ForegroundUiElement } from "./ForegroundUiElement";
+
+type LegacyForegroundUiModelElement =
+  | ForegroundUiElement
+  | CenteredIconOverlayModel;
 
 /**
  * @brief Runtime-agnostic collection of foreground UI elements
  */
 export class ForegroundUiModel {
-  private readonly elements: ForegroundUiElement[];
+  private readonly elements: LegacyForegroundUiModelElement[];
 
   /**
    * @brief Create a foreground UI model from a list of shared elements
    *
    * @param elements - Ordered foreground elements rendered above video
    */
-  public constructor(elements: ForegroundUiElement[]) {
+  public constructor(elements: LegacyForegroundUiModelElement[]) {
     this.elements = elements;
   }
 
@@ -29,7 +34,7 @@ export class ForegroundUiModel {
    *
    * @returns A shallow copy of the shared foreground element list
    */
-  public getElements(): ForegroundUiElement[] {
+  public getElements(): LegacyForegroundUiModelElement[] {
     return [...this.elements];
   }
 
@@ -39,9 +44,9 @@ export class ForegroundUiModel {
    * @returns The first centered icon overlay, or `null` if one is absent
    */
   public getCenteredIconOverlay(): CenteredIconOverlayModel | null {
-    const centeredIconOverlay: ForegroundUiElement | undefined =
+    const centeredIconOverlay: LegacyForegroundUiModelElement | undefined =
       this.elements.find(
-        (element: ForegroundUiElement): boolean =>
+        (element: LegacyForegroundUiModelElement): boolean =>
           element instanceof CenteredIconOverlayModel,
       );
 
@@ -50,5 +55,25 @@ export class ForegroundUiModel {
     }
 
     return null;
+  }
+
+  /**
+   * @brief Build a legacy foreground UI model from the shared foreground layer
+   *
+   * @param foregroundLayer - Shared foreground layer layout
+   *
+   * @returns Foreground UI wrapper for older consumers
+   */
+  public static fromForegroundLayer(
+    foregroundLayer: ForegroundLayerLayout,
+  ): ForegroundUiModel {
+    const centeredOverlay: CenteredIconOverlayModel | null =
+      foregroundLayer.getCenteredOverlay() instanceof CenteredIconOverlayModel
+        ? (foregroundLayer.getCenteredOverlay() as CenteredIconOverlayModel)
+        : null;
+
+    return new ForegroundUiModel(
+      centeredOverlay === null ? [] : [centeredOverlay],
+    );
   }
 }

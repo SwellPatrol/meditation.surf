@@ -7,9 +7,8 @@
  */
 
 import type {
-  BackgroundVideoModel,
+  BackgroundLayerLayout,
   BackgroundVideoPlaybackPolicy,
-  MeditationExperience,
 } from "@meditation-surf/core";
 import type { PlaybackSource } from "@meditation-surf/player-core";
 
@@ -24,16 +23,16 @@ type ShakaPlayer = InstanceType<ShakaModule["Player"]>;
  * to the web app while consuming the shared background video model.
  */
 export class WebBackgroundVideoController {
-  private readonly backgroundVideo: BackgroundVideoModel;
+  private readonly backgroundLayer: BackgroundLayerLayout;
   private activeShakaPlayer: ShakaPlayer | null;
 
   /**
    * @brief Capture the shared experience consumed by the web background player
    *
-   * @param experience - Shared meditation experience
+   * @param backgroundLayer - Shared fullscreen background layer
    */
-  public constructor(experience: MeditationExperience) {
-    this.backgroundVideo = experience.backgroundVideo;
+  public constructor(backgroundLayer: BackgroundLayerLayout) {
+    this.backgroundLayer = backgroundLayer;
     this.activeShakaPlayer = null;
   }
 
@@ -43,8 +42,9 @@ export class WebBackgroundVideoController {
    * @param videoElement - DOM video element used for background playback
    */
   public configureElement(videoElement: HTMLVideoElement): void {
-    const playbackPolicy: BackgroundVideoPlaybackPolicy =
-      this.backgroundVideo.getPlaybackPolicy();
+    const playbackPolicy: BackgroundVideoPlaybackPolicy = this.backgroundLayer
+      .getBackgroundVideo()
+      .getPlaybackPolicy();
 
     videoElement.autoplay = playbackPolicy.autoplay;
     videoElement.controls = false;
@@ -124,10 +124,12 @@ export class WebBackgroundVideoController {
   private async load(
     videoElement: HTMLVideoElement,
   ): Promise<ShakaPlayer | null> {
-    const playbackSource: PlaybackSource =
-      this.backgroundVideo.getPlaybackSource();
-    const playbackPolicy: BackgroundVideoPlaybackPolicy =
-      this.backgroundVideo.getPlaybackPolicy();
+    const playbackSource: PlaybackSource = this.backgroundLayer
+      .getBackgroundVideo()
+      .getPlaybackSource();
+    const playbackPolicy: BackgroundVideoPlaybackPolicy = this.backgroundLayer
+      .getBackgroundVideo()
+      .getPlaybackPolicy();
     const playbackMimeType: string =
       playbackSource.mimeType ?? "application/x-mpegURL";
     const canUseNativeHlsPlayback: boolean =

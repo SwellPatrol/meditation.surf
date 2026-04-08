@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { CenteredIconOverlayModel } from "@meditation-surf/core";
+import type { CenteredOverlayLayout } from "@meditation-surf/core";
 
 /**
  * @brief Own DOM layout adaptation for the web brand overlay
@@ -20,7 +20,7 @@ export class WebBrandOverlay {
    */
   public applyLayout(
     overlayIconElement: HTMLImageElement,
-    overlayIconModel: CenteredIconOverlayModel,
+    overlayIconModel: CenteredOverlayLayout,
   ): void {
     const layoutSize: { width: number; height: number } =
       overlayIconModel.getLayoutSize(window.innerWidth, window.innerHeight);

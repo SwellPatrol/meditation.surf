@@ -7,66 +7,57 @@
  */
 
 import type {
+  AppLayout,
   CenteredOverlayLayout,
   CenteredOverlaySize,
-  MeditationExperience,
 } from "@meditation-surf/core";
 
 import { TvStageIconLayout } from "../layout/TvStageIconLayout";
 
 /**
- * @brief Adapt the shared foreground UI model into TV-specific render sizing
+ * @brief Adapt the shared app layout into TV-specific foreground layout state
  */
-export class TvForegroundUiController {
-  private readonly overlayModel: CenteredOverlayLayout;
+export class TvAppLayoutController {
+  private readonly centeredOverlay: CenteredOverlayLayout;
   private readonly stageIconLayout: TvStageIconLayout;
 
   /**
-   * @brief Build the TV foreground UI adapter from the shared experience
+   * @brief Build the TV layout adapter from the shared app surface
    *
-   * @param experience - Shared meditation experience
+   * @param appLayout - Shared app surface layout
    */
-  public constructor(experience: MeditationExperience) {
-    const overlayModel: CenteredOverlayLayout | null = experience.appLayout
+  public constructor(appLayout: AppLayout) {
+    const centeredOverlay: CenteredOverlayLayout | null = appLayout
       .getForegroundLayer()
       .getCenteredOverlay();
 
-    if (overlayModel === null) {
+    if (centeredOverlay === null) {
       throw new Error(
         "Expected the demo app layout to expose a centered overlay.",
       );
     }
 
-    this.overlayModel = overlayModel;
+    this.centeredOverlay = centeredOverlay;
     this.stageIconLayout = new TvStageIconLayout();
   }
 
   /**
-   * @brief Return the shared centered icon overlay rendered by the TV app
-   *
-   * @returns Shared centered icon overlay model
-   */
-  public getOverlayModel(): CenteredOverlayLayout {
-    return this.overlayModel;
-  }
-
-  /**
-   * @brief Compute the centered icon size to render inside the fixed Lightning stage
+   * @brief Compute the centered overlay size to render within the fixed stage
    *
    * @param stageWidth - Fixed Lightning stage width
    * @param stageHeight - Fixed Lightning stage height
    * @param viewportWidth - Live browser viewport width
    * @param viewportHeight - Live browser viewport height
    *
-   * @returns Stage-compensated icon size for Lightning rendering
+   * @returns Stage-compensated centered-overlay size for Lightning rendering
    */
-  public getStageIconSize(
+  public getStageCenteredOverlaySize(
     stageWidth: number,
     stageHeight: number,
     viewportWidth: number,
     viewportHeight: number,
   ): CenteredOverlaySize {
-    const layoutSize: CenteredOverlaySize = this.overlayModel.getLayoutSize(
+    const layoutSize: CenteredOverlaySize = this.centeredOverlay.getLayoutSize(
       viewportWidth,
       viewportHeight,
     );

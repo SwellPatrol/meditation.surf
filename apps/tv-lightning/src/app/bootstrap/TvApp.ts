@@ -17,7 +17,7 @@ import { TvViewportSync } from "../layout/TvViewportSync";
 import lightningPlaybackAdapter from "../playback/LightningPlaybackAdapter";
 import { TvBackgroundVideoController } from "../playback/TvBackgroundVideoController";
 import { createLightningApp } from "../ui/LightningApp";
-import { TvForegroundUiController } from "../ui/TvForegroundUiController";
+import { TvAppLayoutController } from "../ui/TvAppLayoutController";
 
 /**
  * @brief Top-level lifecycle owner for the TV Lightning app
@@ -27,7 +27,7 @@ import { TvForegroundUiController } from "../ui/TvForegroundUiController";
  */
 export class TvApp {
   private readonly backgroundVideoController: TvBackgroundVideoController;
-  private readonly foregroundUiController: TvForegroundUiController;
+  private readonly appLayoutController: TvAppLayoutController;
   private readonly viewportSync: TvViewportSync;
   private readonly handleBeforeUnload: () => void;
 
@@ -39,9 +39,10 @@ export class TvApp {
   public constructor(experience: MeditationExperience) {
     this.backgroundVideoController = new TvBackgroundVideoController(
       experience,
+      experience.appLayout.getBackgroundLayer(),
       lightningPlaybackAdapter,
     );
-    this.foregroundUiController = new TvForegroundUiController(experience);
+    this.appLayoutController = new TvAppLayoutController(experience.appLayout);
     this.viewportSync = new TvViewportSync();
     this.handleBeforeUnload = (): void => {
       void this.backgroundVideoController.destroy();
@@ -56,7 +57,7 @@ export class TvApp {
     const mountElement: HTMLElement = this.getMountElement();
     const lightningApp: ReturnType<typeof Blits.Application> =
       createLightningApp({
-        foregroundUiController: this.foregroundUiController,
+        appLayoutController: this.appLayoutController,
         viewportSync: this.viewportSync,
         onReady: (): void => {
           this.backgroundVideoController.initialize();

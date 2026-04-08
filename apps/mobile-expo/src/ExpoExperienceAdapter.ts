@@ -8,8 +8,8 @@
 
 import type { MeditationExperience } from "@meditation-surf/core";
 
+import { ExpoAppLayoutController } from "./ExpoAppLayoutController";
 import { ExpoBackgroundVideoController } from "./ExpoBackgroundVideoController";
-import { ExpoForegroundUiController } from "./ExpoForegroundUiController";
 
 /**
  * @brief Group Expo runtime adapters around a shared meditation experience
@@ -18,8 +18,8 @@ import { ExpoForegroundUiController } from "./ExpoForegroundUiController";
  * adaptation lives here beside the Expo app.
  */
 export class ExpoExperienceAdapter {
+  public readonly appLayoutController: ExpoAppLayoutController;
   public readonly backgroundVideoController: ExpoBackgroundVideoController;
-  public readonly foregroundUiController: ExpoForegroundUiController;
 
   /**
    * @brief Build Expo runtime adapters for the shared experience
@@ -27,11 +27,11 @@ export class ExpoExperienceAdapter {
    * @param experience - Shared meditation experience
    */
   public constructor(experience: MeditationExperience) {
-    this.backgroundVideoController = new ExpoBackgroundVideoController(
-      experience.backgroundVideo,
+    this.appLayoutController = new ExpoAppLayoutController(
+      experience.appLayout,
     );
-    this.foregroundUiController = new ExpoForegroundUiController(
-      experience.foregroundUi,
+    this.backgroundVideoController = new ExpoBackgroundVideoController(
+      experience.appLayout.getBackgroundLayer(),
     );
   }
 }

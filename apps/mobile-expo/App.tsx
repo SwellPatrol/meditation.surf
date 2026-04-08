@@ -7,53 +7,19 @@
  */
 
 import {
+  type CenteredOverlaySize,
   DemoExperienceFactory,
   type MeditationExperience,
 } from "@meditation-surf/core";
 import { useVideoPlayer, type VideoPlayer, VideoView } from "expo-video";
 import { type JSX, useEffect } from "react";
-import {
-  Image,
-  type ImageStyle,
-  useWindowDimensions,
-  View,
-  type ViewStyle,
-} from "react-native";
+import { Image, useWindowDimensions, View } from "react-native";
 
 import { ExpoApp } from "./src/ExpoApp";
 import { ExpoExperienceAdapter } from "./src/ExpoExperienceAdapter";
 
 const experience: MeditationExperience = DemoExperienceFactory.create();
 const app: ExpoApp = new ExpoApp(experience);
-
-const containerStyle: ViewStyle = {
-  backgroundColor: "#000000",
-  flex: 1,
-};
-
-const backgroundVideoStyle: ViewStyle = {
-  bottom: 0,
-  height: "100%",
-  left: 0,
-  position: "absolute",
-  right: 0,
-  top: 0,
-  width: "100%",
-};
-
-const overlayStyle: ViewStyle = {
-  alignItems: "center",
-  bottom: 0,
-  justifyContent: "center",
-  left: 0,
-  position: "absolute",
-  right: 0,
-  top: 0,
-};
-
-const iconStyle: ImageStyle = {
-  resizeMode: "contain",
-};
 
 export default function App(): JSX.Element {
   const experienceAdapter: ExpoExperienceAdapter = app.getExperienceAdapter();
@@ -71,8 +37,8 @@ export default function App(): JSX.Element {
     experienceAdapter.backgroundVideoController.startPlayback(videoPlayer);
   }, [videoPlayer]);
 
-  const dynamicIconStyle: { width: number; height: number } =
-    experienceAdapter.foregroundUiController.getOverlayIconStyle(
+  const dynamicIconStyle: CenteredOverlaySize =
+    experienceAdapter.appLayoutController.getCenteredOverlaySize(
       windowDimensions.width,
       windowDimensions.height,
     );
@@ -89,19 +55,25 @@ export default function App(): JSX.Element {
   };
 
   return (
-    <View style={containerStyle}>
+    <View style={experienceAdapter.appLayoutController.getContainerStyle()}>
       <VideoView
         contentFit={videoViewProps.objectFit}
         nativeControls={false}
         player={videoPlayer}
         playsInline={videoViewProps.playsInline}
-        style={backgroundVideoStyle}
+        style={experienceAdapter.appLayoutController.getBackgroundLayerStyle()}
       />
-      <View pointerEvents="none" style={overlayStyle}>
+      <View
+        pointerEvents="none"
+        style={experienceAdapter.appLayoutController.getForegroundLayerStyle()}
+      >
         <Image
           resizeMode="contain"
-          source={experienceAdapter.foregroundUiController.getOverlayIconSource()}
-          style={[iconStyle, dynamicIconStyle]}
+          source={experienceAdapter.appLayoutController.getCenteredOverlaySource()}
+          style={[
+            experienceAdapter.appLayoutController.getCenteredOverlayStyle(),
+            dynamicIconStyle,
+          ]}
         />
       </View>
     </View>

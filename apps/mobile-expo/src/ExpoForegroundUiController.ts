@@ -7,9 +7,9 @@
  */
 
 import type {
-  CenteredIconOverlayModel,
-  ForegroundUiElementSize,
-  ForegroundUiModel,
+  AppLayout,
+  CenteredOverlayLayout,
+  CenteredOverlaySize,
 } from "@meditation-surf/core";
 import { BRAND_OVERLAY_ICON_SOURCE } from "@meditation-surf/core/brand/native";
 
@@ -17,15 +17,15 @@ import { BRAND_OVERLAY_ICON_SOURCE } from "@meditation-surf/core/brand/native";
  * @brief Adapt the shared foreground UI model into Expo-specific view state
  */
 export class ExpoForegroundUiController {
-  private readonly foregroundUi: ForegroundUiModel;
+  private readonly appLayout: AppLayout;
 
   /**
    * @brief Capture the shared foreground UI model used by the Expo app
    *
-   * @param foregroundUi - Shared foreground UI model
+   * @param appLayout - Shared app surface layout
    */
-  public constructor(foregroundUi: ForegroundUiModel) {
-    this.foregroundUi = foregroundUi;
+  public constructor(appLayout: AppLayout) {
+    this.appLayout = appLayout;
   }
 
   /**
@@ -48,8 +48,8 @@ export class ExpoForegroundUiController {
   public getOverlayIconStyle(
     viewportWidth: number,
     viewportHeight: number,
-  ): ForegroundUiElementSize {
-    const overlayIconModel: CenteredIconOverlayModel =
+  ): CenteredOverlaySize {
+    const overlayIconModel: CenteredOverlayLayout =
       this.getCenteredIconOverlayModel();
 
     return overlayIconModel.getLayoutSize(viewportWidth, viewportHeight);
@@ -60,13 +60,14 @@ export class ExpoForegroundUiController {
    *
    * @returns Shared centered icon overlay model
    */
-  private getCenteredIconOverlayModel(): CenteredIconOverlayModel {
-    const overlayIconModel: CenteredIconOverlayModel | null =
-      this.foregroundUi.getCenteredIconOverlay();
+  private getCenteredIconOverlayModel(): CenteredOverlayLayout {
+    const overlayIconModel: CenteredOverlayLayout | null = this.appLayout
+      .getForegroundLayer()
+      .getCenteredOverlay();
 
     if (overlayIconModel === null) {
       throw new Error(
-        "Expected the demo experience to expose a centered icon.",
+        "Expected the demo app layout to expose a centered overlay.",
       );
     }
 

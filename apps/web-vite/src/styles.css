@@ -39,7 +39,7 @@ body {
   z-index: 0;
 }
 
-.overlay {
+.foreground-layer {
   align-items: center;
   display: flex;
   inset: 0;

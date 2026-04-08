@@ -6,6 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
+import { AppLayout } from "./AppLayout";
+import { BackgroundLayerLayout } from "./BackgroundLayerLayout";
 import { BackgroundVideoModel } from "./BackgroundVideoModel";
 import { Catalog } from "./catalog/Catalog";
 import { DemoCatalog } from "./catalog/DemoCatalog";
@@ -14,7 +16,7 @@ import {
   DEMO_CENTERED_ICON_OVERLAY,
 } from "./CenteredIconOverlayModel";
 import { DemoBackgroundVideo } from "./DemoBackgroundVideo";
-import { ForegroundUiModel } from "./ForegroundUiModel";
+import { ForegroundLayerLayout } from "./ForegroundLayerLayout";
 import { MeditationExperience } from "./MeditationExperience";
 
 /**
@@ -33,11 +35,12 @@ export class DemoExperienceFactory {
     const backgroundVideo: BackgroundVideoModel = DemoBackgroundVideo.create();
     const centeredIconOverlay: CenteredIconOverlayModel =
       DEMO_CENTERED_ICON_OVERLAY;
-    const foregroundUi: ForegroundUiModel = new ForegroundUiModel([
-      centeredIconOverlay,
-    ]);
+    const appLayout: AppLayout = new AppLayout(
+      new BackgroundLayerLayout(backgroundVideo),
+      new ForegroundLayerLayout(centeredIconOverlay),
+    );
     const catalog: Catalog = DemoCatalog.getCatalog();
 
-    return new MeditationExperience(backgroundVideo, foregroundUi, catalog);
+    return new MeditationExperience(appLayout, catalog);
   }
 }

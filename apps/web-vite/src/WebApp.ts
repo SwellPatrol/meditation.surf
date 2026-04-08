@@ -8,9 +8,9 @@
 
 import type { MeditationExperience } from "@meditation-surf/core";
 
+import { WebAppLayoutController } from "./WebAppLayoutController";
 import { WebAppShell } from "./WebAppShell";
 import { WebBackgroundVideoController } from "./WebBackgroundVideoController";
-import { WebForegroundUiController } from "./WebForegroundUiController";
 
 /**
  * @brief Top-level lifecycle owner for the web app
@@ -20,8 +20,8 @@ import { WebForegroundUiController } from "./WebForegroundUiController";
  */
 export class WebApp {
   private readonly shell: WebAppShell;
+  private readonly appLayoutController: WebAppLayoutController;
   private readonly backgroundVideoController: WebBackgroundVideoController;
-  private readonly foregroundUiController: WebForegroundUiController;
   private readonly handleBeforeUnload: () => void;
   private readonly handleResize: () => void;
 
@@ -31,16 +31,18 @@ export class WebApp {
    * @param experience - Shared meditation experience
    */
   public constructor(experience: MeditationExperience) {
-    this.foregroundUiController = new WebForegroundUiController(experience);
+    this.appLayoutController = new WebAppLayoutController(experience.appLayout);
     this.backgroundVideoController = new WebBackgroundVideoController(
-      experience,
+      experience.appLayout.getBackgroundLayer(),
     );
-    this.shell = new WebAppShell(this.foregroundUiController);
+    this.shell = new WebAppShell(this.appLayoutController);
     this.handleBeforeUnload = (): void => {
       void this.backgroundVideoController.destroy();
     };
     this.handleResize = (): void => {
-      this.foregroundUiController.applyLayout(this.shell.overlayIconElement);
+      this.appLayoutController.applyCenteredOverlayLayout(
+        this.shell.centeredOverlayElement,
+      );
     };
   }
 
@@ -53,7 +55,9 @@ export class WebApp {
     this.backgroundVideoController.configureElement(
       this.shell.backgroundVideoElement,
     );
-    this.foregroundUiController.applyLayout(this.shell.overlayIconElement);
+    this.appLayoutController.applyCenteredOverlayLayout(
+      this.shell.centeredOverlayElement,
+    );
     window.addEventListener("beforeunload", this.handleBeforeUnload);
     window.addEventListener("resize", this.handleResize);
     await this.backgroundVideoController.start(
