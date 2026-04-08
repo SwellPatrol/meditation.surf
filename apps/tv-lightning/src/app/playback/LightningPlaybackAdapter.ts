@@ -8,7 +8,7 @@
 
 import { AudioPreferences } from "@meditation-surf/core";
 import type {
-  PlaybackController,
+  IPlaybackController,
   PlaybackSource,
 } from "@meditation-surf/player-core";
 
@@ -31,7 +31,7 @@ type ShakaImportResult = {
  * The shared controller contract stays in `packages/player-core`, while this
  * class owns the TV app's platform playback implementation details.
  */
-export class LightningPlaybackAdapter implements PlaybackController {
+export class LightningPlaybackAdapter implements IPlaybackController {
   // Shared DOM video element created once at boot
   private videoElement: HTMLVideoElement | null = null;
 

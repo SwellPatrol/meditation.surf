@@ -11,6 +11,7 @@ import type {
   BackgroundVideoPlaybackPolicy,
   MeditationExperience,
 } from "@meditation-surf/core";
+import type { PlaybackSource } from "@meditation-surf/player-core";
 
 type ShakaModule =
   (typeof import("shaka-player/dist/shaka-player.compiled.js"))["default"];
@@ -123,7 +124,7 @@ export class WebBackgroundVideoController {
   private async load(
     videoElement: HTMLVideoElement,
   ): Promise<ShakaPlayer | null> {
-    const playbackSource: { url: string; mimeType?: string } =
+    const playbackSource: PlaybackSource =
       this.backgroundVideo.getPlaybackSource();
     const playbackPolicy: BackgroundVideoPlaybackPolicy =
       this.backgroundVideo.getPlaybackPolicy();

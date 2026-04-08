@@ -7,7 +7,7 @@
  */
 
 import type {
-  PlaybackController,
+  IPlaybackController,
   PlaybackSource,
 } from "@meditation-surf/player-core";
 
@@ -16,16 +16,14 @@ import type {
  *
  * The mobile app owns its eventual player implementation separately from TV.
  */
-export class ExpoPlaybackController implements PlaybackController {
+export class ExpoPlaybackController implements IPlaybackController {
   // Last loaded source retained for scaffold-level testing and wiring
-  private currentSource: PlaybackSource | null;
+  private currentSource: PlaybackSource | null = null;
 
   /**
    * @brief Create an empty placeholder controller
    */
-  constructor() {
-    this.currentSource = null as PlaybackSource | null;
-  }
+  public constructor() {}
 
   /**
    * @brief Prepare the placeholder controller

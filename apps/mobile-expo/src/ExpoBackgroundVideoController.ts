@@ -10,6 +10,7 @@ import type {
   BackgroundVideoModel,
   BackgroundVideoPlaybackPolicy,
 } from "@meditation-surf/core";
+import type { PlaybackSource } from "@meditation-surf/player-core";
 import type { VideoPlayer, VideoSource } from "expo-video";
 
 /**
@@ -37,7 +38,7 @@ export class ExpoBackgroundVideoController {
    * @returns Expo video source metadata for the runtime player
    */
   public createVideoSource(): VideoSource {
-    const playbackSource: { url: string } =
+    const playbackSource: PlaybackSource =
       this.backgroundVideo.getPlaybackSource();
 
     return {

@@ -8,7 +8,7 @@
 
 import type { MediaItem, MeditationExperience } from "@meditation-surf/core";
 import type {
-  PlaybackController,
+  IPlaybackController,
   PlaybackSource,
 } from "@meditation-surf/player-core";
 
@@ -20,7 +20,7 @@ import type {
  */
 export class TvBackgroundVideoController {
   private readonly experience: MeditationExperience;
-  private readonly playbackController: PlaybackController & {
+  private readonly playbackController: IPlaybackController & {
     setDisplayBounds(
       left: number,
       top: number,
@@ -37,7 +37,7 @@ export class TvBackgroundVideoController {
    */
   public constructor(
     experience: MeditationExperience,
-    playbackController: PlaybackController & {
+    playbackController: IPlaybackController & {
       setDisplayBounds(
         left: number,
         top: number,

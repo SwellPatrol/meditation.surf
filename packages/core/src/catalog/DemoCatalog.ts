@@ -6,6 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
+import { PlaybackSource } from "@meditation-surf/player-core";
+
 import { Catalog } from "./Catalog";
 import { CatalogSection } from "./CatalogSection";
 import { MediaItem } from "./MediaItem";
@@ -21,11 +23,11 @@ export class DemoCatalog {
     id: "swellpatrol-featured-break",
     title: "Featured Break",
     description: "A calm featured surf stream used as shared sample content.",
-    playbackSource: {
+    playbackSource: new PlaybackSource({
       url: "https://stream.mux.com/7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk.m3u8",
       mimeType: "application/x-mpegURL",
       audioProfile: "stereo",
-    },
+    }),
   });
 
   private static readonly CATALOG: Catalog = new Catalog({

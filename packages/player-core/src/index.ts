@@ -6,12 +6,16 @@
  * See the file LICENSE.txt for more information.
  */
 
-export type { PlaybackController } from "./PlaybackController";
-export type {
-  AudioProfile,
-  PlaybackEventName,
-  PlaybackEventPayloadMap,
-  PlaybackSource,
-  PlaybackState,
-  PlaybackStatus,
-} from "./playbackTypes";
+export type { AudioProfile } from "./AudioProfile";
+export type { IPlaybackEvent } from "./IPlaybackEvent";
+export type { IPlaybackController } from "./IPlaybackController";
+export type { PlaybackStatus } from "./PlaybackStatuses";
+export { PlaybackDestroyedEvent } from "./PlaybackDestroyedEvent";
+export { PlaybackInitializedEvent } from "./PlaybackInitializedEvent";
+export { PlaybackLoadedEvent } from "./PlaybackLoadedEvent";
+export { PlaybackPausedEvent } from "./PlaybackPausedEvent";
+export { PlaybackPlayedEvent } from "./PlaybackPlayedEvent";
+export { PlaybackSource } from "./PlaybackSource";
+export { PlaybackState } from "./PlaybackState";
+export { PlaybackStatuses } from "./PlaybackStatuses";
+export { PlaybackVolumeChangedEvent } from "./PlaybackVolumeChangedEvent";
