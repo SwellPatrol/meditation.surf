@@ -15,8 +15,8 @@ import { useVideoPlayer, type VideoPlayer, VideoView } from "expo-video";
 import { type JSX, useEffect } from "react";
 import { Image, useWindowDimensions, View } from "react-native";
 
-import { ExpoApp } from "./src/app/bootstrap/ExpoApp";
-import { ExpoExperienceAdapter } from "./src/app/experience/ExpoExperienceAdapter";
+import { ExpoApp } from "./src/bootstrap/ExpoApp";
+import { ExpoExperienceAdapter } from "./src/experience/ExpoExperienceAdapter";
 
 const experience: MeditationExperience = DemoExperienceFactory.create();
 const app: ExpoApp = new ExpoApp(experience);

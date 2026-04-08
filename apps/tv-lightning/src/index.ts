@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { TvAppLauncher } from "./app/bootstrap/TvAppLauncher";
+import { TvAppLauncher } from "./bootstrap/TvAppLauncher";
 
 // Application entry point
 const appLauncher: TvAppLauncher = new TvAppLauncher();
