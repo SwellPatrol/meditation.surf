@@ -7,12 +7,9 @@
  */
 
 import {
-  type CenteredIconOverlayModel,
   DemoExperienceFactory,
-  type ForegroundUiElementSize,
   type MeditationExperience,
 } from "@meditation-surf/core";
-import { BRAND_OVERLAY_ICON_SOURCE } from "@meditation-surf/core/brand/native";
 import { useVideoPlayer, type VideoPlayer, VideoView } from "expo-video";
 import { type JSX, useEffect } from "react";
 import {
@@ -23,12 +20,11 @@ import {
   type ViewStyle,
 } from "react-native";
 
-import {
-  configureExpoVideoPlayer,
-  createExpoVideoSource,
-} from "./src/demoBackgroundVideo";
+import { ExpoApp } from "./src/ExpoApp";
+import { ExpoExperienceAdapter } from "./src/ExpoExperienceAdapter";
 
 const experience: MeditationExperience = DemoExperienceFactory.create();
+const app: ExpoApp = new ExpoApp(experience);
 
 const containerStyle: ViewStyle = {
   backgroundColor: "#000000",
@@ -60,49 +56,51 @@ const iconStyle: ImageStyle = {
 };
 
 export default function App(): JSX.Element {
+  const experienceAdapter: ExpoExperienceAdapter = app.getExperienceAdapter();
   const windowDimensions: { width: number; height: number } =
     useWindowDimensions();
-  const overlayIconModel: CenteredIconOverlayModel | null =
-    experience.foregroundUi.getCenteredIconOverlay();
   const videoPlayer: VideoPlayer = useVideoPlayer(
-    createExpoVideoSource(experience.backgroundVideo),
+    experienceAdapter.backgroundVideoController.createVideoSource(),
     (player: VideoPlayer): void => {
-      configureExpoVideoPlayer(player, experience.backgroundVideo);
+      experienceAdapter.backgroundVideoController.configurePlayer(player);
     },
   );
 
   useEffect((): void => {
     // On web, play() needs to run after the underlying <video> has mounted.
-    videoPlayer.play();
+    experienceAdapter.backgroundVideoController.startPlayback(videoPlayer);
   }, [videoPlayer]);
 
-  if (overlayIconModel === null) {
-    throw new Error("Expected the demo experience to expose a centered icon.");
-  }
-
-  const dynamicIconStyle: ForegroundUiElementSize =
-    overlayIconModel.getLayoutSize(
+  const dynamicIconStyle: { width: number; height: number } =
+    experienceAdapter.foregroundUiController.getOverlayIconStyle(
       windowDimensions.width,
       windowDimensions.height,
     );
-  const backgroundPlaybackPolicy: {
+  const videoViewProps: {
     objectFit: "cover";
     playsInline: boolean;
-  } = experience.backgroundVideo.getPlaybackPolicy();
+  } = {
+    objectFit:
+      experienceAdapter.backgroundVideoController.getVideoViewProps()
+        .contentFit,
+    playsInline:
+      experienceAdapter.backgroundVideoController.getVideoViewProps()
+        .playsInline,
+  };
 
   return (
     <View style={containerStyle}>
       <VideoView
-        contentFit={backgroundPlaybackPolicy.objectFit}
+        contentFit={videoViewProps.objectFit}
         nativeControls={false}
         player={videoPlayer}
-        playsInline={backgroundPlaybackPolicy.playsInline}
+        playsInline={videoViewProps.playsInline}
         style={backgroundVideoStyle}
       />
       <View pointerEvents="none" style={overlayStyle}>
         <Image
           resizeMode="contain"
-          source={BRAND_OVERLAY_ICON_SOURCE}
+          source={experienceAdapter.foregroundUiController.getOverlayIconSource()}
           style={[iconStyle, dynamicIconStyle]}
         />
       </View>

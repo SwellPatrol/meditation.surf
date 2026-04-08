@@ -7,27 +7,27 @@
  */
 
 import Blits from "@lightningjs/blits";
-import {
-  type CenteredIconOverlayModel,
-  DemoExperienceFactory,
-  type MediaItem,
-  type MeditationExperience,
-} from "@meditation-surf/core";
 
 import Icon from "../../components/common/Icon";
 import {
   LIGHTNING_APP_HEIGHT,
   LIGHTNING_APP_WIDTH,
-  subscribeToStageLayout,
-} from "../layout/stage";
-import lightningPlaybackAdapter from "../playback/LightningPlaybackAdapter";
+} from "../layout/StageLayout";
+import { TvViewportSync } from "../layout/TvViewportSync";
+import { TvForegroundUiController } from "./TvForegroundUiController";
 
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
-const experience: MeditationExperience = DemoExperienceFactory.create();
+
+export type LightningAppOptions = {
+  foregroundUiController: TvForegroundUiController;
+  viewportSync: TvViewportSync;
+  onReady: () => void;
+  onDestroy: () => void;
+};
 
 type LightningAppState = {
-  overlayModel: CenteredIconOverlayModel;
+  foregroundUiController: TvForegroundUiController;
   stageW: number;
   stageH: number;
   viewportW: number;
@@ -41,121 +41,97 @@ type LightningAppMethods = {
 };
 
 /**
- * @brief Start the scene background video chosen by the shared experience
+ * @brief Build the Lightning root component used by the TV app
  *
- * Lightning still owns TV-specific presentation and playback timing.
+ * Rendering remains local to the Lightning app, while startup and shared model
+ * adaptation are injected from the TV app layer.
  *
- * @param appExperience - Shared meditation experience consumed by the TV app
+ * @param options - Runtime-specific collaborators owned by the TV app
+ *
+ * @returns Lightning application factory
  */
-async function playExperienceBackground(
-  appExperience: MeditationExperience,
-): Promise<void> {
-  const featuredItem: MediaItem | null = appExperience.getFeaturedItem();
-  const backgroundSource: ReturnType<MediaItem["getPlaybackSource"]> =
-    featuredItem?.getPlaybackSource() ??
-    appExperience.backgroundVideo.getPlaybackSource();
+export function createLightningApp(
+  options: LightningAppOptions,
+): LightningAppFactory {
+  return Blits.Application<
+    Record<string, never>,
+    LightningAppState,
+    LightningAppMethods,
+    Record<string, never>,
+    Record<string, never>
+  >({
+    // Keep the stage dimensions fixed for the TV-only experience.
+    state(): LightningAppState {
+      return {
+        foregroundUiController: options.foregroundUiController,
+        stageW: LIGHTNING_APP_WIDTH,
+        stageH: LIGHTNING_APP_HEIGHT,
+        viewportW: 0,
+        viewportH: 0,
+        stopViewportSync: null,
+      };
+    },
 
-  await lightningPlaybackAdapter.load(backgroundSource);
-  await lightningPlaybackAdapter.play();
+    methods: {
+      /**
+       * @brief Subscribe to viewport updates emitted by the TV bootstrap layout helper
+       */
+      initializeViewportSync(): void {
+        this.stopViewportSync = options.viewportSync.subscribe(
+          (viewportSize: { width: number; height: number }): void => {
+            this.viewportW = viewportSize.width;
+            this.viewportH = viewportSize.height;
+          },
+        );
+      },
+
+      /**
+       * @brief Release the viewport subscription when the Lightning root is destroyed
+       */
+      tearDownViewportSync(): void {
+        if (this.stopViewportSync !== null) {
+          this.stopViewportSync();
+          this.stopViewportSync = null;
+        }
+      },
+    },
+
+    // Register child components available in the template
+    components: {
+      Icon,
+    },
+
+    // No computed properties for the stage itself
+
+    hooks: {
+      /**
+       * @brief The application is fully rendered and ready
+       *
+       * UI lifecycle stays separate from media playback internals.
+       */
+      ready(): void {
+        this.initializeViewportSync();
+        options.onReady();
+      },
+
+      /**
+       * @brief Remove app-level listeners when Lightning tears down the root view
+       */
+      destroy(): void {
+        this.tearDownViewportSync();
+        options.onDestroy();
+      },
+    },
+
+    // Render the icon component centered on a black canvas
+    template: `<Element :w="$stageW" :h="$stageH">
+      <Icon
+        :foregroundUiController="$foregroundUiController"
+        :stageW="$stageW"
+        :stageH="$stageH"
+        :viewportW="$viewportW"
+        :viewportH="$viewportH"
+      />
+    </Element>`,
+  });
 }
-
-/**
- * @brief Return the shared centered icon overlay required by the TV scene
- *
- * @returns Shared centered icon overlay model
- */
-function getCenteredIconOverlayModel(): CenteredIconOverlayModel {
-  const centeredIconOverlay: CenteredIconOverlayModel | null =
-    experience.foregroundUi.getCenteredIconOverlay();
-
-  if (centeredIconOverlay === null) {
-    throw new Error("Expected the demo experience to expose a centered icon.");
-  }
-
-  return centeredIconOverlay;
-}
-
-// Minimal LightningJS app displaying a full-screen video behind a UI
-const LightningApp: LightningAppFactory = Blits.Application<
-  Record<string, never>,
-  LightningAppState,
-  LightningAppMethods,
-  Record<string, never>,
-  Record<string, never>
->({
-  // Keep the stage dimensions fixed for the TV-only experience.
-  state(): LightningAppState {
-    return {
-      overlayModel: getCenteredIconOverlayModel(),
-      stageW: LIGHTNING_APP_WIDTH,
-      stageH: LIGHTNING_APP_HEIGHT,
-      viewportW: 0,
-      viewportH: 0,
-      stopViewportSync: null,
-    };
-  },
-
-  methods: {
-    /**
-     * @brief Subscribe to viewport updates emitted by the TV bootstrap layout helper
-     */
-    initializeViewportSync(): void {
-      this.stopViewportSync = subscribeToStageLayout(
-        (viewportSize: { width: number; height: number }): void => {
-          this.viewportW = viewportSize.width;
-          this.viewportH = viewportSize.height;
-        },
-      );
-    },
-
-    /**
-     * @brief Release the viewport subscription when the Lightning root is destroyed
-     */
-    tearDownViewportSync(): void {
-      if (this.stopViewportSync !== null) {
-        this.stopViewportSync();
-        this.stopViewportSync = null;
-      }
-    },
-  },
-
-  // Register child components available in the template
-  components: {
-    Icon,
-  },
-
-  // No computed properties for the stage itself
-
-  hooks: {
-    /**
-     * @brief The application is fully rendered and ready
-     *
-     * UI lifecycle stays separate from media playback internals.
-     */
-    ready(): void {
-      this.initializeViewportSync();
-      lightningPlaybackAdapter.initialize();
-      void playExperienceBackground(experience);
-    },
-
-    /**
-     * @brief Remove app-level listeners when Lightning tears down the root view
-     */
-    destroy(): void {
-      this.tearDownViewportSync();
-    },
-  },
-
-  // Render the icon component centered on a black canvas
-  template: `<Element :w="$stageW" :h="$stageH">
-    <Icon
-      :overlayModel="$overlayModel"
-      :stageW="$stageW"
-      :stageH="$stageH"
-      :viewportW="$viewportW"
-      :viewportH="$viewportH"
-    />
-  </Element>`,
-});
-
-export default LightningApp;
