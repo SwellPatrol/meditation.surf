@@ -136,6 +136,11 @@ export function useExpoAppRuntime(
     );
   }, [experienceAdapter]);
 
+  // Bind Expo web directional keyboard input to the shared browse controller
+  useEffect((): (() => void) => {
+    return experienceAdapter.browseInputAdapter.attachDirectionalKeyboardInput();
+  }, [experienceAdapter]);
+
   // Bind the experience adapter's visual readiness state to the loading opacity
   useEffect((): (() => void) => {
     return experienceAdapter.playbackVisualReadinessController.subscribe(

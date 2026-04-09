@@ -6,7 +6,9 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { BrowseFocusCommand } from "@meditation-surf/core";
 import { BrowseInteractionController } from "@meditation-surf/core";
+import { Platform } from "react-native";
 
 /**
  * @brief Pressable handlers used by Expo browse items
@@ -18,10 +20,26 @@ export interface ExpoBrowseItemInputHandlers {
 }
 
 /**
+ * @brief Focus-capable root props used by the Expo app shell on web
+ */
+export interface ExpoBrowseRootInputProps {
+  readonly focusable?: boolean;
+  readonly tabIndex?: -1 | 0;
+}
+
+/**
+ * @brief Small focus handle implemented by the Expo root view on web
+ */
+export interface ExpoFocusableElement {
+  focus?: () => void;
+}
+
+/**
  * @brief Translate Expo press and hover input into shared browse commands
  */
 export class ExpoBrowseInputAdapter {
   private readonly browseInteractionController: BrowseInteractionController;
+  private readonly handleWindowKeyDown: (event: KeyboardEvent) => void;
 
   /**
    * @brief Create the Expo browse input adapter
@@ -30,6 +48,26 @@ export class ExpoBrowseInputAdapter {
    */
   public constructor(browseInteractionController: BrowseInteractionController) {
     this.browseInteractionController = browseInteractionController;
+    this.handleWindowKeyDown = (event: KeyboardEvent): void => {
+      this.handleDirectionalKeyboardInput(event);
+    };
+  }
+
+  /**
+   * @brief Attach directional keyboard input when the Expo app runs on web
+   *
+   * @returns Cleanup callback that removes the registered listener
+   */
+  public attachDirectionalKeyboardInput(): () => void {
+    if (!this.supportsWebKeyboardInput()) {
+      return (): void => {};
+    }
+
+    window.addEventListener("keydown", this.handleWindowKeyDown);
+
+    return (): void => {
+      window.removeEventListener("keydown", this.handleWindowKeyDown);
+    };
   }
 
   /**
@@ -60,5 +98,86 @@ export class ExpoBrowseInputAdapter {
         focusItemFromPointer();
       },
     };
+  }
+
+  /**
+   * @brief Return the minimal root props needed for Expo web keyboard capture
+   *
+   * @returns Focus props for the root Expo view on web
+   */
+  public getRootInputProps(): ExpoBrowseRootInputProps {
+    if (!this.supportsWebKeyboardInput()) {
+      return {};
+    }
+
+    return {
+      focusable: true,
+      tabIndex: 0,
+    };
+  }
+
+  /**
+   * @brief Focus the Expo root surface so web development accepts arrow keys
+   *
+   * @param focusableElement - Root element exposed by the screen component
+   */
+  public focusKeyboardRoot(
+    focusableElement: ExpoFocusableElement | null,
+  ): void {
+    if (!this.supportsWebKeyboardInput()) {
+      return;
+    }
+
+    focusableElement?.focus?.();
+  }
+
+  /**
+   * @brief Map arrow-key presses onto shared directional browse commands
+   *
+   * @param event - Browser keyboard event sourced from the active window
+   */
+  private handleDirectionalKeyboardInput(event: KeyboardEvent): void {
+    const focusCommand: BrowseFocusCommand | null =
+      this.getBrowseFocusCommandFromKeyboardEvent(event);
+
+    if (focusCommand === null) {
+      return;
+    }
+
+    event.preventDefault();
+    this.browseInteractionController.dispatchBrowseFocusCommand(focusCommand);
+  }
+
+  /**
+   * @brief Convert a keyboard event into a shared directional browse command
+   *
+   * @param event - Browser keyboard event to inspect
+   *
+   * @returns Shared browse command or `null` when the key is unrelated
+   */
+  private getBrowseFocusCommandFromKeyboardEvent(
+    event: KeyboardEvent,
+  ): BrowseFocusCommand | null {
+    switch (event.key) {
+      case "ArrowLeft":
+        return "moveLeft";
+      case "ArrowRight":
+        return "moveRight";
+      case "ArrowUp":
+        return "moveUp";
+      case "ArrowDown":
+        return "moveDown";
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * @brief Return whether the current Expo runtime can listen for web keys
+   *
+   * @returns `true` when the runtime exposes browser keyboard events
+   */
+  private supportsWebKeyboardInput(): boolean {
+    return Platform.OS === "web" && typeof window !== "undefined";
   }
 }

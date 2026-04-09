@@ -7,14 +7,13 @@
  */
 
 import { VideoView } from "expo-video";
-import type { JSX } from "react";
+import { type JSX, useEffect, useRef } from "react";
 import { Animated, View } from "react-native";
 
 import type { ExpoApp } from "../bootstrap/ExpoApp";
-import {
-  type ExpoAppRuntime,
-  useExpoAppRuntime,
-} from "../bootstrap/UseExpoAppRuntime";
+import type { ExpoAppRuntime } from "../bootstrap/UseExpoAppRuntime";
+import { useExpoAppRuntime } from "../bootstrap/UseExpoAppRuntime";
+import type { ExpoFocusableElement } from "../input/ExpoBrowseInputAdapter";
 import { ExpoBrowseOverlay } from "./ExpoBrowseOverlay";
 
 /**
@@ -36,10 +35,22 @@ export interface ExpoAppScreenProps {
  */
 export function ExpoAppScreen(props: ExpoAppScreenProps): JSX.Element {
   const runtime: ExpoAppRuntime = useExpoAppRuntime({ app: props.app });
+  const rootViewRef = useRef<View | null>(null);
+  const rootInputProps =
+    runtime.experienceAdapter.browseInputAdapter.getRootInputProps();
+
+  useEffect((): void => {
+    runtime.experienceAdapter.browseInputAdapter.focusKeyboardRoot(
+      rootViewRef.current as ExpoFocusableElement | null,
+    );
+  }, [runtime.experienceAdapter]);
 
   return (
     <View
+      ref={rootViewRef}
+      focusable={rootInputProps.focusable}
       style={runtime.experienceAdapter.appLayoutController.getContainerStyle()}
+      tabIndex={rootInputProps.tabIndex}
     >
       <VideoView
         contentFit={runtime.videoViewProps.contentFit}
