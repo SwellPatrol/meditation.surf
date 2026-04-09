@@ -48,10 +48,7 @@ export class DemoExperienceFactory {
     const playbackVisualReadinessController: PlaybackVisualReadinessController =
       new PlaybackVisualReadinessController();
     const playbackSequenceController: PlaybackSequenceController =
-      new PlaybackSequenceController(
-        catalog,
-        playbackVisualReadinessController,
-      );
+      new PlaybackSequenceController(catalog);
 
     return new MeditationExperience(
       appLayout,

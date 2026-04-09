@@ -6,11 +6,6 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type {
-  PlaybackVisualReadinessController,
-  PlaybackVisualReadinessState,
-} from "@meditation-surf/player-core";
-
 import type { Catalog } from "../catalog/Catalog";
 import type { CatalogSection } from "../catalog/CatalogSection";
 import type { MediaItem } from "../catalog/MediaItem";
@@ -28,56 +23,26 @@ export type PlaybackSequenceState = {
 export type PlaybackSequenceListener = (state: PlaybackSequenceState) => void;
 
 /**
- * @brief Coordinate the current demo item and one-time autoplay advancement
+ * @brief Coordinate the current demo item exposed to playback consumers
  *
- * The demo experience still starts from the catalog's featured item, but this
- * controller adds a tiny layer of runtime semantics: once the initial item's
- * first frame is visually ready, wait five seconds and advance to the next
- * featured demo item exactly once.
+ * The demo experience currently pins playback to the catalog's featured item.
+ * Apps subscribe here so every platform reads the same active-item snapshot.
  */
 export class PlaybackSequenceController {
-  private static readonly INITIAL_ADVANCE_DELAY_MS: number = 5000;
-
-  private readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
-  private readonly sequenceItems: MediaItem[];
-  private readonly initialItem: MediaItem | null;
+  private readonly activeItem: MediaItem | null;
   private readonly stateListeners: Set<PlaybackSequenceListener>;
-  private readonly removePlaybackVisualReadinessSubscription: () => void;
-  private readonly advanceDelayMs: number;
-  private activeItem: MediaItem | null;
-  private advanceTimerId: ReturnType<typeof globalThis.setTimeout> | null;
-  private hasScheduledInitialAdvance: boolean;
-  private hasAdvancedFromInitialItem: boolean;
 
   /**
-   * @brief Create the playback sequence controller for the featured demo items
+   * @brief Create the playback sequence controller for the featured demo item
    *
-   * @param catalog - Shared catalog whose featured section defines demo order
-   * @param playbackVisualReadinessController - Shared first-frame readiness controller
-   * @param advanceDelayMs - Delay before advancing after the initial visual-ready event
+   * @param catalog - Shared catalog whose featured section defines the active item
    */
-  public constructor(
-    catalog: Catalog,
-    playbackVisualReadinessController: PlaybackVisualReadinessController,
-    advanceDelayMs: number = PlaybackSequenceController.INITIAL_ADVANCE_DELAY_MS,
-  ) {
+  public constructor(catalog: Catalog) {
     const featuredSection: CatalogSection | null = catalog.getFeaturedSection();
+    const featuredItems: MediaItem[] = featuredSection?.getItems() ?? [];
 
-    this.playbackVisualReadinessController = playbackVisualReadinessController;
-    this.sequenceItems = featuredSection?.getItems() ?? [];
-    this.initialItem = this.sequenceItems[0] ?? null;
+    this.activeItem = featuredItems[0] ?? null;
     this.stateListeners = new Set<PlaybackSequenceListener>();
-    this.advanceDelayMs = advanceDelayMs;
-    this.activeItem = this.initialItem;
-    this.advanceTimerId = null;
-    this.hasScheduledInitialAdvance = false;
-    this.hasAdvancedFromInitialItem = false;
-    this.removePlaybackVisualReadinessSubscription =
-      this.playbackVisualReadinessController.subscribe(
-        (playbackVisualReadinessState: PlaybackVisualReadinessState): void => {
-          this.handlePlaybackVisualReadinessState(playbackVisualReadinessState);
-        },
-      );
   }
 
   /**
@@ -126,87 +91,10 @@ export class PlaybackSequenceController {
   }
 
   /**
-   * @brief Release sequence timers and subscriptions
+   * @brief Release sequence subscriptions
    */
   public destroy(): void {
-    if (this.advanceTimerId !== null) {
-      globalThis.clearTimeout(this.advanceTimerId);
-      this.advanceTimerId = null;
-    }
-
-    this.removePlaybackVisualReadinessSubscription();
     this.stateListeners.clear();
-  }
-
-  /**
-   * @brief Schedule the one-time autoplay handoff after the initial frame is visible
-   *
-   * @param playbackVisualReadinessState - Shared playback readiness snapshot
-   */
-  private handlePlaybackVisualReadinessState(
-    playbackVisualReadinessState: PlaybackVisualReadinessState,
-  ): void {
-    const nextItem: MediaItem | null = this.getNextItem(this.activeItem);
-
-    if (playbackVisualReadinessState.readiness !== "visualReady") {
-      return;
-    }
-
-    if (this.activeItem !== this.initialItem) {
-      return;
-    }
-
-    if (nextItem === null) {
-      return;
-    }
-
-    if (this.hasScheduledInitialAdvance || this.hasAdvancedFromInitialItem) {
-      return;
-    }
-
-    this.hasScheduledInitialAdvance = true;
-    this.advanceTimerId = globalThis.setTimeout((): void => {
-      this.advanceTimerId = null;
-      this.hasAdvancedFromInitialItem = true;
-      this.advanceToNextItem();
-    }, this.advanceDelayMs);
-  }
-
-  /**
-   * @brief Advance the current active item to the next sequence item
-   */
-  private advanceToNextItem(): void {
-    const nextItem: MediaItem | null = this.getNextItem(this.activeItem);
-
-    if (nextItem === null) {
-      return;
-    }
-
-    this.activeItem = nextItem;
-    this.notifyStateListeners();
-  }
-
-  /**
-   * @brief Resolve the next featured demo item after the provided item
-   *
-   * @param currentItem - Current active item in the sequence
-   *
-   * @returns Next item when one exists, otherwise `null`
-   */
-  private getNextItem(currentItem: MediaItem | null): MediaItem | null {
-    if (currentItem === null) {
-      return this.sequenceItems[0] ?? null;
-    }
-
-    const currentItemIndex: number = this.sequenceItems.findIndex(
-      (sequenceItem: MediaItem): boolean => sequenceItem.id === currentItem.id,
-    );
-
-    if (currentItemIndex < 0) {
-      return null;
-    }
-
-    return this.sequenceItems[currentItemIndex + 1] ?? null;
   }
 
   /**
