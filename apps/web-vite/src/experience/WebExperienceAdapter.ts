@@ -12,6 +12,7 @@ import {
   BrowseInteractionController,
   type BrowseSelectionController,
   type MediaCapabilityProfile,
+  type MediaExecutionController,
   type MediaKernelController,
   type MeditationExperience,
   type OverlayController,
@@ -20,6 +21,7 @@ import {
 import type { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
 import { WebAppLayoutController } from "../layout/WebAppLayoutController";
+import { WebMediaRuntimeAdapter } from "../media/WebMediaRuntimeAdapter";
 import { WebBackgroundVideoController } from "../playback/WebBackgroundVideoController";
 
 /**
@@ -48,6 +50,7 @@ export class WebExperienceAdapter {
   public readonly browseInteractionController: BrowseInteractionController;
   public readonly browseSelectionController: BrowseSelectionController;
   public readonly mediaKernelController: MediaKernelController;
+  public readonly mediaExecutionController: MediaExecutionController;
   public readonly overlayController: OverlayController;
   public readonly playbackSequenceController: PlaybackSequenceController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
@@ -59,9 +62,16 @@ export class WebExperienceAdapter {
    */
   public constructor(experience: MeditationExperience) {
     this.mediaKernelController = experience.getMediaKernelController();
+    this.mediaExecutionController = experience.getMediaExecutionController();
     this.mediaKernelController.reportAppCapabilities(
       "web-vite",
       WebExperienceAdapter.MEDIA_CAPABILITY_PROFILE,
+    );
+    this.mediaExecutionController.setRuntimeAdapter(
+      new WebMediaRuntimeAdapter(
+        experience.catalog,
+        experience.getPlaybackSequenceController(),
+      ),
     );
     this.appLayoutController = new WebAppLayoutController(experience.appLayout);
     this.backgroundVideoController = new WebBackgroundVideoController(

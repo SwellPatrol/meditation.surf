@@ -7,6 +7,8 @@
  */
 
 import type {
+  FocusDelayController,
+  MediaExecutionController,
   MediaKernelController,
   MediaKernelExperienceBridge,
 } from "@meditation-surf/media";
@@ -37,6 +39,8 @@ export class MeditationExperience {
   public readonly overlayController: OverlayController;
   public readonly overlayRevealHandoffController: OverlayRevealHandoffController;
   public readonly browseSelectionController: BrowseSelectionController;
+  public readonly focusDelayController: FocusDelayController;
+  public readonly mediaExecutionController: MediaExecutionController;
   public readonly mediaKernelExperienceBridge: MediaKernelExperienceBridge<MediaItem>;
   public readonly mediaKernelController: MediaKernelController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
@@ -49,6 +53,8 @@ export class MeditationExperience {
    * @param browseFocusController - Shared browse focus controller
    * @param browseSelectionController - Shared browse selection controller
    * @param catalog - Shared content catalog model
+   * @param focusDelayController - Shared timed-focus controller used by the media bridge
+   * @param mediaExecutionController - Shared runtime execution controller
    * @param mediaKernelExperienceBridge - Shared bridge that reflects browse/playback state into the media kernel
    * @param mediaKernelController - Shared runtime-agnostic media orchestration controller
    * @param overlayController - Shared overlay interaction state controller
@@ -61,6 +67,8 @@ export class MeditationExperience {
     browseFocusController: BrowseFocusController,
     browseSelectionController: BrowseSelectionController,
     catalog: Catalog,
+    focusDelayController: FocusDelayController,
+    mediaExecutionController: MediaExecutionController,
     mediaKernelExperienceBridge: MediaKernelExperienceBridge<MediaItem>,
     mediaKernelController: MediaKernelController,
     overlayController: OverlayController,
@@ -72,6 +80,8 @@ export class MeditationExperience {
     this.browseFocusController = browseFocusController;
     this.browseSelectionController = browseSelectionController;
     this.catalog = catalog;
+    this.focusDelayController = focusDelayController;
+    this.mediaExecutionController = mediaExecutionController;
     this.mediaKernelExperienceBridge = mediaKernelExperienceBridge;
     this.mediaKernelController = mediaKernelController;
     this.overlayController = overlayController;
@@ -132,6 +142,24 @@ export class MeditationExperience {
    */
   public getMediaKernelController(): MediaKernelController {
     return this.mediaKernelController;
+  }
+
+  /**
+   * @brief Return the shared media execution controller
+   *
+   * @returns Shared execution controller that reconciles plans against runtime adapters
+   */
+  public getMediaExecutionController(): MediaExecutionController {
+    return this.mediaExecutionController;
+  }
+
+  /**
+   * @brief Return the shared timed-focus controller
+   *
+   * @returns Shared timed-focus controller used to escalate warm intent
+   */
+  public getFocusDelayController(): FocusDelayController {
+    return this.focusDelayController;
   }
 
   /**

@@ -7,6 +7,7 @@
  */
 
 import {
+  MediaExecutionController,
   MediaKernelController,
   MediaKernelExperienceBridge,
   type MediaKernelItem,
@@ -19,10 +20,7 @@ import {
   type BrowseRowContent,
 } from "../browse/BrowseContentAdapter";
 import { BrowseFocusController } from "../browse/BrowseFocusController";
-import {
-  BrowseSelectionController,
-  type BrowseSelectionState,
-} from "../browse/BrowseSelectionController";
+import { BrowseSelectionController } from "../browse/BrowseSelectionController";
 import { Catalog } from "../catalog/Catalog";
 import { FixtureCatalog } from "../catalog/FixtureCatalog";
 import type { MediaItem } from "../catalog/MediaItem";
@@ -99,31 +97,16 @@ export class DemoExperienceFactory {
         mediaKernelController,
         playbackSequenceController,
       );
+    const mediaExecutionController: MediaExecutionController =
+      new MediaExecutionController(mediaKernelController);
 
-    browseSelectionController.subscribe(
-      (browseSelectionState: BrowseSelectionState): void => {
-        if (!browseSelectionState.hasSelectedItem) {
-          return;
-        }
-
-        const selectedItem: MediaItem | null =
-          browseContentAdapter.getMediaItemAt(
-            browseSelectionState.selectedRowIndex,
-            browseSelectionState.selectedItemIndex,
-          );
-
-        if (selectedItem === null) {
-          return;
-        }
-
-        playbackSequenceController.setActiveItem(selectedItem);
-      },
-    );
     return new MeditationExperience(
       appLayout,
       browseFocusController,
       browseSelectionController,
       catalog,
+      mediaKernelExperienceBridge.getFocusDelayController(),
+      mediaExecutionController,
       mediaKernelExperienceBridge,
       mediaKernelController,
       overlayController,

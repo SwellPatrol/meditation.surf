@@ -169,7 +169,7 @@ export class MediaSessionPlanner {
       desiredPlaybackLane: this.selectPreviewPlaybackLane(appCapabilityProfile),
       desiredRendererKind: this.selectRendererKind(appCapabilityProfile),
       desiredWarmth: previewWarmth,
-      priority: intentType === "focused-delay-elapsed" ? "high" : "normal",
+      priority: "high",
       visibility: "hidden",
       reason,
     };

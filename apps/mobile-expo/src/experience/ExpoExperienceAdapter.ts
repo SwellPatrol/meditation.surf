@@ -12,6 +12,7 @@ import {
   BrowseInteractionController,
   type BrowseSelectionController,
   type MediaCapabilityProfile,
+  type MediaExecutionController,
   type MediaKernelController,
   type MeditationExperience,
   type OverlayController,
@@ -21,6 +22,7 @@ import type { PlaybackVisualReadinessController } from "@meditation-surf/player-
 
 import { ExpoBrowseInputAdapter } from "../input/ExpoBrowseInputAdapter";
 import { ExpoAppLayoutController } from "../layout/ExpoAppLayoutController";
+import { ExpoMediaRuntimeAdapter } from "../media/ExpoMediaRuntimeAdapter";
 import { ExpoBackgroundVideoController } from "../playback/ExpoBackgroundVideoController";
 
 /**
@@ -50,6 +52,7 @@ export class ExpoExperienceAdapter {
   public readonly browseInteractionController: BrowseInteractionController;
   public readonly browseSelectionController: BrowseSelectionController;
   public readonly mediaKernelController: MediaKernelController;
+  public readonly mediaExecutionController: MediaExecutionController;
   public readonly overlayController: OverlayController;
   public readonly playbackSequenceController: PlaybackSequenceController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
@@ -61,9 +64,16 @@ export class ExpoExperienceAdapter {
    */
   public constructor(experience: MeditationExperience) {
     this.mediaKernelController = experience.getMediaKernelController();
+    this.mediaExecutionController = experience.getMediaExecutionController();
     this.mediaKernelController.reportAppCapabilities(
       "mobile-expo",
       ExpoExperienceAdapter.MEDIA_CAPABILITY_PROFILE,
+    );
+    this.mediaExecutionController.setRuntimeAdapter(
+      new ExpoMediaRuntimeAdapter(
+        experience.catalog,
+        experience.getPlaybackSequenceController(),
+      ),
     );
     this.appLayoutController = new ExpoAppLayoutController(
       experience.appLayout,

@@ -6,6 +6,10 @@
  * See the file LICENSE.txt for more information.
  */
 
+import {
+  FocusDelayController,
+  type FocusDelayState,
+} from "../intent/FocusDelayController";
 import type { MediaIntent } from "../intent/MediaIntent";
 import type { MediaKernelController } from "../kernel/MediaKernelController";
 import type { MediaKernelItem } from "../kernel/MediaKernelItem";
@@ -86,12 +90,14 @@ export class MediaKernelExperienceBridge<
   private readonly browseContentAdapter: MediaBrowseContentResolver<TMediaItem>;
   private readonly browseFocusController: MediaBrowseFocusController;
   private readonly browseSelectionController: MediaBrowseSelectionController;
+  private readonly focusDelayController: FocusDelayController;
   private readonly mediaKernelController: MediaKernelController;
   private readonly playbackSequenceController: MediaPlaybackSequenceController<TMediaItem>;
   private readonly unsubscribeCallbacks: Array<() => void>;
 
   private browseFocusState: MediaBrowseFocusState;
   private browseSelectionState: MediaBrowseSelectionState;
+  private focusDelayState: FocusDelayState;
   private playbackSequenceState: MediaPlaybackSequenceState<TMediaItem>;
 
   /**
@@ -113,18 +119,20 @@ export class MediaKernelExperienceBridge<
     this.browseContentAdapter = browseContentAdapter;
     this.browseFocusController = browseFocusController;
     this.browseSelectionController = browseSelectionController;
+    this.focusDelayController = new FocusDelayController();
     this.mediaKernelController = mediaKernelController;
     this.playbackSequenceController = playbackSequenceController;
     this.unsubscribeCallbacks = [];
     this.browseFocusState = this.browseFocusController.getState();
     this.browseSelectionState = this.browseSelectionController.getState();
+    this.focusDelayState = this.focusDelayController.getState();
     this.playbackSequenceState = this.playbackSequenceController.getState();
 
     this.unsubscribeCallbacks.push(
       this.browseFocusController.subscribe(
         (browseFocusState: MediaBrowseFocusState): void => {
           this.browseFocusState = browseFocusState;
-          this.syncMediaKernelPlanningContext();
+          this.syncFocusedItemDelayState();
         },
       ),
     );
@@ -142,10 +150,19 @@ export class MediaKernelExperienceBridge<
           playbackSequenceState: MediaPlaybackSequenceState<TMediaItem>,
         ): void => {
           this.playbackSequenceState = playbackSequenceState;
+          this.syncFocusedItemDelayState();
+        },
+      ),
+    );
+    this.unsubscribeCallbacks.push(
+      this.focusDelayController.subscribe(
+        (focusDelayState: FocusDelayState): void => {
+          this.focusDelayState = focusDelayState;
           this.syncMediaKernelPlanningContext();
         },
       ),
     );
+    this.syncFocusedItemDelayState();
   }
 
   /**
@@ -157,6 +174,16 @@ export class MediaKernelExperienceBridge<
     }
 
     this.unsubscribeCallbacks.length = 0;
+    this.focusDelayController.destroy();
+  }
+
+  /**
+   * @brief Return the timed-focus controller owned by the bridge
+   *
+   * @returns Timed-focus controller used to escalate focus intent
+   */
+  public getFocusDelayController(): FocusDelayController {
+    return this.focusDelayController;
   }
 
   /**
@@ -178,6 +205,16 @@ export class MediaKernelExperienceBridge<
       selectedItem,
       activeItem,
     );
+  }
+
+  /**
+   * @brief Sync the currently focused item identifier into the timed-focus controller
+   */
+  private syncFocusedItemDelayState(): void {
+    const focusedItemId: string | null = this.resolveFocusedItem()?.id ?? null;
+
+    this.focusDelayController.setFocusedItemId(focusedItemId);
+    this.syncMediaKernelPlanningContext();
   }
 
   /**
@@ -227,17 +264,23 @@ export class MediaKernelExperienceBridge<
     selectedItem: TMediaItem | null,
     activeItem: TMediaItem | null,
   ): MediaIntent {
+    if (
+      focusedItem !== null &&
+      focusedItem.id !== selectedItem?.id &&
+      focusedItem.id !== activeItem?.id
+    ) {
+      return {
+        targetItemId: focusedItem.id,
+        type: this.focusDelayState.hasDelayElapsed
+          ? "focused-delay-elapsed"
+          : "focused",
+      };
+    }
+
     if (selectedItem !== null) {
       return {
         targetItemId: selectedItem.id,
         type: "selected",
-      };
-    }
-
-    if (focusedItem !== null) {
-      return {
-        targetItemId: focusedItem.id,
-        type: "focused",
       };
     }
 

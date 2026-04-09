@@ -18,6 +18,23 @@ export {
   type MediaPlaybackSequenceController,
   type MediaPlaybackSequenceState,
 } from "./bridges/MediaKernelExperienceBridge";
+export {
+  MediaExecutionController,
+  type MediaExecutionStateListener,
+} from "./execution/MediaExecutionController";
+export type { MediaExecutionCommand } from "./execution/MediaExecutionCommand";
+export type { MediaExecutionCommandType } from "./execution/MediaExecutionCommandType";
+export type { MediaExecutionResult } from "./execution/MediaExecutionResult";
+export type { MediaExecutionSnapshot } from "./execution/MediaExecutionSnapshot";
+export type { MediaExecutionState } from "./execution/MediaExecutionState";
+export type { MediaRuntimeAdapter } from "./execution/MediaRuntimeAdapter";
+export type { MediaRuntimeCapabilities } from "./execution/MediaRuntimeCapabilities";
+export type { MediaRuntimeSessionHandle } from "./execution/MediaRuntimeSessionHandle";
+export {
+  FocusDelayController,
+  type FocusDelayState,
+  type FocusDelayStateListener,
+} from "./intent/FocusDelayController";
 export type { MediaIntent } from "./intent/MediaIntent";
 export type { MediaIntentType } from "./intent/MediaIntentType";
 export {
