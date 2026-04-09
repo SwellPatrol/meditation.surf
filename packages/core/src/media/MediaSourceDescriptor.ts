@@ -12,6 +12,7 @@ import type { MediaSourceKind } from "./MediaSourceKind";
  * @brief Shared source metadata that logical media sessions can reference
  */
 export type MediaSourceDescriptor = {
+  sourceId: string;
   kind: MediaSourceKind;
   url: string;
   mimeType: string | null;

@@ -6,11 +6,16 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { MediaItem } from "../catalog/MediaItem";
 import type { AppMediaCapabilities } from "./AppMediaCapabilities";
 import type { MediaCapabilityProfile } from "./MediaCapabilityProfile";
 import type { MediaIntent } from "./MediaIntent";
 import type { MediaKernelState } from "./MediaKernelState";
+import type { MediaPlan } from "./MediaPlan";
+import type { MediaPlanReason } from "./MediaPlanReason";
+import type { MediaPlanSession } from "./MediaPlanSession";
 import type { MediaSessionDescriptor } from "./MediaSessionDescriptor";
+import { MediaSessionPlanner } from "./MediaSessionPlanner";
 import type { MediaSessionSnapshot } from "./MediaSessionSnapshot";
 import type { MediaSessionState } from "./MediaSessionState";
 import type { MediaSourceDescriptor } from "./MediaSourceDescriptor";
@@ -31,25 +36,34 @@ type MediaSessionDescriptorUpdate = Partial<
 /**
  * @brief Own shared media orchestration state without performing playback work
  *
- * The controller tracks logical sessions, app capability reports, and the
- * current media intent so future runtime-specific playback pipelines can share
- * one source of truth without centralizing rendering behavior here.
+ * The controller tracks logical sessions, app capability reports, high-level
+ * intent, focused and active items, and the latest deterministic session plan.
  */
 export class MediaKernelController {
   private readonly appCapabilitiesById: Map<string, AppMediaCapabilities>;
   private readonly sessionSnapshotsById: Map<string, MediaSessionSnapshot>;
   private readonly stateListeners: Set<MediaKernelStateListener>;
 
+  private activeItem: MediaItem | null;
   private currentIntent: MediaIntent | null;
+  private currentPlan: MediaPlan;
+  private focusedItem: MediaItem | null;
+  private selectedItem: MediaItem | null;
 
   /**
    * @brief Create a runtime-agnostic media kernel controller
    */
   public constructor() {
+    this.activeItem = null;
     this.appCapabilitiesById = new Map<string, AppMediaCapabilities>();
+    this.currentIntent = null;
+    this.currentPlan = {
+      sessions: [],
+    };
+    this.focusedItem = null;
+    this.selectedItem = null;
     this.sessionSnapshotsById = new Map<string, MediaSessionSnapshot>();
     this.stateListeners = new Set<MediaKernelStateListener>();
-    this.currentIntent = null;
   }
 
   /**
@@ -86,10 +100,59 @@ export class MediaKernelController {
       );
 
     return {
+      activeItemId: this.activeItem?.id ?? null,
       appCapabilities,
       currentIntent: this.cloneMediaIntent(this.currentIntent),
+      focusedItemId: this.focusedItem?.id ?? null,
+      plan: this.cloneMediaPlan(this.currentPlan),
+      selectedItemId: this.selectedItem?.id ?? null,
       sessions,
     };
+  }
+
+  /**
+   * @brief Return the latest high-level logical media intent
+   *
+   * @returns Latest logical media intent, or `null` when none is active
+   */
+  public getIntent(): MediaIntent | null {
+    return this.cloneMediaIntent(this.currentIntent);
+  }
+
+  /**
+   * @brief Return the latest deterministic media session plan
+   *
+   * @returns Latest session plan
+   */
+  public getPlan(): MediaPlan {
+    return this.cloneMediaPlan(this.currentPlan);
+  }
+
+  /**
+   * @brief Return the focused media item identifier reflected into the kernel
+   *
+   * @returns Focused media item identifier, or `null` when no item is focused
+   */
+  public getFocusedItemId(): string | null {
+    return this.focusedItem?.id ?? null;
+  }
+
+  /**
+   * @brief Return the selected media item identifier reflected into the kernel
+   *
+   * @returns Selected media item identifier, or `null` when no item is selected
+   */
+  public getSelectedItemId(): string | null {
+    return this.selectedItem?.id ?? null;
+  }
+
+  /**
+   * @brief Return the active playback media item identifier reflected into the kernel
+   *
+   * @returns Active media item identifier, or `null` when playback has no item
+   */
+  public getActiveItemId(): string | null {
+    return this.activeItem?.id ?? null;
   }
 
   /**
@@ -137,6 +200,7 @@ export class MediaKernelController {
     }
 
     this.sessionSnapshotsById.set(descriptor.sessionId, nextSessionSnapshot);
+    this.recomputePlan();
     this.notifyStateListeners();
   }
 
@@ -175,6 +239,7 @@ export class MediaKernelController {
     }
 
     this.sessionSnapshotsById.set(sessionId, nextSessionSnapshot);
+    this.recomputePlan();
     this.notifyStateListeners();
   }
 
@@ -188,6 +253,7 @@ export class MediaKernelController {
       return;
     }
 
+    this.recomputePlan();
     this.notifyStateListeners();
   }
 
@@ -202,6 +268,38 @@ export class MediaKernelController {
     }
 
     this.currentIntent = this.cloneMediaIntent(mediaIntent);
+    this.recomputePlan();
+    this.notifyStateListeners();
+  }
+
+  /**
+   * @brief Replace the current planning context in one atomic update
+   *
+   * @param mediaIntent - Latest shared logical media intent
+   * @param focusedItem - Focused browse item when one exists
+   * @param selectedItem - Selected browse item when one exists
+   * @param activeItem - Active playback item when one exists
+   */
+  public setPlanningContext(
+    mediaIntent: MediaIntent | null,
+    focusedItem: MediaItem | null,
+    selectedItem: MediaItem | null,
+    activeItem: MediaItem | null,
+  ): void {
+    if (
+      this.areMediaIntentsEqual(this.currentIntent, mediaIntent) &&
+      this.areMediaItemsEqual(this.focusedItem, focusedItem) &&
+      this.areMediaItemsEqual(this.selectedItem, selectedItem) &&
+      this.areMediaItemsEqual(this.activeItem, activeItem)
+    ) {
+      return;
+    }
+
+    this.currentIntent = this.cloneMediaIntent(mediaIntent);
+    this.focusedItem = focusedItem;
+    this.selectedItem = selectedItem;
+    this.activeItem = activeItem;
+    this.recomputePlan();
     this.notifyStateListeners();
   }
 
@@ -288,6 +386,7 @@ export class MediaKernelController {
     }
 
     this.appCapabilitiesById.set(appId, nextAppMediaCapabilities);
+    this.recomputePlan();
     this.notifyStateListeners();
   }
 
@@ -301,6 +400,7 @@ export class MediaKernelController {
       return;
     }
 
+    this.recomputePlan();
     this.notifyStateListeners();
   }
 
@@ -320,6 +420,77 @@ export class MediaKernelController {
     for (const stateListener of this.stateListeners) {
       stateListener(mediaKernelState);
     }
+  }
+
+  /**
+   * @brief Rebuild the shared plan from the latest immutable controller inputs
+   */
+  private recomputePlan(): void {
+    const nextPlan: MediaPlan = MediaSessionPlanner.createPlan({
+      appCapabilityProfile: this.createPlanningCapabilityProfile(),
+      currentMediaKernelState: this.getState(),
+      mediaIntent: this.currentIntent,
+      focusedItem: this.focusedItem,
+      selectedItem: this.selectedItem,
+      activeItem: this.activeItem,
+    });
+
+    if (this.areMediaPlansEqual(this.currentPlan, nextPlan)) {
+      return;
+    }
+
+    this.currentPlan = nextPlan;
+  }
+
+  /**
+   * @brief Build one conservative capability profile from current app reports
+   *
+   * @returns Conservative capability profile, or `null` when no app reported one
+   */
+  private createPlanningCapabilityProfile(): MediaCapabilityProfile | null {
+    const appCapabilities: AppMediaCapabilities[] = [
+      ...this.appCapabilitiesById.values(),
+    ];
+
+    if (appCapabilities.length === 0) {
+      return null;
+    }
+
+    return appCapabilities.reduce(
+      (
+        mergedProfile: MediaCapabilityProfile,
+        appMediaCapabilities: AppMediaCapabilities,
+      ): MediaCapabilityProfile => ({
+        supportsNativePlayback:
+          mergedProfile.supportsNativePlayback &&
+          appMediaCapabilities.profile.supportsNativePlayback,
+        supportsShakaPlayback:
+          mergedProfile.supportsShakaPlayback &&
+          appMediaCapabilities.profile.supportsShakaPlayback,
+        supportsPreviewVideo:
+          mergedProfile.supportsPreviewVideo &&
+          appMediaCapabilities.profile.supportsPreviewVideo,
+        supportsThumbnailExtraction:
+          mergedProfile.supportsThumbnailExtraction &&
+          appMediaCapabilities.profile.supportsThumbnailExtraction,
+        supportsWorkerOffload:
+          mergedProfile.supportsWorkerOffload &&
+          appMediaCapabilities.profile.supportsWorkerOffload,
+        supportsWebGPUPreferred:
+          mergedProfile.supportsWebGPUPreferred &&
+          appMediaCapabilities.profile.supportsWebGPUPreferred,
+        supportsWebGLFallback:
+          mergedProfile.supportsWebGLFallback &&
+          appMediaCapabilities.profile.supportsWebGLFallback,
+        supportsCustomPipeline:
+          mergedProfile.supportsCustomPipeline &&
+          appMediaCapabilities.profile.supportsCustomPipeline,
+        supportsPremiumPlayback:
+          mergedProfile.supportsPremiumPlayback &&
+          appMediaCapabilities.profile.supportsPremiumPlayback,
+      }),
+      this.cloneMediaCapabilityProfile(appCapabilities[0].profile),
+    );
   }
 
   /**
@@ -376,12 +547,65 @@ export class MediaKernelController {
     }
 
     return {
-      itemId: mediaIntent.itemId,
-      role: mediaIntent.role,
-      source: this.cloneMediaSourceDescriptor(mediaIntent.source),
-      preferredPlaybackLane: mediaIntent.preferredPlaybackLane,
-      preferredRendererKind: mediaIntent.preferredRendererKind,
-      targetWarmth: mediaIntent.targetWarmth,
+      targetItemId: mediaIntent.targetItemId,
+      type: mediaIntent.type,
+    };
+  }
+
+  /**
+   * @brief Clone the current deterministic plan for safe external consumption
+   *
+   * @param mediaPlan - Plan to clone
+   *
+   * @returns Cloned session plan
+   */
+  private cloneMediaPlan(mediaPlan: MediaPlan): MediaPlan {
+    return {
+      sessions: mediaPlan.sessions.map(
+        (mediaPlanSession: MediaPlanSession): MediaPlanSession =>
+          this.cloneMediaPlanSession(mediaPlanSession),
+      ),
+    };
+  }
+
+  /**
+   * @brief Clone one planned session entry
+   *
+   * @param mediaPlanSession - Planned session to clone
+   *
+   * @returns Cloned planned session
+   */
+  private cloneMediaPlanSession(
+    mediaPlanSession: MediaPlanSession,
+  ): MediaPlanSession {
+    return {
+      sessionId: mediaPlanSession.sessionId,
+      itemId: mediaPlanSession.itemId,
+      source: this.cloneMediaSourceDescriptor(mediaPlanSession.source),
+      role: mediaPlanSession.role,
+      desiredPlaybackLane: mediaPlanSession.desiredPlaybackLane,
+      desiredRendererKind: mediaPlanSession.desiredRendererKind,
+      desiredWarmth: mediaPlanSession.desiredWarmth,
+      priority: mediaPlanSession.priority,
+      visibility: mediaPlanSession.visibility,
+      reason: this.cloneMediaPlanReason(mediaPlanSession.reason),
+    };
+  }
+
+  /**
+   * @brief Clone one human-readable plan reason
+   *
+   * @param mediaPlanReason - Plan reason to clone
+   *
+   * @returns Cloned plan reason
+   */
+  private cloneMediaPlanReason(
+    mediaPlanReason: MediaPlanReason,
+  ): MediaPlanReason {
+    return {
+      intentType: mediaPlanReason.intentType,
+      kind: mediaPlanReason.kind,
+      message: mediaPlanReason.message,
     };
   }
 
@@ -475,6 +699,7 @@ export class MediaKernelController {
     }
 
     return {
+      sourceId: source.sourceId,
       kind: source.kind,
       url: source.url,
       mimeType: source.mimeType,
@@ -542,17 +767,105 @@ export class MediaKernelController {
     }
 
     return (
-      leftMediaIntent.itemId === rightMediaIntent.itemId &&
-      leftMediaIntent.role === rightMediaIntent.role &&
-      leftMediaIntent.preferredPlaybackLane ===
-        rightMediaIntent.preferredPlaybackLane &&
-      leftMediaIntent.preferredRendererKind ===
-        rightMediaIntent.preferredRendererKind &&
-      leftMediaIntent.targetWarmth === rightMediaIntent.targetWarmth &&
+      leftMediaIntent.targetItemId === rightMediaIntent.targetItemId &&
+      leftMediaIntent.type === rightMediaIntent.type
+    );
+  }
+
+  /**
+   * @brief Compare two media items for semantic planning equality
+   *
+   * @param leftMediaItem - First media item
+   * @param rightMediaItem - Second media item
+   *
+   * @returns `true` when both item references represent the same shared item
+   */
+  private areMediaItemsEqual(
+    leftMediaItem: MediaItem | null,
+    rightMediaItem: MediaItem | null,
+  ): boolean {
+    return leftMediaItem?.id === rightMediaItem?.id;
+  }
+
+  /**
+   * @brief Compare two media plans for semantic equality
+   *
+   * @param leftMediaPlan - First plan snapshot
+   * @param rightMediaPlan - Second plan snapshot
+   *
+   * @returns `true` when both plans describe the same planned sessions
+   */
+  private areMediaPlansEqual(
+    leftMediaPlan: MediaPlan,
+    rightMediaPlan: MediaPlan,
+  ): boolean {
+    if (leftMediaPlan.sessions.length !== rightMediaPlan.sessions.length) {
+      return false;
+    }
+
+    return leftMediaPlan.sessions.every(
+      (leftPlannedSession: MediaPlanSession, sessionIndex: number): boolean =>
+        this.areMediaPlanSessionsEqual(
+          leftPlannedSession,
+          rightMediaPlan.sessions[sessionIndex],
+        ),
+    );
+  }
+
+  /**
+   * @brief Compare two planned sessions for semantic equality
+   *
+   * @param leftPlannedSession - First planned session
+   * @param rightPlannedSession - Second planned session
+   *
+   * @returns `true` when both planned sessions match
+   */
+  private areMediaPlanSessionsEqual(
+    leftPlannedSession: MediaPlanSession,
+    rightPlannedSession: MediaPlanSession | undefined,
+  ): boolean {
+    if (rightPlannedSession === undefined) {
+      return false;
+    }
+
+    return (
+      leftPlannedSession.sessionId === rightPlannedSession.sessionId &&
+      leftPlannedSession.itemId === rightPlannedSession.itemId &&
+      leftPlannedSession.role === rightPlannedSession.role &&
+      leftPlannedSession.desiredPlaybackLane ===
+        rightPlannedSession.desiredPlaybackLane &&
+      leftPlannedSession.desiredRendererKind ===
+        rightPlannedSession.desiredRendererKind &&
+      leftPlannedSession.desiredWarmth === rightPlannedSession.desiredWarmth &&
+      leftPlannedSession.priority === rightPlannedSession.priority &&
+      leftPlannedSession.visibility === rightPlannedSession.visibility &&
+      this.areMediaPlanReasonsEqual(
+        leftPlannedSession.reason,
+        rightPlannedSession.reason,
+      ) &&
       this.areMediaSourceDescriptorsEqual(
-        leftMediaIntent.source,
-        rightMediaIntent.source,
+        leftPlannedSession.source,
+        rightPlannedSession.source,
       )
+    );
+  }
+
+  /**
+   * @brief Compare two human-readable plan reasons for semantic equality
+   *
+   * @param leftMediaPlanReason - First plan reason
+   * @param rightMediaPlanReason - Second plan reason
+   *
+   * @returns `true` when both plan reasons match
+   */
+  private areMediaPlanReasonsEqual(
+    leftMediaPlanReason: MediaPlanReason,
+    rightMediaPlanReason: MediaPlanReason,
+  ): boolean {
+    return (
+      leftMediaPlanReason.intentType === rightMediaPlanReason.intentType &&
+      leftMediaPlanReason.kind === rightMediaPlanReason.kind &&
+      leftMediaPlanReason.message === rightMediaPlanReason.message
     );
   }
 
@@ -577,6 +890,7 @@ export class MediaKernelController {
     }
 
     return (
+      leftSource.sourceId === rightSource.sourceId &&
       leftSource.kind === rightSource.kind &&
       leftSource.url === rightSource.url &&
       leftSource.mimeType === rightSource.mimeType &&

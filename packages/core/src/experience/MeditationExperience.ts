@@ -19,6 +19,7 @@ import type { BackgroundVideoModel } from "../playback/BackgroundVideoModel";
 import type { PlaybackSequenceController } from "../playback/PlaybackSequenceController";
 import type { OverlayController } from "../ui/OverlayController";
 import type { OverlayRevealHandoffController } from "../ui/OverlayRevealHandoffController";
+import type { MediaKernelExperienceBridge } from "./MediaKernelExperienceBridge";
 
 /**
  * @brief Runtime-agnostic app scene for meditation.surf
@@ -34,6 +35,7 @@ export class MeditationExperience {
   public readonly overlayController: OverlayController;
   public readonly overlayRevealHandoffController: OverlayRevealHandoffController;
   public readonly browseSelectionController: BrowseSelectionController;
+  public readonly mediaKernelExperienceBridge: MediaKernelExperienceBridge;
   public readonly mediaKernelController: MediaKernelController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
   public readonly playbackSequenceController: PlaybackSequenceController;
@@ -45,6 +47,7 @@ export class MeditationExperience {
    * @param browseFocusController - Shared browse focus controller
    * @param browseSelectionController - Shared browse selection controller
    * @param catalog - Shared content catalog model
+   * @param mediaKernelExperienceBridge - Shared bridge that reflects browse/playback state into the media kernel
    * @param mediaKernelController - Shared runtime-agnostic media orchestration controller
    * @param overlayController - Shared overlay interaction state controller
    * @param overlayRevealHandoffController - Shared loading-to-overlay handoff controller
@@ -56,6 +59,7 @@ export class MeditationExperience {
     browseFocusController: BrowseFocusController,
     browseSelectionController: BrowseSelectionController,
     catalog: Catalog,
+    mediaKernelExperienceBridge: MediaKernelExperienceBridge,
     mediaKernelController: MediaKernelController,
     overlayController: OverlayController,
     overlayRevealHandoffController: OverlayRevealHandoffController,
@@ -66,6 +70,7 @@ export class MeditationExperience {
     this.browseFocusController = browseFocusController;
     this.browseSelectionController = browseSelectionController;
     this.catalog = catalog;
+    this.mediaKernelExperienceBridge = mediaKernelExperienceBridge;
     this.mediaKernelController = mediaKernelController;
     this.overlayController = overlayController;
     this.overlayRevealHandoffController = overlayRevealHandoffController;

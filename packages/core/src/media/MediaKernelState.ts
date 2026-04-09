@@ -8,13 +8,18 @@
 
 import type { AppMediaCapabilities } from "./AppMediaCapabilities";
 import type { MediaIntent } from "./MediaIntent";
+import type { MediaPlan } from "./MediaPlan";
 import type { MediaSessionSnapshot } from "./MediaSessionSnapshot";
 
 /**
  * @brief Immutable shared snapshot published by the media kernel controller
  */
 export type MediaKernelState = {
+  activeItemId: string | null;
   appCapabilities: AppMediaCapabilities[];
   currentIntent: MediaIntent | null;
+  focusedItemId: string | null;
+  plan: MediaPlan;
+  selectedItemId: string | null;
   sessions: MediaSessionSnapshot[];
 };

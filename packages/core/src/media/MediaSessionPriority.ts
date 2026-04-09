@@ -6,12 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { MediaIntentType } from "./MediaIntentType";
-
 /**
- * @brief High-level logical media intent derived from browse or playback state
+ * @brief Relative urgency used when multiple logical sessions compete
  */
-export type MediaIntent = {
-  targetItemId: string | null;
-  type: MediaIntentType;
-};
+export type MediaSessionPriority = "critical" | "high" | "normal" | "low";

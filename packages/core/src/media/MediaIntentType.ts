@@ -6,12 +6,12 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { MediaIntentType } from "./MediaIntentType";
-
 /**
- * @brief High-level logical media intent derived from browse or playback state
+ * @brief High-level user or app intent states that drive media planning
  */
-export type MediaIntent = {
-  targetItemId: string | null;
-  type: MediaIntentType;
-};
+export type MediaIntentType =
+  | "idle"
+  | "focused"
+  | "focused-delay-elapsed"
+  | "selected"
+  | "background-active";

@@ -7,6 +7,7 @@
  */
 
 export { DemoExperienceFactory } from "./bootstrap/DemoExperienceFactory";
+export { MediaKernelExperienceBridge } from "./experience/MediaKernelExperienceBridge";
 export { MeditationExperience } from "./experience/MeditationExperience";
 export type { AppMediaCapabilities } from "./media/AppMediaCapabilities";
 export type { MediaCapabilityProfile } from "./media/MediaCapabilityProfile";
@@ -15,15 +16,26 @@ export {
   type MediaKernelStateListener,
 } from "./media/MediaKernelController";
 export type { MediaIntent } from "./media/MediaIntent";
+export type { MediaIntentType } from "./media/MediaIntentType";
 export type { MediaKernelState } from "./media/MediaKernelState";
+export type { MediaPlan } from "./media/MediaPlan";
+export type { MediaPlanReason } from "./media/MediaPlanReason";
+export type { MediaPlanSession } from "./media/MediaPlanSession";
 export type { MediaPlaybackLane } from "./media/MediaPlaybackLane";
 export type { MediaRendererKind } from "./media/MediaRendererKind";
 export type { MediaSessionDescriptor } from "./media/MediaSessionDescriptor";
+export type { MediaSessionPriority } from "./media/MediaSessionPriority";
 export type { MediaSessionRole } from "./media/MediaSessionRole";
 export type { MediaSessionSnapshot } from "./media/MediaSessionSnapshot";
 export type { MediaSessionState } from "./media/MediaSessionState";
+export type { MediaSessionVisibility } from "./media/MediaSessionVisibility";
 export type { MediaSourceDescriptor } from "./media/MediaSourceDescriptor";
+export { MediaSourceDescriptorFactory } from "./media/MediaSourceDescriptorFactory";
 export type { MediaSourceKind } from "./media/MediaSourceKind";
+export {
+  MediaSessionPlanner,
+  type MediaSessionPlannerInput,
+} from "./media/MediaSessionPlanner";
 export type { MediaWarmth } from "./media/MediaWarmth";
 export { AppLayout } from "./layout/AppLayout";
 export { BackgroundLayerLayout } from "./layout/BackgroundLayerLayout";

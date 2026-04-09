@@ -6,12 +6,11 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { MediaIntentType } from "./MediaIntentType";
+import type { MediaPlanSession } from "./MediaPlanSession";
 
 /**
- * @brief High-level logical media intent derived from browse or playback state
+ * @brief Deterministic session plan produced by the shared media planner
  */
-export type MediaIntent = {
-  targetItemId: string | null;
-  type: MediaIntentType;
+export type MediaPlan = {
+  sessions: MediaPlanSession[];
 };
