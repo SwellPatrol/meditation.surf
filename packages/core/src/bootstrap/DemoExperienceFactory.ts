@@ -13,9 +13,13 @@ import {
   type BrowseRowContent,
 } from "../browse/BrowseContentAdapter";
 import { BrowseFocusController } from "../browse/BrowseFocusController";
-import { BrowseSelectionController } from "../browse/BrowseSelectionController";
+import {
+  BrowseSelectionController,
+  type BrowseSelectionState,
+} from "../browse/BrowseSelectionController";
 import { Catalog } from "../catalog/Catalog";
 import { FixtureCatalog } from "../catalog/FixtureCatalog";
+import type { MediaItem } from "../catalog/MediaItem";
 import { MeditationExperience } from "../experience/MeditationExperience";
 import { AppLayout } from "../layout/AppLayout";
 import { BackgroundLayerLayout } from "../layout/BackgroundLayerLayout";
@@ -73,6 +77,26 @@ export class DemoExperienceFactory {
       new BrowseFocusController(initialRowItemCounts);
     const browseSelectionController: BrowseSelectionController =
       new BrowseSelectionController(initialRowItemCounts);
+
+    browseSelectionController.subscribe(
+      (browseSelectionState: BrowseSelectionState): void => {
+        if (!browseSelectionState.hasSelectedItem) {
+          return;
+        }
+
+        const selectedItem: MediaItem | null =
+          browseContentAdapter.getMediaItemAt(
+            browseSelectionState.selectedRowIndex,
+            browseSelectionState.selectedItemIndex,
+          );
+
+        if (selectedItem === null) {
+          return;
+        }
+
+        playbackSequenceController.setActiveItem(selectedItem);
+      },
+    );
 
     return new MeditationExperience(
       appLayout,

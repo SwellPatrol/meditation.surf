@@ -134,6 +134,21 @@ export class BrowseContentAdapter {
   }
 
   /**
+   * @brief Resolve one browse row and item position back to its media item
+   *
+   * @param rowIndex - Browse row position rendered by the shared adapter
+   * @param itemIndex - Browse item position inside that row
+   *
+   * @returns Shared media item for that browse position, or `null`
+   */
+  public getMediaItemAt(rowIndex: number, itemIndex: number): MediaItem | null {
+    const browseRowModel: BrowseRowModel | undefined =
+      this.createRowModels()[rowIndex];
+
+    return browseRowModel?.sourceItems[itemIndex] ?? null;
+  }
+
+  /**
    * @brief Resolve the item that should currently occupy the hero slot
    *
    * @param activeItem - Current playback item when available

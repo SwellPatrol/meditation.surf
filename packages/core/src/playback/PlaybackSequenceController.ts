@@ -29,8 +29,8 @@ export type PlaybackSequenceListener = (state: PlaybackSequenceState) => void;
  * Apps subscribe here so every platform reads the same active-item snapshot.
  */
 export class PlaybackSequenceController {
-  private readonly activeItem: MediaItem | null;
   private readonly stateListeners: Set<PlaybackSequenceListener>;
+  private activeItem: MediaItem | null;
 
   /**
    * @brief Create the playback sequence controller for the featured demo item
@@ -95,6 +95,20 @@ export class PlaybackSequenceController {
    */
   public destroy(): void {
     this.stateListeners.clear();
+  }
+
+  /**
+   * @brief Replace the current playback item when activation changes it
+   *
+   * @param activeItem - Media item that should become active
+   */
+  public setActiveItem(activeItem: MediaItem | null): void {
+    if (this.activeItem === activeItem) {
+      return;
+    }
+
+    this.activeItem = activeItem;
+    this.notifyStateListeners();
   }
 
   /**

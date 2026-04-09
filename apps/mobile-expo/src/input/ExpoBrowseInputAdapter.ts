@@ -102,8 +102,8 @@ export class ExpoBrowseInputAdapter {
       },
       onPress: (): void => {
         this.browseInteractionController.dispatchIntents([
-          ...pointerFocusIntents,
-          { type: "activateFocusedItem" },
+          { type: "enterPointerMode" },
+          { itemIndex, rowIndex, type: "activateItem" },
         ]);
       },
       onPressIn: (): void => {

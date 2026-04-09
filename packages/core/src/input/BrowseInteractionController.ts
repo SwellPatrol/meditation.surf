@@ -119,6 +119,12 @@ export class BrowseInteractionController {
       case "activateFocusedItem":
         this.dispatchActivationIntent();
         break;
+      case "activateItem":
+        this.dispatchTargetedActivationIntent(
+          intent.rowIndex,
+          intent.itemIndex,
+        );
+        break;
       default:
         intent satisfies never;
     }
@@ -168,6 +174,20 @@ export class BrowseInteractionController {
   }
 
   /**
+   * @brief Select one explicit browse item without depending on current focus
+   *
+   * @param rowIndex - Row containing the activated item
+   * @param itemIndex - Item position that should become selected
+   */
+  public activateItem(rowIndex: number, itemIndex: number): void {
+    this.dispatchIntent({
+      itemIndex,
+      rowIndex,
+      type: "activateItem",
+    });
+  }
+
+  /**
    * @brief Interpret one shared directional browse intent
    *
    * @param intent - Directional browse intent to apply to the shared focus state
@@ -212,10 +232,20 @@ export class BrowseInteractionController {
     const selectedItemIndex: number =
       browseFocusState.activeItemIndexByRow[selectedRowIndex] ?? 0;
 
-    this.browseSelectionController.selectItem(
-      selectedRowIndex,
-      selectedItemIndex,
-    );
+    this.dispatchTargetedActivationIntent(selectedRowIndex, selectedItemIndex);
+  }
+
+  /**
+   * @brief Select one explicit browse item as the current activation target
+   *
+   * @param rowIndex - Row containing the activated item
+   * @param itemIndex - Item position that should become selected
+   */
+  private dispatchTargetedActivationIntent(
+    rowIndex: number,
+    itemIndex: number,
+  ): void {
+    this.browseSelectionController.selectItem(rowIndex, itemIndex);
   }
 
   /**

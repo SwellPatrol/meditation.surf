@@ -85,6 +85,7 @@ export {
   type BrowseInputModeListener,
 } from "./input/BrowseInteractionController";
 export {
+  type BrowseActivateItemInputIntent,
   type BrowseActivateFocusedItemInputIntent,
   type BrowseDirectionalInputIntent,
   type BrowseFocusItemInputIntent,

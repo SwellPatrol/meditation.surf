@@ -17,7 +17,8 @@ export type BrowseInputIntentType =
   | "moveUp"
   | "moveDown"
   | "focusItem"
-  | "activateFocusedItem";
+  | "activateFocusedItem"
+  | "activateItem";
 
 /**
  * @brief Shared directional browse intents
@@ -52,13 +53,23 @@ export type BrowseActivateFocusedItemInputIntent = {
 };
 
 /**
+ * @brief Shared browse activation intent targeting one explicit item
+ */
+export type BrowseActivateItemInputIntent = {
+  type: "activateItem";
+  rowIndex: number;
+  itemIndex: number;
+};
+
+/**
  * @brief One abstract browse input intent emitted by platform adapters
  */
 export type BrowseInputIntent =
   | BrowseDirectionalInputIntent
   | BrowseModeInputIntent
   | BrowseFocusItemInputIntent
-  | BrowseActivateFocusedItemInputIntent;
+  | BrowseActivateFocusedItemInputIntent
+  | BrowseActivateItemInputIntent;
 
 /**
  * @brief Backward-compatible alias for browse input intent payloads

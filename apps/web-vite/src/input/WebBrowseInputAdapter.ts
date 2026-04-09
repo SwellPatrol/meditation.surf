@@ -239,7 +239,7 @@ export class WebBrowseInputAdapter {
   }
 
   /**
-   * @brief Enter pointer mode, focus the item, and activate it explicitly
+   * @brief Enter pointer mode and activate the item described by one card
    *
    * @param thumbnailCardElement - Rendered card element with row and item data
    */
@@ -260,12 +260,7 @@ export class WebBrowseInputAdapter {
 
     this.browseInteractionController.dispatchIntents([
       { type: "enterPointerMode" },
-      {
-        itemIndex,
-        rowIndex,
-        type: "focusItem",
-      },
-      { type: "activateFocusedItem" },
+      { itemIndex, rowIndex, type: "activateItem" },
     ]);
   }
 

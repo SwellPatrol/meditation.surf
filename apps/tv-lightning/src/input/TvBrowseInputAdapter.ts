@@ -185,7 +185,7 @@ export class TvBrowseInputAdapter {
   }
 
   /**
-   * @brief Handle mouse click focus for browser-hosted TV sessions
+   * @brief Handle mouse click activation for browser-hosted TV sessions
    *
    * @param event - Browser mouse event routed through the DOM host
    */
@@ -282,12 +282,7 @@ export class TvBrowseInputAdapter {
           )
         ) {
           this.browseInteractionController.dispatchIntents([
-            {
-              itemIndex,
-              rowIndex,
-              type: "focusItem",
-            },
-            { type: "activateFocusedItem" },
+            { itemIndex, rowIndex, type: "activateItem" },
           ]);
           return;
         }
