@@ -7,6 +7,7 @@
  */
 
 import type {
+  BrowseFocusState,
   BrowseHeroContent,
   BrowseMetadataEntry,
   BrowseRowContent,
@@ -15,6 +16,7 @@ import type {
 } from "@meditation-surf/core";
 import type { JSX } from "react";
 import {
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -23,21 +25,28 @@ import {
   type ViewStyle,
 } from "react-native";
 
+import type { ExpoBrowseItemInputHandlers } from "../input/ExpoBrowseInputAdapter";
+
 /**
  * @brief Props consumed by the Expo browse overlay
  */
 export interface ExpoBrowseOverlayProps {
+  readonly browseFocusState: BrowseFocusState;
   readonly content: BrowseScreenContent;
+  readonly getItemInputHandlers: (
+    rowIndex: number,
+    itemIndex: number,
+  ) => ExpoBrowseItemInputHandlers;
 }
 
 /**
  * @brief Render the browse shell above the live video background on Expo
  *
  * The component stays intentionally presentational. It consumes the shared
- * browse content model and leaves playback, fade timing, and future navigation
- * concerns outside the view tree.
+ * browse content model and the shared browse focus state, while touch input is
+ * translated back into the shared controller by the app-runtime layer.
  *
- * @param props - Browse screen content prepared by the shared adapter
+ * @param props - Browse screen content and focus state prepared by shared code
  *
  * @returns React Native browse overlay UI
  */
@@ -88,7 +97,7 @@ export function ExpoBrowseOverlay(
         </View>
       </View>
       {props.content.rows.map(
-        (browseRow: BrowseRowContent): JSX.Element => (
+        (browseRow: BrowseRowContent, rowIndex: number): JSX.Element => (
           <View key={browseRow.id} style={styles.rowSection}>
             <Text style={styles.rowTitle}>{browseRow.title}</Text>
             <ScrollView
@@ -98,21 +107,43 @@ export function ExpoBrowseOverlay(
               showsHorizontalScrollIndicator={false}
             >
               {browseRow.items.map(
-                (thumbnailContent: BrowseThumbnailContent): JSX.Element => (
-                  <View key={thumbnailContent.id} style={styles.thumbnailCard}>
-                    <View style={styles.thumbnailArtwork}>
-                      <Text style={styles.thumbnailMonogram}>
-                        {thumbnailContent.artwork.placeholderMonogram}
+                (
+                  thumbnailContent: BrowseThumbnailContent,
+                  itemIndex: number,
+                ): JSX.Element => {
+                  const isFocused: boolean =
+                    props.browseFocusState.activeRowIndex === rowIndex &&
+                    (props.browseFocusState.activeItemIndexByRow[rowIndex] ??
+                      0) === itemIndex;
+
+                  return (
+                    <Pressable
+                      key={thumbnailContent.id}
+                      {...props.getItemInputHandlers(rowIndex, itemIndex)}
+                      style={[
+                        styles.thumbnailCard,
+                        isFocused ? styles.focusedThumbnailCard : null,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.thumbnailArtwork,
+                          isFocused ? styles.focusedThumbnailArtwork : null,
+                        ]}
+                      >
+                        <Text style={styles.thumbnailMonogram}>
+                          {thumbnailContent.artwork.placeholderMonogram}
+                        </Text>
+                      </View>
+                      <Text numberOfLines={1} style={styles.thumbnailTitle}>
+                        {thumbnailContent.title}
                       </Text>
-                    </View>
-                    <Text numberOfLines={1} style={styles.thumbnailTitle}>
-                      {thumbnailContent.title}
-                    </Text>
-                    <Text numberOfLines={1} style={styles.thumbnailMeta}>
-                      {thumbnailContent.secondaryText}
-                    </Text>
-                  </View>
-                ),
+                      <Text numberOfLines={1} style={styles.thumbnailMeta}>
+                        {thumbnailContent.secondaryText}
+                      </Text>
+                    </Pressable>
+                  );
+                },
               )}
             </ScrollView>
           </View>
@@ -141,7 +172,9 @@ const styles: {
   readonly rowTitle: TextStyle;
   readonly rowTrack: ViewStyle;
   readonly thumbnailCard: ViewStyle;
+  readonly focusedThumbnailCard: ViewStyle;
   readonly thumbnailArtwork: ViewStyle;
+  readonly focusedThumbnailArtwork: ViewStyle;
   readonly thumbnailMonogram: TextStyle;
   readonly thumbnailTitle: TextStyle;
   readonly thumbnailMeta: TextStyle;
@@ -276,6 +309,9 @@ const styles: {
     marginRight: 14,
     width: 170,
   },
+  focusedThumbnailCard: {
+    transform: [{ scale: 1.03 }],
+  },
   thumbnailArtwork: {
     alignItems: "center",
     backgroundColor: "#1F2B39",
@@ -286,6 +322,17 @@ const styles: {
     justifyContent: "center",
     marginBottom: 10,
     overflow: "hidden",
+  },
+  focusedThumbnailArtwork: {
+    backgroundColor: "#29415B",
+    borderColor: "rgba(255, 255, 255, 0.92)",
+    shadowColor: "#FFFFFF",
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.32,
+    shadowRadius: 10,
   },
   thumbnailMonogram: {
     color: "#FFFFFF",

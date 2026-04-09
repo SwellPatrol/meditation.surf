@@ -10,6 +10,7 @@ import Blits from "@lightningjs/blits";
 import type { MeditationExperience } from "@meditation-surf/core";
 
 import { TvExperienceAdapter } from "../experience/TvExperienceAdapter";
+import { TvBrowseInputAdapter } from "../input/TvBrowseInputAdapter";
 import {
   LIGHTNING_APP_HEIGHT,
   LIGHTNING_APP_WIDTH,
@@ -28,6 +29,7 @@ export class TvApp {
   private readonly experienceAdapter: TvExperienceAdapter;
   private readonly viewportSync: TvViewportSync;
   private readonly handleBeforeUnload: () => void;
+  private inputAdapter: TvBrowseInputAdapter | null;
 
   /**
    * @brief Build the TV app around a shared meditation experience
@@ -37,7 +39,11 @@ export class TvApp {
   public constructor(experience: MeditationExperience) {
     this.experienceAdapter = new TvExperienceAdapter(experience);
     this.viewportSync = new TvViewportSync();
+    this.inputAdapter = null;
     this.handleBeforeUnload = (): void => {
+      this.inputAdapter?.destroy();
+      this.inputAdapter = null;
+      this.experienceAdapter.browseInteractionController.destroy();
       void this.experienceAdapter.backgroundVideoController.destroy();
       this.viewportSync.destroy();
     };
@@ -48,10 +54,16 @@ export class TvApp {
    */
   public start(): void {
     const mountElement: HTMLElement = this.getMountElement();
+    const browseInputAdapter: TvBrowseInputAdapter = new TvBrowseInputAdapter(
+      mountElement,
+      this.experienceAdapter.browseInteractionController,
+    );
     const lightningApp: ReturnType<typeof Blits.Application> =
       createLightningApp({
         appLayoutController: this.experienceAdapter.appLayoutController,
+        browseInputAdapter,
         browseContentAdapter: this.experienceAdapter.browseContentAdapter,
+        browseFocusController: this.experienceAdapter.browseFocusController,
         overlayController: this.experienceAdapter.overlayController,
         playbackSequenceController:
           this.experienceAdapter.playbackSequenceController,
@@ -59,10 +71,12 @@ export class TvApp {
           this.experienceAdapter.playbackVisualReadinessController,
         viewportSync: this.viewportSync,
         onReady: (): void => {
+          browseInputAdapter.attach();
           this.experienceAdapter.backgroundVideoController.initialize();
           void this.experienceAdapter.backgroundVideoController.start();
         },
         onDestroy: (): void => {
+          browseInputAdapter.destroy();
           void this.experienceAdapter.backgroundVideoController.destroy();
           this.viewportSync.destroy();
         },
@@ -74,6 +88,7 @@ export class TvApp {
     } = TvTextFont.createBlitsFontDefinition();
 
     mountElement.style.position = "relative";
+    this.inputAdapter = browseInputAdapter;
     Blits.Launch(lightningApp, mountElement, {
       w: LIGHTNING_APP_WIDTH,
       h: LIGHTNING_APP_HEIGHT,

@@ -69,6 +69,17 @@ export {
   type BrowseScreenContent,
   type BrowseThumbnailContent,
 } from "./browse/BrowseContentAdapter";
+export {
+  BrowseFocusController,
+  type BrowseFocusState,
+  type BrowseFocusStateListener,
+} from "./browse/BrowseFocusController";
+export {
+  BrowseInteractionController,
+  type BrowseFocusCommand,
+  type BrowseInputMode,
+  type BrowseInputModeListener,
+} from "./input/BrowseInteractionController";
 export { Catalog } from "./catalog/Catalog";
 export { CatalogSection } from "./catalog/CatalogSection";
 export { FixtureCatalog } from "./catalog/FixtureCatalog";

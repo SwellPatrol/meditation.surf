@@ -7,7 +7,9 @@
  */
 
 import type {
+  BrowseFocusState,
   BrowseHeroContent,
+  BrowseInputMode,
   BrowseMetadataEntry,
   BrowseRowContent,
   BrowseScreenContent,
@@ -30,6 +32,9 @@ export class WebAppShell {
   public readonly overlayUiElement: HTMLDivElement;
   public readonly mountElement: HTMLDivElement;
 
+  private browseFocusState: BrowseFocusState;
+  private thumbnailCardElements: HTMLElement[][];
+
   /**
    * @brief Build the DOM shell for the web app
    *
@@ -40,6 +45,11 @@ export class WebAppShell {
     appLayoutController: WebAppLayoutController,
     browseContent: BrowseScreenContent,
   ) {
+    this.browseFocusState = {
+      activeRowIndex: 0,
+      activeItemIndexByRow: [],
+    };
+    this.thumbnailCardElements = [];
     this.mountElement = this.getMountElement();
     this.backgroundVideoElement = document.createElement("video");
     this.fullscreenInteractionElement = document.createElement("button");
@@ -104,9 +114,63 @@ export class WebAppShell {
    * @param browseContent - Shared browse content prepared by the core adapter
    */
   public renderBrowseContent(browseContent: BrowseScreenContent): void {
+    this.thumbnailCardElements = [];
     this.overlayUiElement.replaceChildren(
       this.createBrowseOverlayElement(browseContent),
     );
+    this.renderBrowseFocusState(this.browseFocusState);
+  }
+
+  /**
+   * @brief Apply the shared browse focus state to the currently rendered cards
+   *
+   * @param browseFocusState - Shared browse focus snapshot
+   */
+  public renderBrowseFocusState(browseFocusState: BrowseFocusState): void {
+    this.browseFocusState = {
+      activeRowIndex: browseFocusState.activeRowIndex,
+      activeItemIndexByRow: [...browseFocusState.activeItemIndexByRow],
+    };
+
+    for (const [
+      rowIndex,
+      rowCardElements,
+    ] of this.thumbnailCardElements.entries()) {
+      const activeItemIndex: number =
+        this.browseFocusState.activeItemIndexByRow[rowIndex] ?? 0;
+
+      for (const [
+        itemIndex,
+        thumbnailCardElement,
+      ] of rowCardElements.entries()) {
+        const isFocused: boolean =
+          rowIndex === this.browseFocusState.activeRowIndex &&
+          itemIndex === activeItemIndex;
+
+        thumbnailCardElement.classList.toggle("is-focused", isFocused);
+      }
+    }
+  }
+
+  /**
+   * @brief Apply browse input-mode styling to the web app shell
+   *
+   * @param inputMode - Surface-local browse input mode
+   */
+  public renderInputMode(inputMode: BrowseInputMode): void {
+    this.mountElement.classList.toggle(
+      "is-keyboard-mode",
+      inputMode === "keyboard",
+    );
+  }
+
+  /**
+   * @brief Expose the currently rendered thumbnail cards to input adapters
+   *
+   * @returns Matrix of rendered thumbnail card elements
+   */
+  public getThumbnailCardElements(): readonly (readonly HTMLElement[])[] {
+    return this.thumbnailCardElements;
   }
 
   /**
@@ -146,8 +210,10 @@ export class WebAppShell {
       );
     }
 
-    for (const browseRow of browseContent.rows) {
-      browseRowsElement.append(this.createBrowseRowElement(browseRow));
+    for (const [rowIndex, browseRow] of browseContent.rows.entries()) {
+      browseRowsElement.append(
+        this.createBrowseRowElement(browseRow, rowIndex),
+      );
     }
 
     browseOverlayRootElement.append(browseRowsElement);
@@ -240,20 +306,32 @@ export class WebAppShell {
    *
    * @returns DOM element representing one browse row
    */
-  private createBrowseRowElement(browseRow: BrowseRowContent): HTMLElement {
+  private createBrowseRowElement(
+    browseRow: BrowseRowContent,
+    rowIndex: number,
+  ): HTMLElement {
     const browseRowElement: HTMLElement = document.createElement("section");
     const rowTitleElement: HTMLHeadingElement = document.createElement("h2");
     const rowTrackElement: HTMLDivElement = document.createElement("div");
+    const thumbnailCardElements: HTMLElement[] = [];
 
     browseRowElement.className = "browse-row";
     rowTitleElement.className = "browse-row-title";
     rowTrackElement.className = "browse-row-track";
     rowTitleElement.textContent = browseRow.title;
 
-    for (const thumbnailContent of browseRow.items) {
-      rowTrackElement.append(this.createThumbnailCardElement(thumbnailContent));
+    for (const [itemIndex, thumbnailContent] of browseRow.items.entries()) {
+      const thumbnailCardElement: HTMLElement = this.createThumbnailCardElement(
+        thumbnailContent,
+        rowIndex,
+        itemIndex,
+      );
+
+      thumbnailCardElements.push(thumbnailCardElement);
+      rowTrackElement.append(thumbnailCardElement);
     }
 
+    this.thumbnailCardElements[rowIndex] = thumbnailCardElements;
     browseRowElement.append(rowTitleElement, rowTrackElement);
 
     return browseRowElement;
@@ -268,6 +346,8 @@ export class WebAppShell {
    */
   private createThumbnailCardElement(
     thumbnailContent: BrowseThumbnailContent,
+    rowIndex: number,
+    itemIndex: number,
   ): HTMLElement {
     const thumbnailCardElement: HTMLElement = document.createElement("article");
     const artworkElement: HTMLDivElement = document.createElement("div");
@@ -283,6 +363,8 @@ export class WebAppShell {
 
     artworkElement.dataset.placeholderKey =
       thumbnailContent.artwork.placeholderKey;
+    thumbnailCardElement.dataset.rowIndex = `${rowIndex}`;
+    thumbnailCardElement.dataset.itemIndex = `${itemIndex}`;
     monogramElement.textContent = thumbnailContent.artwork.placeholderMonogram;
     titleElement.textContent = thumbnailContent.title;
     metaElement.textContent = thumbnailContent.secondaryText;

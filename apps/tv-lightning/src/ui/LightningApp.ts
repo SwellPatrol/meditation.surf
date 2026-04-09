@@ -9,6 +9,9 @@
 import Blits from "@lightningjs/blits";
 import type {
   BrowseContentAdapter,
+  BrowseFocusCommand,
+  BrowseFocusController,
+  BrowseFocusState,
   BrowseRowContent,
   BrowseScreenContent,
   BrowseThumbnailContent,
@@ -22,6 +25,7 @@ import type {
   PlaybackVisualReadinessState,
 } from "@meditation-surf/player-core";
 
+import { TvBrowseInputAdapter } from "../input/TvBrowseInputAdapter";
 import {
   LIGHTNING_APP_HEIGHT,
   LIGHTNING_APP_WIDTH,
@@ -54,7 +58,9 @@ type LightningMetadataEntryState = {
 
 export type LightningAppOptions = {
   appLayoutController: TvAppLayoutController;
+  browseInputAdapter: TvBrowseInputAdapter;
   browseContentAdapter: BrowseContentAdapter;
+  browseFocusController: BrowseFocusController;
   overlayController: OverlayController;
   playbackSequenceController: PlaybackSequenceController;
   playbackVisualReadinessController: PlaybackVisualReadinessController;
@@ -83,6 +89,7 @@ type LightningAppState = {
   removeLoadingSubscription: (() => void) | null;
   removeOverlaySubscription: (() => void) | null;
   removePlaybackSequenceSubscription: (() => void) | null;
+  removeBrowseFocusSubscription: (() => void) | null;
   stopViewportSync: (() => void) | null;
 };
 
@@ -91,7 +98,9 @@ type LightningAppMethods = {
   initializeLoadingSubscription(): void;
   initializeOverlaySubscription(): void;
   initializePlaybackSequenceSubscription(): void;
+  initializeBrowseFocusSubscription(): void;
   initializeViewportSync(): void;
+  handleBrowseFocusState(browseFocusState: BrowseFocusState): void;
   handlePlaybackSequenceState(
     playbackSequenceState: PlaybackSequenceState,
   ): void;
@@ -99,10 +108,8 @@ type LightningAppMethods = {
     playbackVisualReadinessState: PlaybackVisualReadinessState,
   ): void;
   handleOverlayState(overlayState: OverlayState): void;
-  moveHorizontalFocus(offset: number): void;
-  moveVerticalFocus(offset: number): void;
+  syncBrowseFocusController(): void;
   rebuildBrowsePresentation(): void;
-  syncActiveIndexesWithRows(): void;
   tearDownViewportSync(): void;
 };
 
@@ -153,6 +160,7 @@ export function createLightningApp(
         removeLoadingSubscription: null,
         removeOverlaySubscription: null,
         removePlaybackSequenceSubscription: null,
+        removeBrowseFocusSubscription: null,
         stopViewportSync: null,
       };
     },
@@ -162,7 +170,7 @@ export function createLightningApp(
        * @brief Prime the browse presentation before the first overlay reveal
        */
       initializeBrowseContent(): void {
-        this.syncActiveIndexesWithRows();
+        this.syncBrowseFocusController();
         this.rebuildBrowsePresentation();
       },
 
@@ -206,6 +214,18 @@ export function createLightningApp(
       },
 
       /**
+       * @brief Subscribe the Lightning root to the shared browse focus model
+       */
+      initializeBrowseFocusSubscription(): void {
+        this.removeBrowseFocusSubscription =
+          options.browseFocusController.subscribe(
+            (browseFocusState: BrowseFocusState): void => {
+              this.handleBrowseFocusState(browseFocusState);
+            },
+          );
+      },
+
+      /**
        * @brief Subscribe to viewport updates emitted by the TV bootstrap layout helper
        */
       initializeViewportSync(): void {
@@ -215,6 +235,17 @@ export function createLightningApp(
             this.viewportH = viewportSize.height;
           },
         );
+      },
+
+      /**
+       * @brief Map shared browse focus onto the local Lightning presentation state
+       *
+       * @param browseFocusState - Shared browse focus snapshot
+       */
+      handleBrowseFocusState(browseFocusState: BrowseFocusState): void {
+        this.activeRowIndex = browseFocusState.activeRowIndex;
+        this.activeItemIndexByRow = [...browseFocusState.activeItemIndexByRow];
+        this.rebuildBrowsePresentation();
       },
 
       /**
@@ -229,8 +260,7 @@ export function createLightningApp(
           options.browseContentAdapter.getBrowseScreenContent(
             playbackSequenceState.activeItem,
           );
-        this.syncActiveIndexesWithRows();
-        this.rebuildBrowsePresentation();
+        this.syncBrowseFocusController();
       },
 
       /**
@@ -255,37 +285,14 @@ export function createLightningApp(
       },
 
       /**
-       * @brief Move focus horizontally within the currently active browse row
-       *
-       * @param offset - Directional change applied to the active item index
+       * @brief Sync the shared browse focus controller against the latest rows
        */
-      moveHorizontalFocus(offset: number): void {
-        const activeRow: BrowseRowContent | undefined =
-          this.browseContent.rows[this.activeRowIndex];
-
-        if (activeRow === undefined || activeRow.items.length === 0) {
-          return;
-        }
-
-        const activeIndexes: number[] = [...this.activeItemIndexByRow];
-        const currentIndex: number = activeIndexes[this.activeRowIndex] ?? 0;
-        const nextIndex: number = Math.max(
-          0,
-          Math.min(activeRow.items.length - 1, currentIndex + offset),
+      syncBrowseFocusController(): void {
+        const rowItemCounts: number[] = this.browseContent.rows.map(
+          (browseRow: BrowseRowContent): number => browseRow.items.length,
         );
 
-        activeIndexes[this.activeRowIndex] = nextIndex;
-        this.activeItemIndexByRow = activeIndexes;
-        this.rebuildBrowsePresentation();
-      },
-
-      /**
-       * @brief Reserve a vertical navigation hook for the next browse step
-       *
-       * @param offset - Directional change that future row navigation will consume
-       */
-      moveVerticalFocus(offset: number): void {
-        void offset;
+        options.browseFocusController.syncRows(rowItemCounts);
       },
 
       /**
@@ -295,7 +302,8 @@ export function createLightningApp(
        * method translates it into fixed-stage coordinates and focus styling.
        */
       rebuildBrowsePresentation(): void {
-        const heroContent = this.browseContent.hero;
+        const heroContent: BrowseScreenContent["hero"] =
+          this.browseContent.hero;
         const metadataEntries: LightningMetadataEntryState[] = [];
         const browseRows: LightningRowState[] = [];
         const metadataStartX: number = 92;
@@ -371,40 +379,7 @@ export function createLightningApp(
         this.heroDescription = heroContent?.description ?? "";
         this.metadataEntries = metadataEntries;
         this.browseRows = browseRows;
-      },
-
-      /**
-       * @brief Clamp per-row selection indexes after row-content changes
-       */
-      syncActiveIndexesWithRows(): void {
-        const activeItemIndexByRow: number[] = this.browseContent.rows.map(
-          (browseRow: BrowseRowContent, rowIndex: number): number => {
-            const previousIndex: number =
-              this.activeItemIndexByRow[rowIndex] ?? 0;
-
-            if (browseRow.items.length === 0) {
-              return 0;
-            }
-
-            return Math.max(
-              0,
-              Math.min(browseRow.items.length - 1, previousIndex),
-            );
-          },
-        );
-
-        this.activeItemIndexByRow = activeItemIndexByRow;
-
-        if (this.browseContent.rows.length === 0) {
-          this.activeRowIndex = 0;
-
-          return;
-        }
-
-        this.activeRowIndex = Math.max(
-          0,
-          Math.min(this.browseContent.rows.length - 1, this.activeRowIndex),
-        );
+        options.browseInputAdapter.syncBrowseRows(browseRows);
       },
 
       /**
@@ -426,6 +401,11 @@ export function createLightningApp(
           this.removePlaybackSequenceSubscription = null;
         }
 
+        if (this.removeBrowseFocusSubscription !== null) {
+          this.removeBrowseFocusSubscription();
+          this.removeBrowseFocusSubscription = null;
+        }
+
         if (this.removeOverlaySubscription !== null) {
           this.removeOverlaySubscription();
           this.removeOverlaySubscription = null;
@@ -438,28 +418,36 @@ export function createLightningApp(
        * @brief Move focus to the previous thumbnail inside the active row
        */
       left(): void {
-        this.moveHorizontalFocus(-1);
+        const focusCommand: BrowseFocusCommand = "moveLeft";
+
+        options.browseInputAdapter.dispatchDirectionalCommand(focusCommand);
       },
 
       /**
        * @brief Move focus to the next thumbnail inside the active row
        */
       right(): void {
-        this.moveHorizontalFocus(1);
+        const focusCommand: BrowseFocusCommand = "moveRight";
+
+        options.browseInputAdapter.dispatchDirectionalCommand(focusCommand);
       },
 
       /**
        * @brief Reserve upward row navigation for the next browse step
        */
       up(): void {
-        this.moveVerticalFocus(-1);
+        const focusCommand: BrowseFocusCommand = "moveUp";
+
+        options.browseInputAdapter.dispatchDirectionalCommand(focusCommand);
       },
 
       /**
        * @brief Reserve downward row navigation for the next browse step
        */
       down(): void {
-        this.moveVerticalFocus(1);
+        const focusCommand: BrowseFocusCommand = "moveDown";
+
+        options.browseInputAdapter.dispatchDirectionalCommand(focusCommand);
       },
     },
 
@@ -480,6 +468,7 @@ export function createLightningApp(
         this.initializeLoadingSubscription();
         this.initializeOverlaySubscription();
         this.initializePlaybackSequenceSubscription();
+        this.initializeBrowseFocusSubscription();
         this.initializeViewportSync();
         this.$focus();
         options.onReady();

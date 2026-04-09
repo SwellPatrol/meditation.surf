@@ -7,6 +7,7 @@
  */
 
 import type {
+  BrowseFocusState,
   BrowseScreenContent,
   MeditationExperience,
   OverlayState,
@@ -15,6 +16,7 @@ import type {
 import type { PlaybackVisualReadinessState } from "@meditation-surf/player-core";
 
 import { WebExperienceAdapter } from "../experience/WebExperienceAdapter";
+import { WebBrowseInputAdapter } from "../input/WebBrowseInputAdapter";
 import { WebAppShell } from "../ui/WebAppShell";
 
 /**
@@ -25,12 +27,14 @@ import { WebAppShell } from "../ui/WebAppShell";
  */
 export class WebApp {
   private readonly experienceAdapter: WebExperienceAdapter;
+  private readonly inputAdapter: WebBrowseInputAdapter;
   private readonly shell: WebAppShell;
   private readonly handleBeforeUnload: () => void;
   private readonly handleResize: () => void;
   private removeLoadingSubscription: (() => void) | null;
   private removeOverlaySubscription: (() => void) | null;
   private removePlaybackSequenceSubscription: (() => void) | null;
+  private removeBrowseFocusSubscription: (() => void) | null;
 
   /**
    * @brief Assemble the runtime-specific web app around a shared experience
@@ -43,14 +47,24 @@ export class WebApp {
       this.experienceAdapter.browseContentAdapter.getBrowseScreenContent(
         this.experienceAdapter.playbackSequenceController.getActiveItem(),
       );
+    const initialRowItemCounts: number[] = initialBrowseContent.rows.map(
+      (browseRow): number => browseRow.items.length,
+    );
+
+    this.experienceAdapter.browseFocusController.syncRows(initialRowItemCounts);
 
     this.shell = new WebAppShell(
       this.experienceAdapter.appLayoutController,
       initialBrowseContent,
     );
+    this.inputAdapter = new WebBrowseInputAdapter(
+      this.shell,
+      this.experienceAdapter.browseInteractionController,
+    );
     this.removeLoadingSubscription = null;
     this.removeOverlaySubscription = null;
     this.removePlaybackSequenceSubscription = null;
+    this.removeBrowseFocusSubscription = null;
     this.handleBeforeUnload = (): void => {
       this.removeLoadingSubscription?.();
       this.removeLoadingSubscription = null;
@@ -58,6 +72,10 @@ export class WebApp {
       this.removeOverlaySubscription = null;
       this.removePlaybackSequenceSubscription?.();
       this.removePlaybackSequenceSubscription = null;
+      this.removeBrowseFocusSubscription?.();
+      this.removeBrowseFocusSubscription = null;
+      this.inputAdapter.destroy();
+      this.experienceAdapter.browseInteractionController.destroy();
       void this.experienceAdapter.backgroundVideoController.destroy();
     };
     this.handleResize = (): void => {
@@ -81,6 +99,10 @@ export class WebApp {
     );
     this.shell.loadingOverlayElement.style.transition = `opacity ${this.experienceAdapter.overlayController.getConfig().fadeDurationMs}ms ease`;
     this.shell.overlayUiElement.style.transition = `opacity ${this.experienceAdapter.overlayController.getConfig().fadeDurationMs}ms ease`;
+    this.shell.renderBrowseFocusState(
+      this.experienceAdapter.browseFocusController.getState(),
+    );
+    this.inputAdapter.attach();
     this.removeLoadingSubscription =
       this.experienceAdapter.playbackVisualReadinessController.subscribe(
         (playbackVisualReadinessState: PlaybackVisualReadinessState): void => {
@@ -98,11 +120,23 @@ export class WebApp {
     this.removePlaybackSequenceSubscription =
       this.experienceAdapter.playbackSequenceController.subscribe(
         (playbackSequenceState: PlaybackSequenceState): void => {
-          this.shell.renderBrowseContent(
+          const browseContent: BrowseScreenContent =
             this.experienceAdapter.browseContentAdapter.getBrowseScreenContent(
               playbackSequenceState.activeItem,
-            ),
+            );
+          const rowItemCounts: number[] = browseContent.rows.map(
+            (browseRow): number => browseRow.items.length,
           );
+
+          this.experienceAdapter.browseFocusController.syncRows(rowItemCounts);
+          this.shell.renderBrowseContent(browseContent);
+          this.inputAdapter.syncBrowseTargets();
+        },
+      );
+    this.removeBrowseFocusSubscription =
+      this.experienceAdapter.browseFocusController.subscribe(
+        (browseFocusState: BrowseFocusState): void => {
+          this.shell.renderBrowseFocusState(browseFocusState);
         },
       );
     window.addEventListener("beforeunload", this.handleBeforeUnload);

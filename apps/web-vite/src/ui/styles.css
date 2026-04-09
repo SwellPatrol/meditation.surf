@@ -30,6 +30,11 @@ body {
   position: fixed;
 }
 
+#app.is-keyboard-mode,
+#app.is-keyboard-mode * {
+  cursor: none !important;
+}
+
 .background-video {
   height: 100%;
   inset: 0;
@@ -196,6 +201,12 @@ body {
 
 .browse-thumbnail-card {
   flex: 0 0 clamp(170px, 15vw, 220px);
+  pointer-events: auto;
+  transform: scale(1);
+  transform-origin: center;
+  transition:
+    transform 180ms ease,
+    filter 180ms ease;
 }
 
 .browse-thumbnail-artwork {
@@ -213,6 +224,10 @@ body {
   margin-bottom: 10px;
   overflow: hidden;
   position: relative;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
 }
 
 .browse-thumbnail-artwork::after {
@@ -247,6 +262,23 @@ body {
   font-size: 0.8rem;
   font-weight: 600;
   margin: 0;
+}
+
+.browse-thumbnail-card.is-focused {
+  filter: brightness(1.08);
+  transform: scale(1.03);
+}
+
+.browse-thumbnail-card.is-focused .browse-thumbnail-artwork {
+  background: linear-gradient(
+    150deg,
+    rgba(54, 87, 115, 0.98),
+    rgba(15, 23, 31, 0.96)
+  );
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.28),
+    0 20px 36px rgba(0, 0, 0, 0.34);
 }
 
 @media (max-width: 900px) {

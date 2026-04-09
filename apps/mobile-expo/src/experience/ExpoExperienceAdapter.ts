@@ -8,12 +8,15 @@
 
 import {
   BrowseContentAdapter,
+  type BrowseFocusController,
+  BrowseInteractionController,
   type MeditationExperience,
   type OverlayController,
   type PlaybackSequenceController,
 } from "@meditation-surf/core";
 import type { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
+import { ExpoBrowseInputAdapter } from "../input/ExpoBrowseInputAdapter";
 import { ExpoAppLayoutController } from "../layout/ExpoAppLayoutController";
 import { ExpoBackgroundVideoController } from "../playback/ExpoBackgroundVideoController";
 
@@ -27,6 +30,9 @@ export class ExpoExperienceAdapter {
   public readonly appLayoutController: ExpoAppLayoutController;
   public readonly backgroundVideoController: ExpoBackgroundVideoController;
   public readonly browseContentAdapter: BrowseContentAdapter;
+  public readonly browseFocusController: BrowseFocusController;
+  public readonly browseInputAdapter: ExpoBrowseInputAdapter;
+  public readonly browseInteractionController: BrowseInteractionController;
   public readonly overlayController: OverlayController;
   public readonly playbackSequenceController: PlaybackSequenceController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
@@ -46,6 +52,13 @@ export class ExpoExperienceAdapter {
       experience.getPlaybackVisualReadinessController(),
     );
     this.browseContentAdapter = new BrowseContentAdapter(experience.catalog);
+    this.browseFocusController = experience.getBrowseFocusController();
+    this.browseInteractionController = new BrowseInteractionController(
+      this.browseFocusController,
+    );
+    this.browseInputAdapter = new ExpoBrowseInputAdapter(
+      this.browseInteractionController,
+    );
     this.overlayController = experience.getOverlayController();
     this.playbackSequenceController =
       experience.getPlaybackSequenceController();

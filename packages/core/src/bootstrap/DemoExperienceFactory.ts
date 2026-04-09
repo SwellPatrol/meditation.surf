@@ -8,6 +8,11 @@
 
 import { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
+import {
+  BrowseContentAdapter,
+  type BrowseRowContent,
+} from "../browse/BrowseContentAdapter";
+import { BrowseFocusController } from "../browse/BrowseFocusController";
 import { Catalog } from "../catalog/Catalog";
 import { FixtureCatalog } from "../catalog/FixtureCatalog";
 import { MeditationExperience } from "../experience/MeditationExperience";
@@ -45,6 +50,9 @@ export class DemoExperienceFactory {
       new ForegroundLayerLayout(centeredOverlayLayout),
     );
     const catalog: Catalog = FixtureCatalog.getCatalog();
+    const browseContentAdapter: BrowseContentAdapter = new BrowseContentAdapter(
+      catalog,
+    );
     const overlayController: OverlayController = new OverlayController();
     const playbackVisualReadinessController: PlaybackVisualReadinessController =
       new PlaybackVisualReadinessController();
@@ -55,9 +63,18 @@ export class DemoExperienceFactory {
       );
     const playbackSequenceController: PlaybackSequenceController =
       new PlaybackSequenceController(catalog);
+    const browseFocusController: BrowseFocusController =
+      new BrowseFocusController(
+        browseContentAdapter
+          .getBrowseScreenContent(playbackSequenceController.getActiveItem())
+          .rows.map(
+            (browseRow: BrowseRowContent): number => browseRow.items.length,
+          ),
+      );
 
     return new MeditationExperience(
       appLayout,
+      browseFocusController,
       catalog,
       overlayController,
       overlayRevealHandoffController,

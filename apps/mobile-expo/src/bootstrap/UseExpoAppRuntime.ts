@@ -7,6 +7,7 @@
  */
 
 import type {
+  BrowseFocusState,
   BrowseScreenContent,
   CenteredOverlaySize,
   OverlayState,
@@ -41,6 +42,7 @@ export interface ExpoVideoViewProps {
  */
 export interface ExpoAppRuntime {
   readonly browseContent: BrowseScreenContent;
+  readonly browseFocusState: BrowseFocusState;
   readonly experienceAdapter: ExpoExperienceAdapter;
   readonly loadingOpacity: Animated.Value;
   readonly overlayOpacity: Animated.Value;
@@ -72,6 +74,9 @@ export function useExpoAppRuntime(
       experienceAdapter.playbackSequenceController.getActiveItem(),
     ),
   );
+  const [browseFocusState, setBrowseFocusState] = useState<BrowseFocusState>(
+    experienceAdapter.browseFocusController.getState(),
+  );
   const loadingOpacity: Animated.Value = useRef<Animated.Value>(
     new Animated.Value(1),
   ).current;
@@ -99,11 +104,34 @@ export function useExpoAppRuntime(
   useEffect((): (() => void) => {
     return experienceAdapter.playbackSequenceController.subscribe(
       (playbackSequenceState: PlaybackSequenceState): void => {
-        setBrowseContent(
+        const nextBrowseContent: BrowseScreenContent =
           experienceAdapter.browseContentAdapter.getBrowseScreenContent(
             playbackSequenceState.activeItem,
-          ),
+          );
+        const rowItemCounts: number[] = nextBrowseContent.rows.map(
+          (browseRow): number => browseRow.items.length,
         );
+
+        experienceAdapter.browseFocusController.syncRows(rowItemCounts);
+        setBrowseContent(nextBrowseContent);
+      },
+    );
+  }, [experienceAdapter]);
+
+  // Keep the shared browse focus controller clamped to the current rows
+  useEffect((): void => {
+    const rowItemCounts: number[] = browseContent.rows.map(
+      (browseRow): number => browseRow.items.length,
+    );
+
+    experienceAdapter.browseFocusController.syncRows(rowItemCounts);
+  }, [browseContent, experienceAdapter]);
+
+  // Bind the shared browse focus state to the Expo screen state
+  useEffect((): (() => void) => {
+    return experienceAdapter.browseFocusController.subscribe(
+      (nextBrowseFocusState: BrowseFocusState): void => {
+        setBrowseFocusState(nextBrowseFocusState);
       },
     );
   }, [experienceAdapter]);
@@ -151,6 +179,7 @@ export function useExpoAppRuntime(
 
   return {
     browseContent,
+    browseFocusState,
     experienceAdapter,
     loadingOpacity,
     overlayOpacity,

@@ -67,15 +67,25 @@ export function ExpoAppScreen(props: ExpoAppScreenProps): JSX.Element {
       </View>
       <View
         accessible={false}
-        pointerEvents="none"
+        pointerEvents="box-none"
         style={runtime.experienceAdapter.appLayoutController.getOverlayUiPlaneStyle()}
       >
         <Animated.View
+          pointerEvents="box-none"
           style={{
             opacity: runtime.overlayOpacity,
           }}
         >
-          <ExpoBrowseOverlay content={runtime.browseContent} />
+          <ExpoBrowseOverlay
+            browseFocusState={runtime.browseFocusState}
+            content={runtime.browseContent}
+            getItemInputHandlers={(rowIndex: number, itemIndex: number) => {
+              return runtime.experienceAdapter.browseInputAdapter.createBrowseItemInputHandlers(
+                rowIndex,
+                itemIndex,
+              );
+            }}
+          />
         </Animated.View>
       </View>
     </View>

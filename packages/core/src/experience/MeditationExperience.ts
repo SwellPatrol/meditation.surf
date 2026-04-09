@@ -8,6 +8,7 @@
 
 import type { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
+import type { BrowseFocusController } from "../browse/BrowseFocusController";
 import type { Catalog } from "../catalog/Catalog";
 import type { MediaItem } from "../catalog/MediaItem";
 import type { AppLayout } from "../layout/AppLayout";
@@ -26,6 +27,7 @@ import type { OverlayRevealHandoffController } from "../ui/OverlayRevealHandoffC
  */
 export class MeditationExperience {
   public readonly appLayout: AppLayout;
+  public readonly browseFocusController: BrowseFocusController;
   public readonly catalog: Catalog;
   public readonly overlayController: OverlayController;
   public readonly overlayRevealHandoffController: OverlayRevealHandoffController;
@@ -36,6 +38,7 @@ export class MeditationExperience {
    * @brief Create a meditation experience from its domain submodels
    *
    * @param appLayout - Shared app-surface layout model
+   * @param browseFocusController - Shared browse focus controller
    * @param catalog - Shared content catalog model
    * @param overlayController - Shared overlay interaction state controller
    * @param overlayRevealHandoffController - Shared loading-to-overlay handoff controller
@@ -44,6 +47,7 @@ export class MeditationExperience {
    */
   public constructor(
     appLayout: AppLayout,
+    browseFocusController: BrowseFocusController,
     catalog: Catalog,
     overlayController: OverlayController,
     overlayRevealHandoffController: OverlayRevealHandoffController,
@@ -51,6 +55,7 @@ export class MeditationExperience {
     playbackSequenceController: PlaybackSequenceController,
   ) {
     this.appLayout = appLayout;
+    this.browseFocusController = browseFocusController;
     this.catalog = catalog;
     this.overlayController = overlayController;
     this.overlayRevealHandoffController = overlayRevealHandoffController;
@@ -74,6 +79,15 @@ export class MeditationExperience {
    */
   public getForegroundLayer(): ForegroundLayerLayout {
     return this.appLayout.getForegroundLayer();
+  }
+
+  /**
+   * @brief Return the shared browse focus controller
+   *
+   * @returns Shared browse focus controller
+   */
+  public getBrowseFocusController(): BrowseFocusController {
+    return this.browseFocusController;
   }
 
   /**
