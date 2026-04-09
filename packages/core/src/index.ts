@@ -76,10 +76,17 @@ export {
 } from "./browse/BrowseFocusController";
 export {
   BrowseInteractionController,
-  type BrowseFocusCommand,
   type BrowseInputMode,
   type BrowseInputModeListener,
 } from "./input/BrowseInteractionController";
+export {
+  type BrowseDirectionalInputIntent,
+  type BrowseFocusItemInputIntent,
+  type BrowseInputCommand,
+  type BrowseInputIntent,
+  type BrowseInputIntentType,
+  type BrowseModeInputIntent,
+} from "./input/BrowseInputIntent";
 export { Catalog } from "./catalog/Catalog";
 export { CatalogSection } from "./catalog/CatalogSection";
 export { FixtureCatalog } from "./catalog/FixtureCatalog";

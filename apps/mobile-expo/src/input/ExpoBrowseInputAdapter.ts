@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { BrowseFocusCommand } from "@meditation-surf/core";
+import type { BrowseInputIntent } from "@meditation-surf/core";
 import { BrowseInteractionController } from "@meditation-surf/core";
 import { Platform } from "react-native";
 
@@ -17,6 +17,17 @@ export interface ExpoBrowseItemInputHandlers {
   readonly onHoverIn: () => void;
   readonly onPress: () => void;
   readonly onPressIn: () => void;
+}
+
+/**
+ * @brief Prepared browse input bindings consumed by the Expo screen runtime
+ */
+export interface ExpoBrowseInputBindings {
+  readonly getItemInputHandlers: (
+    rowIndex: number,
+    itemIndex: number,
+  ) => ExpoBrowseItemInputHandlers;
+  readonly rootInputProps: ExpoBrowseRootInputProps;
 }
 
 /**
@@ -82,21 +93,36 @@ export class ExpoBrowseInputAdapter {
     rowIndex: number,
     itemIndex: number,
   ): ExpoBrowseItemInputHandlers {
-    const focusItemFromPointer: () => void = (): void => {
-      this.browseInteractionController.enterPointerMode();
-      this.browseInteractionController.focusItem(rowIndex, itemIndex);
-    };
+    const pointerFocusIntents: readonly BrowseInputIntent[] =
+      this.createPointerFocusIntents(rowIndex, itemIndex);
 
     return {
       onHoverIn: (): void => {
-        focusItemFromPointer();
+        this.browseInteractionController.dispatchIntents(pointerFocusIntents);
       },
       onPress: (): void => {
-        focusItemFromPointer();
+        this.browseInteractionController.dispatchIntents(pointerFocusIntents);
       },
       onPressIn: (): void => {
-        focusItemFromPointer();
+        this.browseInteractionController.dispatchIntents(pointerFocusIntents);
       },
+    };
+  }
+
+  /**
+   * @brief Build the screen-level browse input bindings consumed by Expo views
+   *
+   * @returns Prepared root and item bindings for the Expo browse surface
+   */
+  public createBrowseInputBindings(): ExpoBrowseInputBindings {
+    return {
+      getItemInputHandlers: (
+        rowIndex: number,
+        itemIndex: number,
+      ): ExpoBrowseItemInputHandlers => {
+        return this.createBrowseItemInputHandlers(rowIndex, itemIndex);
+      },
+      rootInputProps: this.getRootInputProps(),
     };
   }
 
@@ -137,39 +163,74 @@ export class ExpoBrowseInputAdapter {
    * @param event - Browser keyboard event sourced from the active window
    */
   private handleDirectionalKeyboardInput(event: KeyboardEvent): void {
-    const focusCommand: BrowseFocusCommand | null =
-      this.getBrowseFocusCommandFromKeyboardEvent(event);
+    const browseInputIntents: readonly BrowseInputIntent[] | null =
+      this.getBrowseInputIntentsFromKeyboardEvent(event);
 
-    if (focusCommand === null) {
+    if (browseInputIntents === null) {
       return;
     }
 
     event.preventDefault();
-    this.browseInteractionController.dispatchBrowseFocusCommand(focusCommand);
+    this.browseInteractionController.dispatchIntents(browseInputIntents);
   }
 
   /**
-   * @brief Convert a keyboard event into a shared directional browse command
+   * @brief Convert a keyboard event into shared directional-mode browse intents
    *
    * @param event - Browser keyboard event to inspect
    *
-   * @returns Shared browse command or `null` when the key is unrelated
+   * @returns Shared browse intents or `null` when the key is unrelated
    */
-  private getBrowseFocusCommandFromKeyboardEvent(
+  private getBrowseInputIntentsFromKeyboardEvent(
     event: KeyboardEvent,
-  ): BrowseFocusCommand | null {
+  ): readonly BrowseInputIntent[] | null {
     switch (event.key) {
       case "ArrowLeft":
-        return "moveLeft";
+        return this.createDirectionalInputIntents({ type: "moveLeft" });
       case "ArrowRight":
-        return "moveRight";
+        return this.createDirectionalInputIntents({ type: "moveRight" });
       case "ArrowUp":
-        return "moveUp";
+        return this.createDirectionalInputIntents({ type: "moveUp" });
       case "ArrowDown":
-        return "moveDown";
+        return this.createDirectionalInputIntents({ type: "moveDown" });
       default:
         return null;
     }
+  }
+
+  /**
+   * @brief Prefix one directional movement with directional-mode activation
+   *
+   * @param movementIntent - Directional browse movement emitted by the keyboard
+   *
+   * @returns Ordered abstract browse intents for one directional event
+   */
+  private createDirectionalInputIntents(
+    movementIntent: BrowseInputIntent,
+  ): readonly BrowseInputIntent[] {
+    return [{ type: "enterDirectionalMode" }, movementIntent];
+  }
+
+  /**
+   * @brief Build the shared pointer-mode and focus intents for one browse item
+   *
+   * @param rowIndex - Row containing the interactive thumbnail
+   * @param itemIndex - Item position inside that row
+   *
+   * @returns Ordered abstract intents for one pointer or touch interaction
+   */
+  private createPointerFocusIntents(
+    rowIndex: number,
+    itemIndex: number,
+  ): readonly BrowseInputIntent[] {
+    return [
+      { type: "enterPointerMode" },
+      {
+        itemIndex,
+        rowIndex,
+        type: "focusItem",
+      },
+    ];
   }
 
   /**

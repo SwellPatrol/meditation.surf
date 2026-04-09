@@ -58,12 +58,15 @@ export class TvApp {
       mountElement,
       this.experienceAdapter.browseInteractionController,
     );
+    const directionalInputHandlers =
+      browseInputAdapter.createDirectionalInputHandlers();
     const lightningApp: ReturnType<typeof Blits.Application> =
       createLightningApp({
         appLayoutController: this.experienceAdapter.appLayoutController,
         browseInputAdapter,
         browseContentAdapter: this.experienceAdapter.browseContentAdapter,
         browseFocusController: this.experienceAdapter.browseFocusController,
+        directionalInputHandlers,
         overlayController: this.experienceAdapter.overlayController,
         playbackSequenceController:
           this.experienceAdapter.playbackSequenceController,

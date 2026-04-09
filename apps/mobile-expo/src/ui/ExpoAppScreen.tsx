@@ -36,8 +36,6 @@ export interface ExpoAppScreenProps {
 export function ExpoAppScreen(props: ExpoAppScreenProps): JSX.Element {
   const runtime: ExpoAppRuntime = useExpoAppRuntime({ app: props.app });
   const rootViewRef = useRef<View | null>(null);
-  const rootInputProps =
-    runtime.experienceAdapter.browseInputAdapter.getRootInputProps();
 
   useEffect((): void => {
     runtime.experienceAdapter.browseInputAdapter.focusKeyboardRoot(
@@ -48,9 +46,9 @@ export function ExpoAppScreen(props: ExpoAppScreenProps): JSX.Element {
   return (
     <View
       ref={rootViewRef}
-      focusable={rootInputProps.focusable}
+      focusable={runtime.browseInputBindings.rootInputProps.focusable}
       style={runtime.experienceAdapter.appLayoutController.getContainerStyle()}
-      tabIndex={rootInputProps.tabIndex}
+      tabIndex={runtime.browseInputBindings.rootInputProps.tabIndex}
     >
       <VideoView
         contentFit={runtime.videoViewProps.contentFit}
@@ -90,12 +88,9 @@ export function ExpoAppScreen(props: ExpoAppScreenProps): JSX.Element {
           <ExpoBrowseOverlay
             browseFocusState={runtime.browseFocusState}
             content={runtime.browseContent}
-            getItemInputHandlers={(rowIndex: number, itemIndex: number) => {
-              return runtime.experienceAdapter.browseInputAdapter.createBrowseItemInputHandlers(
-                rowIndex,
-                itemIndex,
-              );
-            }}
+            getItemInputHandlers={
+              runtime.browseInputBindings.getItemInputHandlers
+            }
           />
         </Animated.View>
       </View>

@@ -6,7 +6,6 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { BrowseFocusCommand } from "@meditation-surf/core";
 import { BrowseInteractionController } from "@meditation-surf/core";
 
 import {
@@ -22,6 +21,16 @@ type StagePointerCoordinates = {
   x: number;
   y: number;
 };
+
+/**
+ * @brief Prepared directional handlers consumed by the Lightning app input map
+ */
+export interface TvDirectionalInputHandlers {
+  readonly down: () => void;
+  readonly left: () => void;
+  readonly right: () => void;
+  readonly up: () => void;
+}
 
 /**
  * @brief Own TV directional, pointer, and touch browse input
@@ -95,12 +104,37 @@ export class TvBrowseInputAdapter {
   }
 
   /**
-   * @brief Dispatch one directional browse command from Lightning input
+   * @brief Build directional input callbacks consumed by the Lightning app
    *
-   * @param focusCommand - Shared directional focus command
+   * @returns Prepared directional handlers that emit shared browse intents
    */
-  public dispatchDirectionalCommand(focusCommand: BrowseFocusCommand): void {
-    this.browseInteractionController.dispatchBrowseFocusCommand(focusCommand);
+  public createDirectionalInputHandlers(): TvDirectionalInputHandlers {
+    return {
+      down: (): void => {
+        this.browseInteractionController.dispatchIntents([
+          { type: "enterDirectionalMode" },
+          { type: "moveDown" },
+        ]);
+      },
+      left: (): void => {
+        this.browseInteractionController.dispatchIntents([
+          { type: "enterDirectionalMode" },
+          { type: "moveLeft" },
+        ]);
+      },
+      right: (): void => {
+        this.browseInteractionController.dispatchIntents([
+          { type: "enterDirectionalMode" },
+          { type: "moveRight" },
+        ]);
+      },
+      up: (): void => {
+        this.browseInteractionController.dispatchIntents([
+          { type: "enterDirectionalMode" },
+          { type: "moveUp" },
+        ]);
+      },
+    };
   }
 
   /**
@@ -132,7 +166,9 @@ export class TvBrowseInputAdapter {
     const stagePointerCoordinates: StagePointerCoordinates | null =
       this.getStagePointerCoordinates(event.clientX, event.clientY);
 
-    this.browseInteractionController.enterPointerMode();
+    this.browseInteractionController.dispatchIntent({
+      type: "enterPointerMode",
+    });
 
     if (stagePointerCoordinates === null) {
       return;
@@ -150,7 +186,9 @@ export class TvBrowseInputAdapter {
     const stagePointerCoordinates: StagePointerCoordinates | null =
       this.getStagePointerCoordinates(event.clientX, event.clientY);
 
-    this.browseInteractionController.enterPointerMode();
+    this.browseInteractionController.dispatchIntent({
+      type: "enterPointerMode",
+    });
 
     if (stagePointerCoordinates === null) {
       return;
@@ -206,7 +244,11 @@ export class TvBrowseInputAdapter {
             browseItem,
           )
         ) {
-          this.browseInteractionController.focusItem(rowIndex, itemIndex);
+          this.browseInteractionController.dispatchIntent({
+            itemIndex,
+            rowIndex,
+            type: "focusItem",
+          });
           return;
         }
       }

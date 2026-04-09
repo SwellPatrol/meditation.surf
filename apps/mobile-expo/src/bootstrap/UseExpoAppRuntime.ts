@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, useWindowDimensions } from "react-native";
 
 import type { ExpoExperienceAdapter } from "../experience/ExpoExperienceAdapter";
+import type { ExpoBrowseInputBindings } from "../input/ExpoBrowseInputAdapter";
 import type { ExpoApp } from "./ExpoApp";
 
 /**
@@ -44,6 +45,7 @@ export interface ExpoVideoViewProps {
 export interface ExpoAppRuntime {
   readonly browseContent: BrowseScreenContent;
   readonly browseFocusState: BrowseFocusState;
+  readonly browseInputBindings: ExpoBrowseInputBindings;
   readonly experienceAdapter: ExpoExperienceAdapter;
   readonly loadingOpacity: Animated.Value;
   readonly overlayOpacity: Animated.Value;
@@ -180,10 +182,13 @@ export function useExpoAppRuntime(
     readonly onFirstFrameRender: () => void;
     readonly playsInline: boolean;
   } = experienceAdapter.backgroundVideoController.getVideoViewProps();
+  const browseInputBindings: ExpoBrowseInputBindings =
+    experienceAdapter.browseInputAdapter.createBrowseInputBindings();
 
   return {
     browseContent,
     browseFocusState,
+    browseInputBindings,
     experienceAdapter,
     loadingOpacity,
     overlayOpacity,

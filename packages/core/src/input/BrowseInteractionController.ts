@@ -7,20 +7,16 @@
  */
 
 import { BrowseFocusController } from "../browse/BrowseFocusController";
+import type {
+  BrowseDirectionalInputIntent,
+  BrowseInputCommand,
+  BrowseInputIntent,
+} from "./BrowseInputIntent";
 
 /**
  * @brief Supported browse input modes shared across app surfaces
  */
-export type BrowseInputMode = "keyboard" | "pointer";
-
-/**
- * @brief Focus commands consumed by the shared browse interaction controller
- */
-export type BrowseFocusCommand =
-  | "moveLeft"
-  | "moveRight"
-  | "moveUp"
-  | "moveDown";
+export type BrowseInputMode = "directional" | "pointer";
 
 /**
  * @brief Listener signature used for browse input-mode updates
@@ -77,10 +73,10 @@ export class BrowseInteractionController {
   }
 
   /**
-   * @brief Enter directional keyboard mode
+   * @brief Enter directional browse mode
    */
-  public enterKeyboardMode(): void {
-    this.transitionInputMode("keyboard");
+  public enterDirectionalMode(): void {
+    this.transitionInputMode("directional");
   }
 
   /**
@@ -91,14 +87,77 @@ export class BrowseInteractionController {
   }
 
   /**
-   * @brief Dispatch one of the shared directional browse commands
+   * @brief Interpret one abstract browse input intent
    *
-   * @param command - Directional browse command sourced from a runtime adapter
+   * @param intent - High-level browse input intent emitted by a platform adapter
    */
-  public dispatchBrowseFocusCommand(command: BrowseFocusCommand): void {
-    this.enterKeyboardMode();
+  public dispatchIntent(intent: BrowseInputIntent): void {
+    switch (intent.type) {
+      case "enterPointerMode":
+        this.enterPointerMode();
+        break;
+      case "enterDirectionalMode":
+        this.enterDirectionalMode();
+        break;
+      case "moveLeft":
+      case "moveRight":
+      case "moveUp":
+      case "moveDown":
+        this.dispatchDirectionalIntent(intent);
+        break;
+      case "focusItem":
+        this.browseFocusController.focusItem(intent.rowIndex, intent.itemIndex);
+        break;
+      default:
+        intent satisfies never;
+    }
+  }
 
-    switch (command) {
+  /**
+   * @brief Interpret a batch of browse intents in the order they were emitted
+   *
+   * @param intents - Ordered intents derived from one raw platform event
+   */
+  public dispatchIntents(intents: readonly BrowseInputIntent[]): void {
+    for (const intent of intents) {
+      this.dispatchIntent(intent);
+    }
+  }
+
+  /**
+   * @brief Backward-compatible alias for shared browse input commands
+   *
+   * @param command - Abstract browse command emitted by a platform adapter
+   */
+  public dispatchCommand(command: BrowseInputCommand): void {
+    this.dispatchIntent(command);
+  }
+
+  /**
+   * @brief Backward-compatible alias for direct browse item focus
+   *
+   * @param rowIndex - Row containing the focused item
+   * @param itemIndex - Item to activate within the row
+   */
+  public focusItem(rowIndex: number, itemIndex: number): void {
+    this.dispatchIntent({
+      itemIndex,
+      rowIndex,
+      type: "focusItem",
+    });
+  }
+
+  /**
+   * @brief Interpret one shared directional browse intent
+   *
+   * @param intent - Directional browse intent to apply to the shared focus state
+   */
+  private dispatchDirectionalIntent(
+    intent: BrowseDirectionalInputIntent,
+  ): void {
+    this.enterDirectionalMode();
+
+    switch (intent.type) {
       case "moveLeft":
         this.browseFocusController.moveLeft();
         break;
@@ -112,18 +171,8 @@ export class BrowseInteractionController {
         this.browseFocusController.moveDown();
         break;
       default:
-        command satisfies never;
+        intent satisfies never;
     }
-  }
-
-  /**
-   * @brief Focus a concrete browse item without changing row-memory behavior
-   *
-   * @param rowIndex - Row containing the focused item
-   * @param itemIndex - Item to activate within the row
-   */
-  public focusItem(rowIndex: number, itemIndex: number): void {
-    this.browseFocusController.focusItem(rowIndex, itemIndex);
   }
 
   /**

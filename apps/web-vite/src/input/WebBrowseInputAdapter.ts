@@ -6,10 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type {
-  BrowseFocusCommand,
-  BrowseInputMode,
-} from "@meditation-surf/core";
+import type { BrowseInputIntent, BrowseInputMode } from "@meditation-surf/core";
 import { BrowseInteractionController } from "@meditation-surf/core";
 
 import type { WebAppShell } from "../ui/WebAppShell";
@@ -51,13 +48,19 @@ export class WebBrowseInputAdapter {
       this.handleDirectionalKeyboardInput(event);
     };
     this.handleDocumentPointerMove = (): void => {
-      this.browseInteractionController.enterPointerMode();
+      this.browseInteractionController.dispatchIntent({
+        type: "enterPointerMode",
+      });
     };
     this.handleDocumentPointerDown = (): void => {
-      this.browseInteractionController.enterPointerMode();
+      this.browseInteractionController.dispatchIntent({
+        type: "enterPointerMode",
+      });
     };
     this.handleDocumentClick = (): void => {
-      this.browseInteractionController.enterPointerMode();
+      this.browseInteractionController.dispatchIntent({
+        type: "enterPointerMode",
+      });
     };
   }
 
@@ -152,39 +155,52 @@ export class WebBrowseInputAdapter {
    * @param event - Browser keyboard event sourced from the active window
    */
   private handleDirectionalKeyboardInput(event: KeyboardEvent): void {
-    const focusCommand: BrowseFocusCommand | null =
-      this.getBrowseFocusCommandFromKeyboardEvent(event);
+    const browseInputIntents: readonly BrowseInputIntent[] | null =
+      this.getBrowseInputIntentsFromKeyboardEvent(event);
 
-    if (focusCommand === null) {
+    if (browseInputIntents === null) {
       return;
     }
 
     event.preventDefault();
-    this.browseInteractionController.dispatchBrowseFocusCommand(focusCommand);
+    this.browseInteractionController.dispatchIntents(browseInputIntents);
   }
 
   /**
-   * @brief Convert a keyboard event into a shared directional browse command
+   * @brief Convert a keyboard event into shared directional-mode browse intents
    *
    * @param event - Browser keyboard event to inspect
    *
-   * @returns Shared browse command or `null` when the key is unrelated
+   * @returns Shared browse intents or `null` when the key is unrelated
    */
-  private getBrowseFocusCommandFromKeyboardEvent(
+  private getBrowseInputIntentsFromKeyboardEvent(
     event: KeyboardEvent,
-  ): BrowseFocusCommand | null {
+  ): readonly BrowseInputIntent[] | null {
     switch (event.key) {
       case "ArrowLeft":
-        return "moveLeft";
+        return this.createDirectionalInputIntents({ type: "moveLeft" });
       case "ArrowRight":
-        return "moveRight";
+        return this.createDirectionalInputIntents({ type: "moveRight" });
       case "ArrowUp":
-        return "moveUp";
+        return this.createDirectionalInputIntents({ type: "moveUp" });
       case "ArrowDown":
-        return "moveDown";
+        return this.createDirectionalInputIntents({ type: "moveDown" });
       default:
         return null;
     }
+  }
+
+  /**
+   * @brief Prefix one directional movement with directional-mode activation
+   *
+   * @param movementIntent - Directional browse movement emitted by the keyboard
+   *
+   * @returns Ordered abstract browse intents for one directional event
+   */
+  private createDirectionalInputIntents(
+    movementIntent: BrowseInputIntent,
+  ): readonly BrowseInputIntent[] {
+    return [{ type: "enterDirectionalMode" }, movementIntent];
   }
 
   /**
@@ -205,8 +221,14 @@ export class WebBrowseInputAdapter {
     const rowIndex: number = Number.parseInt(rowIndexText, 10);
     const itemIndex: number = Number.parseInt(itemIndexText, 10);
 
-    this.browseInteractionController.enterPointerMode();
-    this.browseInteractionController.focusItem(rowIndex, itemIndex);
+    this.browseInteractionController.dispatchIntents([
+      { type: "enterPointerMode" },
+      {
+        itemIndex,
+        rowIndex,
+        type: "focusItem",
+      },
+    ]);
   }
 
   /**

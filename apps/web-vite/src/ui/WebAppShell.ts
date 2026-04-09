@@ -163,7 +163,7 @@ export class WebAppShell {
   public renderInputMode(inputMode: BrowseInputMode): void {
     this.mountElement.classList.toggle(
       "is-keyboard-mode",
-      inputMode === "keyboard",
+      inputMode === "directional",
     );
   }
 

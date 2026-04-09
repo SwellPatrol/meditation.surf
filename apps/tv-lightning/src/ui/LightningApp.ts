@@ -9,7 +9,6 @@
 import Blits from "@lightningjs/blits";
 import type {
   BrowseContentAdapter,
-  BrowseFocusCommand,
   BrowseFocusController,
   BrowseFocusState,
   BrowseRowContent,
@@ -26,7 +25,10 @@ import type {
   PlaybackVisualReadinessState,
 } from "@meditation-surf/player-core";
 
-import { TvBrowseInputAdapter } from "../input/TvBrowseInputAdapter";
+import type {
+  TvBrowseInputAdapter,
+  TvDirectionalInputHandlers,
+} from "../input/TvBrowseInputAdapter";
 import {
   LIGHTNING_APP_HEIGHT,
   LIGHTNING_APP_WIDTH,
@@ -62,6 +64,7 @@ export type LightningAppOptions = {
   browseInputAdapter: TvBrowseInputAdapter;
   browseContentAdapter: BrowseContentAdapter;
   browseFocusController: BrowseFocusController;
+  directionalInputHandlers: TvDirectionalInputHandlers;
   overlayController: OverlayController;
   playbackSequenceController: PlaybackSequenceController;
   playbackVisualReadinessController: PlaybackVisualReadinessController;
@@ -434,36 +437,28 @@ export function createLightningApp(
        * @brief Move focus to the previous thumbnail inside the active row
        */
       left(): void {
-        const focusCommand: BrowseFocusCommand = "moveLeft";
-
-        options.browseInputAdapter.dispatchDirectionalCommand(focusCommand);
+        options.directionalInputHandlers.left();
       },
 
       /**
        * @brief Move focus to the next thumbnail inside the active row
        */
       right(): void {
-        const focusCommand: BrowseFocusCommand = "moveRight";
-
-        options.browseInputAdapter.dispatchDirectionalCommand(focusCommand);
+        options.directionalInputHandlers.right();
       },
 
       /**
        * @brief Reserve upward row navigation for the next browse step
        */
       up(): void {
-        const focusCommand: BrowseFocusCommand = "moveUp";
-
-        options.browseInputAdapter.dispatchDirectionalCommand(focusCommand);
+        options.directionalInputHandlers.up();
       },
 
       /**
        * @brief Reserve downward row navigation for the next browse step
        */
       down(): void {
-        const focusCommand: BrowseFocusCommand = "moveDown";
-
-        options.browseInputAdapter.dispatchDirectionalCommand(focusCommand);
+        options.directionalInputHandlers.down();
       },
     },
 
