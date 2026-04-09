@@ -8,6 +8,8 @@
 
 import type { PlaybackSource } from "@meditation-surf/player-core";
 
+import { MediaItemMetadata } from "./MediaItemMetadata";
+
 /**
  * @brief A single piece of playable meditation content
  *
@@ -19,6 +21,7 @@ export class MediaItem {
   public readonly title: string;
   public readonly description: string;
   private readonly playbackSource: PlaybackSource;
+  private readonly metadata: MediaItemMetadata;
 
   /**
    * @brief Create a media item from stable content metadata
@@ -27,17 +30,20 @@ export class MediaItem {
    * @param title - Human-readable media item title
    * @param description - Media item description shown by app layers
    * @param playbackSource - Shared playback source metadata
+   * @param metadata - Shared human-readable catalog metadata
    */
   public constructor(
     id: string,
     title: string,
     description: string,
     playbackSource: PlaybackSource,
+    metadata: MediaItemMetadata,
   ) {
     this.id = id;
     this.title = title;
     this.description = description;
     this.playbackSource = playbackSource;
+    this.metadata = metadata;
   }
 
   /**
@@ -47,5 +53,14 @@ export class MediaItem {
    */
   public getPlaybackSource(): PlaybackSource {
     return this.playbackSource;
+  }
+
+  /**
+   * @brief Return the human-readable metadata associated with this item
+   *
+   * @returns Shared metadata describing duration, status, creation, and views
+   */
+  public getMetadata(): MediaItemMetadata {
+    return this.metadata;
   }
 }

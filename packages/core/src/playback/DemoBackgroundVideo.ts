@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { DemoCatalog } from "../catalog/DemoCatalog";
+import { FixtureCatalog } from "../catalog/FixtureCatalog";
 import {
   BackgroundVideoModel,
   type BackgroundVideoPlaybackPolicy,
@@ -31,7 +31,7 @@ export class DemoBackgroundVideo extends BackgroundVideoModel {
    */
   public constructor() {
     super(
-      DemoCatalog.getSurfVideo().getPlaybackSource(),
+      FixtureCatalog.getBackgroundVideoItem().getPlaybackSource(),
       DemoBackgroundVideo.PLAYBACK_POLICY,
     );
   }

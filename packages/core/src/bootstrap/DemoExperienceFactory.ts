@@ -9,7 +9,7 @@
 import { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
 import { Catalog } from "../catalog/Catalog";
-import { DemoCatalog } from "../catalog/DemoCatalog";
+import { FixtureCatalog } from "../catalog/FixtureCatalog";
 import { MeditationExperience } from "../experience/MeditationExperience";
 import { AppLayout } from "../layout/AppLayout";
 import { BackgroundLayerLayout } from "../layout/BackgroundLayerLayout";
@@ -43,7 +43,7 @@ export class DemoExperienceFactory {
       new BackgroundLayerLayout(backgroundVideo),
       new ForegroundLayerLayout(centeredOverlayLayout),
     );
-    const catalog: Catalog = DemoCatalog.getCatalog();
+    const catalog: Catalog = FixtureCatalog.getCatalog();
     const overlayController: OverlayController = new OverlayController();
     const playbackVisualReadinessController: PlaybackVisualReadinessController =
       new PlaybackVisualReadinessController();

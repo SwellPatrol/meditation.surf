@@ -7,23 +7,24 @@
  */
 
 import type { Catalog } from "../catalog/Catalog";
-import { DemoCatalog } from "../catalog/DemoCatalog";
+import { FixtureCatalog } from "../catalog/FixtureCatalog";
 import type { ICatalogClient } from "./ICatalogClient";
 
 /**
- * @brief In-memory client that serves the shared demo catalog
+ * @brief In-memory client that serves the shared catalog fixture
  *
- * This implementation returns the static demo catalog without remote fetching.
+ * This implementation returns the static fixture catalog without remote
+ * fetching.
  */
-export class DemoCatalogClient implements ICatalogClient {
+export class FixtureCatalogClient implements ICatalogClient {
   /**
-   * @brief Get the demo catalog
+   * @brief Get the shared fixture catalog
    *
    * This resolves to the shared in-memory catalog fixture.
    *
-   * @returns The demo catalog payload
+   * @returns The catalog fixture payload
    */
   public async getCatalog(): Promise<Catalog> {
-    return DemoCatalog.getCatalog();
+    return FixtureCatalog.getCatalog();
   }
 }

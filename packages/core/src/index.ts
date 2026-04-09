@@ -61,7 +61,9 @@ export {
 } from "./analytics/PlaybackStartedAnalyticsEvent";
 export { Catalog } from "./catalog/Catalog";
 export { CatalogSection } from "./catalog/CatalogSection";
+export { FixtureCatalog } from "./catalog/FixtureCatalog";
 export { MediaItem } from "./catalog/MediaItem";
+export { MediaItemMetadata } from "./catalog/MediaItemMetadata";
 export {
   AudioPreferences,
   type AudioPreferencesInit,
