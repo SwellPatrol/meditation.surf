@@ -66,6 +66,8 @@ export class TvApp {
         browseInputAdapter,
         browseContentAdapter: this.experienceAdapter.browseContentAdapter,
         browseFocusController: this.experienceAdapter.browseFocusController,
+        browseSelectionController:
+          this.experienceAdapter.browseSelectionController,
         directionalInputHandlers,
         overlayController: this.experienceAdapter.overlayController,
         playbackSequenceController:

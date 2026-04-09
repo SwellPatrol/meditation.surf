@@ -6,7 +6,9 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { BrowseFocusState } from "../browse/BrowseFocusController";
 import { BrowseFocusController } from "../browse/BrowseFocusController";
+import { BrowseSelectionController } from "../browse/BrowseSelectionController";
 import type {
   BrowseDirectionalInputIntent,
   BrowseInputCommand,
@@ -32,6 +34,7 @@ export type BrowseInputModeListener = (inputMode: BrowseInputMode) => void;
  */
 export class BrowseInteractionController {
   private readonly browseFocusController: BrowseFocusController;
+  private readonly browseSelectionController: BrowseSelectionController;
   private readonly inputModeListeners: Set<BrowseInputModeListener>;
 
   private inputMode: BrowseInputMode;
@@ -40,9 +43,14 @@ export class BrowseInteractionController {
    * @brief Create a browse interaction controller for one app surface
    *
    * @param browseFocusController - Shared browse focus semantics
+   * @param browseSelectionController - Shared browse selection semantics
    */
-  public constructor(browseFocusController: BrowseFocusController) {
+  public constructor(
+    browseFocusController: BrowseFocusController,
+    browseSelectionController: BrowseSelectionController,
+  ) {
     this.browseFocusController = browseFocusController;
+    this.browseSelectionController = browseSelectionController;
     this.inputModeListeners = new Set<BrowseInputModeListener>();
     this.inputMode = "pointer";
   }
@@ -108,6 +116,9 @@ export class BrowseInteractionController {
       case "focusItem":
         this.browseFocusController.focusItem(intent.rowIndex, intent.itemIndex);
         break;
+      case "activateFocusedItem":
+        this.dispatchActivationIntent();
+        break;
       default:
         intent satisfies never;
     }
@@ -148,6 +159,15 @@ export class BrowseInteractionController {
   }
 
   /**
+   * @brief Select the item currently owned by shared focus
+   */
+  public activateFocusedItem(): void {
+    this.dispatchIntent({
+      type: "activateFocusedItem",
+    });
+  }
+
+  /**
    * @brief Interpret one shared directional browse intent
    *
    * @param intent - Directional browse intent to apply to the shared focus state
@@ -173,6 +193,29 @@ export class BrowseInteractionController {
       default:
         intent satisfies never;
     }
+  }
+
+  /**
+   * @brief Interpret one shared browse activation intent
+   *
+   * @param intent - Activation intent that should select the currently focused item
+   */
+  private dispatchActivationIntent(): void {
+    const browseFocusState: BrowseFocusState =
+      this.browseFocusController.getState();
+
+    if (!browseFocusState.hasFocusedItem) {
+      return;
+    }
+
+    const selectedRowIndex: number = browseFocusState.activeRowIndex;
+    const selectedItemIndex: number =
+      browseFocusState.activeItemIndexByRow[selectedRowIndex] ?? 0;
+
+    this.browseSelectionController.selectItem(
+      selectedRowIndex,
+      selectedItemIndex,
+    );
   }
 
   /**

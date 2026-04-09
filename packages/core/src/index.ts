@@ -75,11 +75,17 @@ export {
   type BrowseFocusStateListener,
 } from "./browse/BrowseFocusController";
 export {
+  BrowseSelectionController,
+  type BrowseSelectionState,
+  type BrowseSelectionStateListener,
+} from "./browse/BrowseSelectionController";
+export {
   BrowseInteractionController,
   type BrowseInputMode,
   type BrowseInputModeListener,
 } from "./input/BrowseInteractionController";
 export {
+  type BrowseActivateFocusedItemInputIntent,
   type BrowseDirectionalInputIntent,
   type BrowseFocusItemInputIntent,
   type BrowseInputCommand,

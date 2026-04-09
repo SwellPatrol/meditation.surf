@@ -10,6 +10,7 @@ import {
   BrowseContentAdapter,
   type BrowseFocusController,
   BrowseInteractionController,
+  type BrowseSelectionController,
   type MeditationExperience,
   type OverlayController,
   type PlaybackSequenceController,
@@ -31,6 +32,7 @@ export class WebExperienceAdapter {
   public readonly browseContentAdapter: BrowseContentAdapter;
   public readonly browseFocusController: BrowseFocusController;
   public readonly browseInteractionController: BrowseInteractionController;
+  public readonly browseSelectionController: BrowseSelectionController;
   public readonly overlayController: OverlayController;
   public readonly playbackSequenceController: PlaybackSequenceController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
@@ -49,8 +51,10 @@ export class WebExperienceAdapter {
     );
     this.browseContentAdapter = new BrowseContentAdapter(experience.catalog);
     this.browseFocusController = experience.getBrowseFocusController();
+    this.browseSelectionController = experience.getBrowseSelectionController();
     this.browseInteractionController = new BrowseInteractionController(
       this.browseFocusController,
+      this.browseSelectionController,
     );
     this.overlayController = experience.getOverlayController();
     this.playbackSequenceController =

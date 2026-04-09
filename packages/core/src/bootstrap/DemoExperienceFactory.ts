@@ -13,6 +13,7 @@ import {
   type BrowseRowContent,
 } from "../browse/BrowseContentAdapter";
 import { BrowseFocusController } from "../browse/BrowseFocusController";
+import { BrowseSelectionController } from "../browse/BrowseSelectionController";
 import { Catalog } from "../catalog/Catalog";
 import { FixtureCatalog } from "../catalog/FixtureCatalog";
 import { MeditationExperience } from "../experience/MeditationExperience";
@@ -63,18 +64,20 @@ export class DemoExperienceFactory {
       );
     const playbackSequenceController: PlaybackSequenceController =
       new PlaybackSequenceController(catalog);
-    const browseFocusController: BrowseFocusController =
-      new BrowseFocusController(
-        browseContentAdapter
-          .getBrowseScreenContent(playbackSequenceController.getActiveItem())
-          .rows.map(
-            (browseRow: BrowseRowContent): number => browseRow.items.length,
-          ),
+    const initialRowItemCounts: number[] = browseContentAdapter
+      .getBrowseScreenContent(playbackSequenceController.getActiveItem())
+      .rows.map(
+        (browseRow: BrowseRowContent): number => browseRow.items.length,
       );
+    const browseFocusController: BrowseFocusController =
+      new BrowseFocusController(initialRowItemCounts);
+    const browseSelectionController: BrowseSelectionController =
+      new BrowseSelectionController(initialRowItemCounts);
 
     return new MeditationExperience(
       appLayout,
       browseFocusController,
+      browseSelectionController,
       catalog,
       overlayController,
       overlayRevealHandoffController,

@@ -26,6 +26,7 @@ type StagePointerCoordinates = {
  * @brief Prepared directional handlers consumed by the Lightning app input map
  */
 export interface TvDirectionalInputHandlers {
+  readonly enter: () => void;
   readonly down: () => void;
   readonly left: () => void;
   readonly right: () => void;
@@ -110,6 +111,12 @@ export class TvBrowseInputAdapter {
    */
   public createDirectionalInputHandlers(): TvDirectionalInputHandlers {
     return {
+      enter: (): void => {
+        this.browseInteractionController.dispatchIntents([
+          { type: "enterDirectionalMode" },
+          { type: "activateFocusedItem" },
+        ]);
+      },
       down: (): void => {
         this.browseInteractionController.dispatchIntents([
           { type: "enterDirectionalMode" },
@@ -194,7 +201,7 @@ export class TvBrowseInputAdapter {
       return;
     }
 
-    this.focusHitThumbnail(stagePointerCoordinates);
+    this.activateHitThumbnail(stagePointerCoordinates);
   }
 
   /**
@@ -249,6 +256,39 @@ export class TvBrowseInputAdapter {
             rowIndex,
             type: "focusItem",
           });
+          return;
+        }
+      }
+    }
+  }
+
+  /**
+   * @brief Activate the thumbnail intersected by one fixed-stage pointer position
+   *
+   * @param stagePointerCoordinates - Pointer position in Lightning stage space
+   */
+  private activateHitThumbnail(
+    stagePointerCoordinates: StagePointerCoordinates,
+  ): void {
+    for (const browseRow of this.browseRows) {
+      const rowIndex: number = browseRow.rowPosition;
+
+      for (const [itemIndex, browseItem] of browseRow.items.entries()) {
+        if (
+          this.isPointerInsideThumbnail(
+            stagePointerCoordinates,
+            browseRow,
+            browseItem,
+          )
+        ) {
+          this.browseInteractionController.dispatchIntents([
+            {
+              itemIndex,
+              rowIndex,
+              type: "focusItem",
+            },
+            { type: "activateFocusedItem" },
+          ]);
           return;
         }
       }

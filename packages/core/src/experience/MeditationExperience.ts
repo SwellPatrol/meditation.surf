@@ -9,6 +9,7 @@
 import type { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
 import type { BrowseFocusController } from "../browse/BrowseFocusController";
+import type { BrowseSelectionController } from "../browse/BrowseSelectionController";
 import type { Catalog } from "../catalog/Catalog";
 import type { MediaItem } from "../catalog/MediaItem";
 import type { AppLayout } from "../layout/AppLayout";
@@ -31,6 +32,7 @@ export class MeditationExperience {
   public readonly catalog: Catalog;
   public readonly overlayController: OverlayController;
   public readonly overlayRevealHandoffController: OverlayRevealHandoffController;
+  public readonly browseSelectionController: BrowseSelectionController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
   public readonly playbackSequenceController: PlaybackSequenceController;
 
@@ -39,6 +41,7 @@ export class MeditationExperience {
    *
    * @param appLayout - Shared app-surface layout model
    * @param browseFocusController - Shared browse focus controller
+   * @param browseSelectionController - Shared browse selection controller
    * @param catalog - Shared content catalog model
    * @param overlayController - Shared overlay interaction state controller
    * @param overlayRevealHandoffController - Shared loading-to-overlay handoff controller
@@ -48,6 +51,7 @@ export class MeditationExperience {
   public constructor(
     appLayout: AppLayout,
     browseFocusController: BrowseFocusController,
+    browseSelectionController: BrowseSelectionController,
     catalog: Catalog,
     overlayController: OverlayController,
     overlayRevealHandoffController: OverlayRevealHandoffController,
@@ -56,6 +60,7 @@ export class MeditationExperience {
   ) {
     this.appLayout = appLayout;
     this.browseFocusController = browseFocusController;
+    this.browseSelectionController = browseSelectionController;
     this.catalog = catalog;
     this.overlayController = overlayController;
     this.overlayRevealHandoffController = overlayRevealHandoffController;
@@ -88,6 +93,15 @@ export class MeditationExperience {
    */
   public getBrowseFocusController(): BrowseFocusController {
     return this.browseFocusController;
+  }
+
+  /**
+   * @brief Return the shared browse selection controller
+   *
+   * @returns Shared browse selection controller
+   */
+  public getBrowseSelectionController(): BrowseSelectionController {
+    return this.browseSelectionController;
   }
 
   /**

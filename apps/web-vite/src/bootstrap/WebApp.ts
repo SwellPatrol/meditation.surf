@@ -57,6 +57,9 @@ export class WebApp {
     );
 
     this.experienceAdapter.browseFocusController.syncRows(initialRowItemCounts);
+    this.experienceAdapter.browseSelectionController.syncRows(
+      initialRowItemCounts,
+    );
 
     this.shell = new WebAppShell(
       this.experienceAdapter.appLayoutController,
@@ -136,6 +139,9 @@ export class WebApp {
           );
 
           this.experienceAdapter.browseFocusController.syncRows(rowItemCounts);
+          this.experienceAdapter.browseSelectionController.syncRows(
+            rowItemCounts,
+          );
           this.shell.renderBrowseContent(browseContent);
           this.inputAdapter.syncBrowseTargets();
         },

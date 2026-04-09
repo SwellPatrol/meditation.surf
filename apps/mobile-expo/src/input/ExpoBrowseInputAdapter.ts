@@ -101,7 +101,10 @@ export class ExpoBrowseInputAdapter {
         this.browseInteractionController.dispatchIntents(pointerFocusIntents);
       },
       onPress: (): void => {
-        this.browseInteractionController.dispatchIntents(pointerFocusIntents);
+        this.browseInteractionController.dispatchIntents([
+          ...pointerFocusIntents,
+          { type: "activateFocusedItem" },
+        ]);
       },
       onPressIn: (): void => {
         this.browseInteractionController.dispatchIntents(pointerFocusIntents);
@@ -193,6 +196,13 @@ export class ExpoBrowseInputAdapter {
         return this.createDirectionalInputIntents({ type: "moveUp" });
       case "ArrowDown":
         return this.createDirectionalInputIntents({ type: "moveDown" });
+      case "Enter":
+      case " ":
+        return this.browseInteractionController.getInputMode() === "directional"
+          ? this.createDirectionalInputIntents({
+              type: "activateFocusedItem",
+            })
+          : null;
       default:
         return null;
     }

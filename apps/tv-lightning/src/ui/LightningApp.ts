@@ -13,6 +13,7 @@ import type {
   BrowseFocusState,
   BrowseRowContent,
   BrowseScreenContent,
+  BrowseSelectionController,
   BrowseThumbnailContent,
   MediaItem,
   OverlayController,
@@ -64,6 +65,7 @@ export type LightningAppOptions = {
   browseInputAdapter: TvBrowseInputAdapter;
   browseContentAdapter: BrowseContentAdapter;
   browseFocusController: BrowseFocusController;
+  browseSelectionController: BrowseSelectionController;
   directionalInputHandlers: TvDirectionalInputHandlers;
   overlayController: OverlayController;
   playbackSequenceController: PlaybackSequenceController;
@@ -114,7 +116,7 @@ type LightningAppMethods = {
     playbackVisualReadinessState: PlaybackVisualReadinessState,
   ): void;
   handleOverlayState(overlayState: OverlayState): void;
-  syncBrowseFocusController(): void;
+  syncBrowseControllers(): void;
   rebuildBrowsePresentation(): void;
   tearDownViewportSync(): void;
 };
@@ -179,7 +181,7 @@ export function createLightningApp(
        * @brief Prime the browse presentation before the first overlay reveal
        */
       initializeBrowseContent(): void {
-        this.syncBrowseFocusController();
+        this.syncBrowseControllers();
         this.rebuildBrowsePresentation();
       },
 
@@ -277,7 +279,7 @@ export function createLightningApp(
             this.activePlaybackItem,
             options.browseFocusController.getState(),
           );
-        this.syncBrowseFocusController();
+        this.syncBrowseControllers();
         this.rebuildBrowsePresentation();
       },
 
@@ -305,12 +307,13 @@ export function createLightningApp(
       /**
        * @brief Sync the shared browse focus controller against the latest rows
        */
-      syncBrowseFocusController(): void {
+      syncBrowseControllers(): void {
         const rowItemCounts: number[] = this.browseContent.rows.map(
           (browseRow: BrowseRowContent): number => browseRow.items.length,
         );
 
         options.browseFocusController.syncRows(rowItemCounts);
+        options.browseSelectionController.syncRows(rowItemCounts);
       },
 
       /**
@@ -433,6 +436,13 @@ export function createLightningApp(
     },
 
     input: {
+      /**
+       * @brief Explicitly select the currently focused thumbnail
+       */
+      enter(): void {
+        options.directionalInputHandlers.enter();
+      },
+
       /**
        * @brief Move focus to the previous thumbnail inside the active row
        */

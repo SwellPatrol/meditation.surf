@@ -118,6 +118,7 @@ export function useExpoAppRuntime(
         );
 
         experienceAdapter.browseFocusController.syncRows(rowItemCounts);
+        experienceAdapter.browseSelectionController.syncRows(rowItemCounts);
         setActivePlaybackItem(nextActivePlaybackItem);
       },
     );

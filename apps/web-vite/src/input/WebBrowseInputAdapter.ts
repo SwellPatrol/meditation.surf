@@ -107,7 +107,7 @@ export class WebBrowseInputAdapter {
           this.focusItemFromPointerTarget(thumbnailCardElement);
         };
         const handleClick: () => void = (): void => {
-          this.focusItemFromPointerTarget(thumbnailCardElement);
+          this.activateItemFromPointerTarget(thumbnailCardElement);
         };
 
         thumbnailCardElement.addEventListener(
@@ -185,6 +185,13 @@ export class WebBrowseInputAdapter {
         return this.createDirectionalInputIntents({ type: "moveUp" });
       case "ArrowDown":
         return this.createDirectionalInputIntents({ type: "moveDown" });
+      case "Enter":
+      case " ":
+        return this.browseInteractionController.getInputMode() === "directional"
+          ? this.createDirectionalInputIntents({
+              type: "activateFocusedItem",
+            })
+          : null;
       default:
         return null;
     }
@@ -228,6 +235,37 @@ export class WebBrowseInputAdapter {
         rowIndex,
         type: "focusItem",
       },
+    ]);
+  }
+
+  /**
+   * @brief Enter pointer mode, focus the item, and activate it explicitly
+   *
+   * @param thumbnailCardElement - Rendered card element with row and item data
+   */
+  private activateItemFromPointerTarget(
+    thumbnailCardElement: HTMLElement,
+  ): void {
+    const rowIndexText: string | undefined =
+      thumbnailCardElement.dataset.rowIndex;
+    const itemIndexText: string | undefined =
+      thumbnailCardElement.dataset.itemIndex;
+
+    if (rowIndexText === undefined || itemIndexText === undefined) {
+      return;
+    }
+
+    const rowIndex: number = Number.parseInt(rowIndexText, 10);
+    const itemIndex: number = Number.parseInt(itemIndexText, 10);
+
+    this.browseInteractionController.dispatchIntents([
+      { type: "enterPointerMode" },
+      {
+        itemIndex,
+        rowIndex,
+        type: "focusItem",
+      },
+      { type: "activateFocusedItem" },
     ]);
   }
 
