@@ -14,6 +14,7 @@ import type { Catalog } from "../catalog/Catalog";
 import type { MediaItem } from "../catalog/MediaItem";
 import type { AppLayout } from "../layout/AppLayout";
 import type { ForegroundLayerLayout } from "../layout/ForegroundLayerLayout";
+import type { MediaKernelController } from "../media/MediaKernelController";
 import type { BackgroundVideoModel } from "../playback/BackgroundVideoModel";
 import type { PlaybackSequenceController } from "../playback/PlaybackSequenceController";
 import type { OverlayController } from "../ui/OverlayController";
@@ -33,6 +34,7 @@ export class MeditationExperience {
   public readonly overlayController: OverlayController;
   public readonly overlayRevealHandoffController: OverlayRevealHandoffController;
   public readonly browseSelectionController: BrowseSelectionController;
+  public readonly mediaKernelController: MediaKernelController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
   public readonly playbackSequenceController: PlaybackSequenceController;
 
@@ -43,6 +45,7 @@ export class MeditationExperience {
    * @param browseFocusController - Shared browse focus controller
    * @param browseSelectionController - Shared browse selection controller
    * @param catalog - Shared content catalog model
+   * @param mediaKernelController - Shared runtime-agnostic media orchestration controller
    * @param overlayController - Shared overlay interaction state controller
    * @param overlayRevealHandoffController - Shared loading-to-overlay handoff controller
    * @param playbackVisualReadinessController - Shared playback visual readiness controller
@@ -53,6 +56,7 @@ export class MeditationExperience {
     browseFocusController: BrowseFocusController,
     browseSelectionController: BrowseSelectionController,
     catalog: Catalog,
+    mediaKernelController: MediaKernelController,
     overlayController: OverlayController,
     overlayRevealHandoffController: OverlayRevealHandoffController,
     playbackVisualReadinessController: PlaybackVisualReadinessController,
@@ -62,6 +66,7 @@ export class MeditationExperience {
     this.browseFocusController = browseFocusController;
     this.browseSelectionController = browseSelectionController;
     this.catalog = catalog;
+    this.mediaKernelController = mediaKernelController;
     this.overlayController = overlayController;
     this.overlayRevealHandoffController = overlayRevealHandoffController;
     this.playbackVisualReadinessController = playbackVisualReadinessController;
@@ -111,6 +116,15 @@ export class MeditationExperience {
    */
   public getOverlayController(): OverlayController {
     return this.overlayController;
+  }
+
+  /**
+   * @brief Return the shared media kernel controller
+   *
+   * @returns Shared runtime-agnostic media orchestration controller
+   */
+  public getMediaKernelController(): MediaKernelController {
+    return this.mediaKernelController;
   }
 
   /**

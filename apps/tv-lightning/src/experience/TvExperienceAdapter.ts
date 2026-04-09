@@ -11,6 +11,8 @@ import {
   type BrowseFocusController,
   BrowseInteractionController,
   type BrowseSelectionController,
+  type MediaCapabilityProfile,
+  type MediaKernelController,
   type MeditationExperience,
   type OverlayController,
   type PlaybackSequenceController,
@@ -28,12 +30,25 @@ import { TvBackgroundVideoController } from "../playback/TvBackgroundVideoContro
  * adaptation lives here beside the TV app.
  */
 export class TvExperienceAdapter {
+  private static readonly MEDIA_CAPABILITY_PROFILE: MediaCapabilityProfile = {
+    supportsNativePlayback: true,
+    supportsShakaPlayback: false,
+    supportsPreviewVideo: false,
+    supportsThumbnailExtraction: false,
+    supportsWorkerOffload: false,
+    supportsWebGPUPreferred: false,
+    supportsWebGLFallback: false,
+    supportsCustomPipeline: true,
+    supportsPremiumPlayback: true,
+  };
+
   public readonly appLayoutController: TvAppLayoutController;
   public readonly backgroundVideoController: TvBackgroundVideoController;
   public readonly browseContentAdapter: BrowseContentAdapter;
   public readonly browseFocusController: BrowseFocusController;
   public readonly browseInteractionController: BrowseInteractionController;
   public readonly browseSelectionController: BrowseSelectionController;
+  public readonly mediaKernelController: MediaKernelController;
   public readonly overlayController: OverlayController;
   public readonly playbackSequenceController: PlaybackSequenceController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
@@ -47,6 +62,11 @@ export class TvExperienceAdapter {
     const playbackVisualReadinessController: PlaybackVisualReadinessController =
       experience.getPlaybackVisualReadinessController();
 
+    this.mediaKernelController = experience.getMediaKernelController();
+    this.mediaKernelController.reportAppCapabilities(
+      "tv-lightning",
+      TvExperienceAdapter.MEDIA_CAPABILITY_PROFILE,
+    );
     lightningPlaybackAdapter.setPlaybackVisualReadinessController(
       playbackVisualReadinessController,
     );

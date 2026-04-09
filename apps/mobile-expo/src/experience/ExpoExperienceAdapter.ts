@@ -11,6 +11,8 @@ import {
   type BrowseFocusController,
   BrowseInteractionController,
   type BrowseSelectionController,
+  type MediaCapabilityProfile,
+  type MediaKernelController,
   type MeditationExperience,
   type OverlayController,
   type PlaybackSequenceController,
@@ -28,6 +30,18 @@ import { ExpoBackgroundVideoController } from "../playback/ExpoBackgroundVideoCo
  * adaptation lives here beside the Expo app.
  */
 export class ExpoExperienceAdapter {
+  private static readonly MEDIA_CAPABILITY_PROFILE: MediaCapabilityProfile = {
+    supportsNativePlayback: true,
+    supportsShakaPlayback: false,
+    supportsPreviewVideo: true,
+    supportsThumbnailExtraction: false,
+    supportsWorkerOffload: false,
+    supportsWebGPUPreferred: false,
+    supportsWebGLFallback: false,
+    supportsCustomPipeline: false,
+    supportsPremiumPlayback: true,
+  };
+
   public readonly appLayoutController: ExpoAppLayoutController;
   public readonly backgroundVideoController: ExpoBackgroundVideoController;
   public readonly browseContentAdapter: BrowseContentAdapter;
@@ -35,6 +49,7 @@ export class ExpoExperienceAdapter {
   public readonly browseInputAdapter: ExpoBrowseInputAdapter;
   public readonly browseInteractionController: BrowseInteractionController;
   public readonly browseSelectionController: BrowseSelectionController;
+  public readonly mediaKernelController: MediaKernelController;
   public readonly overlayController: OverlayController;
   public readonly playbackSequenceController: PlaybackSequenceController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
@@ -45,6 +60,11 @@ export class ExpoExperienceAdapter {
    * @param experience - Shared meditation experience
    */
   public constructor(experience: MeditationExperience) {
+    this.mediaKernelController = experience.getMediaKernelController();
+    this.mediaKernelController.reportAppCapabilities(
+      "mobile-expo",
+      ExpoExperienceAdapter.MEDIA_CAPABILITY_PROFILE,
+    );
     this.appLayoutController = new ExpoAppLayoutController(
       experience.appLayout,
     );

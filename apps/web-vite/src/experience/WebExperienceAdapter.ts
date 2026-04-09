@@ -11,6 +11,8 @@ import {
   type BrowseFocusController,
   BrowseInteractionController,
   type BrowseSelectionController,
+  type MediaCapabilityProfile,
+  type MediaKernelController,
   type MeditationExperience,
   type OverlayController,
   type PlaybackSequenceController,
@@ -27,12 +29,25 @@ import { WebBackgroundVideoController } from "../playback/WebBackgroundVideoCont
  * adaptation lives here beside the web app.
  */
 export class WebExperienceAdapter {
+  private static readonly MEDIA_CAPABILITY_PROFILE: MediaCapabilityProfile = {
+    supportsNativePlayback: true,
+    supportsShakaPlayback: true,
+    supportsPreviewVideo: true,
+    supportsThumbnailExtraction: false,
+    supportsWorkerOffload: true,
+    supportsWebGPUPreferred: false,
+    supportsWebGLFallback: false,
+    supportsCustomPipeline: false,
+    supportsPremiumPlayback: true,
+  };
+
   public readonly appLayoutController: WebAppLayoutController;
   public readonly backgroundVideoController: WebBackgroundVideoController;
   public readonly browseContentAdapter: BrowseContentAdapter;
   public readonly browseFocusController: BrowseFocusController;
   public readonly browseInteractionController: BrowseInteractionController;
   public readonly browseSelectionController: BrowseSelectionController;
+  public readonly mediaKernelController: MediaKernelController;
   public readonly overlayController: OverlayController;
   public readonly playbackSequenceController: PlaybackSequenceController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
@@ -43,6 +58,11 @@ export class WebExperienceAdapter {
    * @param experience - Shared meditation experience
    */
   public constructor(experience: MeditationExperience) {
+    this.mediaKernelController = experience.getMediaKernelController();
+    this.mediaKernelController.reportAppCapabilities(
+      "web-vite",
+      WebExperienceAdapter.MEDIA_CAPABILITY_PROFILE,
+    );
     this.appLayoutController = new WebAppLayoutController(experience.appLayout);
     this.backgroundVideoController = new WebBackgroundVideoController(
       experience.appLayout.getBackgroundLayer(),

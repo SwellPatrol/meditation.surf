@@ -8,6 +8,23 @@
 
 export { DemoExperienceFactory } from "./bootstrap/DemoExperienceFactory";
 export { MeditationExperience } from "./experience/MeditationExperience";
+export type { AppMediaCapabilities } from "./media/AppMediaCapabilities";
+export type { MediaCapabilityProfile } from "./media/MediaCapabilityProfile";
+export {
+  MediaKernelController,
+  type MediaKernelStateListener,
+} from "./media/MediaKernelController";
+export type { MediaIntent } from "./media/MediaIntent";
+export type { MediaKernelState } from "./media/MediaKernelState";
+export type { MediaPlaybackLane } from "./media/MediaPlaybackLane";
+export type { MediaRendererKind } from "./media/MediaRendererKind";
+export type { MediaSessionDescriptor } from "./media/MediaSessionDescriptor";
+export type { MediaSessionRole } from "./media/MediaSessionRole";
+export type { MediaSessionSnapshot } from "./media/MediaSessionSnapshot";
+export type { MediaSessionState } from "./media/MediaSessionState";
+export type { MediaSourceDescriptor } from "./media/MediaSourceDescriptor";
+export type { MediaSourceKind } from "./media/MediaSourceKind";
+export type { MediaWarmth } from "./media/MediaWarmth";
 export { AppLayout } from "./layout/AppLayout";
 export { BackgroundLayerLayout } from "./layout/BackgroundLayerLayout";
 export {
