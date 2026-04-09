@@ -15,6 +15,7 @@ import type { ForegroundLayerLayout } from "../layout/ForegroundLayerLayout";
 import type { BackgroundVideoModel } from "../playback/BackgroundVideoModel";
 import type { PlaybackSequenceController } from "../playback/PlaybackSequenceController";
 import type { OverlayController } from "../ui/OverlayController";
+import type { OverlayRevealHandoffController } from "../ui/OverlayRevealHandoffController";
 
 /**
  * @brief Runtime-agnostic app scene for meditation.surf
@@ -27,6 +28,7 @@ export class MeditationExperience {
   public readonly appLayout: AppLayout;
   public readonly catalog: Catalog;
   public readonly overlayController: OverlayController;
+  public readonly overlayRevealHandoffController: OverlayRevealHandoffController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
   public readonly playbackSequenceController: PlaybackSequenceController;
 
@@ -36,6 +38,7 @@ export class MeditationExperience {
    * @param appLayout - Shared app-surface layout model
    * @param catalog - Shared content catalog model
    * @param overlayController - Shared overlay interaction state controller
+   * @param overlayRevealHandoffController - Shared loading-to-overlay handoff controller
    * @param playbackVisualReadinessController - Shared playback visual readiness controller
    * @param playbackSequenceController - Shared active-item playback sequence controller
    */
@@ -43,12 +46,14 @@ export class MeditationExperience {
     appLayout: AppLayout,
     catalog: Catalog,
     overlayController: OverlayController,
+    overlayRevealHandoffController: OverlayRevealHandoffController,
     playbackVisualReadinessController: PlaybackVisualReadinessController,
     playbackSequenceController: PlaybackSequenceController,
   ) {
     this.appLayout = appLayout;
     this.catalog = catalog;
     this.overlayController = overlayController;
+    this.overlayRevealHandoffController = overlayRevealHandoffController;
     this.playbackVisualReadinessController = playbackVisualReadinessController;
     this.playbackSequenceController = playbackSequenceController;
   }
@@ -78,6 +83,15 @@ export class MeditationExperience {
    */
   public getOverlayController(): OverlayController {
     return this.overlayController;
+  }
+
+  /**
+   * @brief Return the shared loading-to-overlay handoff controller
+   *
+   * @returns Shared handoff controller that reveals the overlay after loading fades out
+   */
+  public getOverlayRevealHandoffController(): OverlayRevealHandoffController {
+    return this.overlayRevealHandoffController;
   }
 
   /**

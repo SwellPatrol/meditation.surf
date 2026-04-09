@@ -26,7 +26,6 @@ export class WebApp {
   private readonly experienceAdapter: WebExperienceAdapter;
   private readonly shell: WebAppShell;
   private readonly handleBeforeUnload: () => void;
-  private readonly handlePointerDown: () => void;
   private readonly handleResize: () => void;
   private removeLoadingSubscription: (() => void) | null;
   private removeOverlaySubscription: (() => void) | null;
@@ -55,9 +54,6 @@ export class WebApp {
       this.removePlaybackSequenceSubscription?.();
       this.removePlaybackSequenceSubscription = null;
       void this.experienceAdapter.backgroundVideoController.destroy();
-    };
-    this.handlePointerDown = (): void => {
-      this.experienceAdapter.overlayController.dispatch("INTERACT");
     };
     this.handleResize = (): void => {
       this.experienceAdapter.appLayoutController.applyCenteredOverlayLayout(
@@ -101,10 +97,6 @@ export class WebApp {
             playbackSequenceState.activeItem?.title ?? "";
         },
       );
-    this.shell.fullscreenInteractionElement.addEventListener(
-      "pointerdown",
-      this.handlePointerDown,
-    );
     window.addEventListener("beforeunload", this.handleBeforeUnload);
     window.addEventListener("resize", this.handleResize);
     await this.experienceAdapter.backgroundVideoController.start(

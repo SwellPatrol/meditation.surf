@@ -34,6 +34,7 @@ export {
   type OverlayStateListener,
   type OverlayVisibility,
 } from "./ui/OverlayController";
+export { OverlayRevealHandoffController } from "./ui/OverlayRevealHandoffController";
 export { ForegroundUiElement } from "./ui/ForegroundUiElement";
 export type {
   ForegroundUiElementPlacement,

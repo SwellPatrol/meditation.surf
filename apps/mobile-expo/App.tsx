@@ -16,14 +16,7 @@ import {
 import type { PlaybackVisualReadinessState } from "@meditation-surf/player-core";
 import { useVideoPlayer, type VideoPlayer, VideoView } from "expo-video";
 import { type JSX, useEffect, useRef, useState } from "react";
-import {
-  Animated,
-  Easing,
-  Pressable,
-  type PressableProps,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { Animated, Easing, useWindowDimensions, View } from "react-native";
 
 import { ExpoApp } from "./src/bootstrap/ExpoApp";
 import { ExpoExperienceAdapter } from "./src/experience/ExpoExperienceAdapter";
@@ -116,15 +109,8 @@ export default function App(): JSX.Element {
       experienceAdapter.backgroundVideoController.getVideoViewProps()
         .playsInline,
   };
-  const pressableProps: PressableProps = {
-    onPress: (): void => {
-      experienceAdapter.overlayController.dispatch("INTERACT");
-    },
-    style: experienceAdapter.appLayoutController.getContainerStyle(),
-  };
-
   return (
-    <Pressable {...pressableProps}>
+    <View style={experienceAdapter.appLayoutController.getContainerStyle()}>
       <VideoView
         contentFit={videoViewProps.objectFit}
         nativeControls={false}
@@ -167,6 +153,6 @@ export default function App(): JSX.Element {
           {overlayTitle}
         </Animated.Text>
       </View>
-    </Pressable>
+    </View>
   );
 }

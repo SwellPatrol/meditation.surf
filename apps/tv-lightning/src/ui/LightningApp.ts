@@ -221,22 +221,6 @@ export function createLightningApp(
       },
     },
 
-    input: {
-      /**
-       * @brief Route TV remote enter presses into the shared overlay controller
-       */
-      enter(): void {
-        options.overlayController.dispatch("INTERACT");
-      },
-
-      /**
-       * @brief Treat space like a select action in browser-hosted TV development
-       */
-      space(): void {
-        options.overlayController.dispatch("INTERACT");
-      },
-    },
-
     // Register child components available in the template
     components: {
       Icon,

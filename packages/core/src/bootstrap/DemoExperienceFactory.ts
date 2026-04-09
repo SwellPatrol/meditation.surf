@@ -22,6 +22,7 @@ import { BackgroundVideoModel } from "../playback/BackgroundVideoModel";
 import { DemoBackgroundVideo } from "../playback/DemoBackgroundVideo";
 import { PlaybackSequenceController } from "../playback/PlaybackSequenceController";
 import { OverlayController } from "../ui/OverlayController";
+import { OverlayRevealHandoffController } from "../ui/OverlayRevealHandoffController";
 
 /**
  * @brief Factory that assembles the current demo meditation experience
@@ -47,6 +48,11 @@ export class DemoExperienceFactory {
     const overlayController: OverlayController = new OverlayController();
     const playbackVisualReadinessController: PlaybackVisualReadinessController =
       new PlaybackVisualReadinessController();
+    const overlayRevealHandoffController: OverlayRevealHandoffController =
+      new OverlayRevealHandoffController(
+        overlayController,
+        playbackVisualReadinessController,
+      );
     const playbackSequenceController: PlaybackSequenceController =
       new PlaybackSequenceController(catalog);
 
@@ -54,6 +60,7 @@ export class DemoExperienceFactory {
       appLayout,
       catalog,
       overlayController,
+      overlayRevealHandoffController,
       playbackVisualReadinessController,
       playbackSequenceController,
     );
