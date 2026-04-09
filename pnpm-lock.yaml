@@ -139,9 +139,14 @@ importers:
 
   packages/core:
     dependencies:
+      '@meditation-surf/media':
+        specifier: workspace:*
+        version: link:../media
       '@meditation-surf/player-core':
         specifier: workspace:*
         version: link:../player-core
+
+  packages/media: {}
 
   packages/player-core: {}
 

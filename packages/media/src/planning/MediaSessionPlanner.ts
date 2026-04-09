@@ -6,30 +6,32 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { MediaItem } from "../catalog/MediaItem";
-import type { MediaCapabilityProfile } from "./MediaCapabilityProfile";
-import type { MediaIntent } from "./MediaIntent";
-import type { MediaKernelState } from "./MediaKernelState";
+import type { MediaCapabilityProfile } from "../capabilities/MediaCapabilityProfile";
+import type { MediaIntent } from "../intent/MediaIntent";
+import type { MediaKernelItem } from "../kernel/MediaKernelItem";
+import type { MediaKernelState } from "../kernel/MediaKernelState";
+import type { MediaPlaybackLane } from "../sessions/MediaPlaybackLane";
+import type { MediaRendererKind } from "../sessions/MediaRendererKind";
+import type { MediaSessionRole } from "../sessions/MediaSessionRole";
+import type { MediaWarmth } from "../sessions/MediaWarmth";
+import type { MediaSourceDescriptor } from "../sources/MediaSourceDescriptor";
 import type { MediaPlan } from "./MediaPlan";
 import type { MediaPlanReason } from "./MediaPlanReason";
 import type { MediaPlanSession } from "./MediaPlanSession";
-import type { MediaPlaybackLane } from "./MediaPlaybackLane";
-import type { MediaRendererKind } from "./MediaRendererKind";
-import type { MediaSessionRole } from "./MediaSessionRole";
-import type { MediaSourceDescriptor } from "./MediaSourceDescriptor";
-import { MediaSourceDescriptorFactory } from "./MediaSourceDescriptorFactory";
-import type { MediaWarmth } from "./MediaWarmth";
 
 /**
  * @brief Deterministic inputs used to build one shared media session plan
  */
-export type MediaSessionPlannerInput = {
+export type MediaSessionPlannerInput<
+  TMediaItem extends MediaKernelItem = MediaKernelItem,
+> = {
   appCapabilityProfile: MediaCapabilityProfile | null;
   currentMediaKernelState: MediaKernelState;
   mediaIntent: MediaIntent | null;
-  focusedItem: MediaItem | null;
-  selectedItem: MediaItem | null;
-  activeItem: MediaItem | null;
+  focusedItem: TMediaItem | null;
+  selectedItem: TMediaItem | null;
+  activeItem: TMediaItem | null;
+  createSourceDescriptor: (mediaItem: TMediaItem) => MediaSourceDescriptor;
 };
 
 /**
@@ -46,11 +48,13 @@ export class MediaSessionPlanner {
    *
    * @returns Planned sessions ordered by importance and role
    */
-  public static createPlan(input: MediaSessionPlannerInput): MediaPlan {
+  public static createPlan<TMediaItem extends MediaKernelItem>(
+    input: MediaSessionPlannerInput<TMediaItem>,
+  ): MediaPlan {
     const plannedSessions: MediaPlanSession[] = [];
-    const focusedItem: MediaItem | null = input.focusedItem;
-    const selectedItem: MediaItem | null = input.selectedItem;
-    const activeItem: MediaItem | null = input.activeItem;
+    const focusedItem: TMediaItem | null = input.focusedItem;
+    const selectedItem: TMediaItem | null = input.selectedItem;
+    const activeItem: TMediaItem | null = input.activeItem;
     const appCapabilityProfile: MediaCapabilityProfile | null =
       input.appCapabilityProfile;
     const currentIntentType: MediaIntent["type"] =
@@ -69,11 +73,12 @@ export class MediaSessionPlanner {
             ? "focused-delay-elapsed"
             : "focused",
           appCapabilityProfile,
+          input.createSourceDescriptor,
         ),
       );
     }
 
-    const backgroundItem: MediaItem | null = selectedItem ?? activeItem;
+    const backgroundItem: TMediaItem | null = selectedItem ?? activeItem;
 
     if (backgroundItem !== null) {
       plannedSessions.push(
@@ -82,6 +87,7 @@ export class MediaSessionPlanner {
           selectedItem !== null ? "selected" : "background-active",
           appCapabilityProfile,
           selectedItem !== null ? "selected-item" : "background-active-item",
+          input.createSourceDescriptor,
         ),
       );
     } else if (
@@ -133,13 +139,14 @@ export class MediaSessionPlanner {
    *
    * @returns Planned preview session
    */
-  private static createPreviewSession(
-    mediaItem: MediaItem,
+  private static createPreviewSession<TMediaItem extends MediaKernelItem>(
+    mediaItem: TMediaItem,
     intentType: "focused" | "focused-delay-elapsed",
     appCapabilityProfile: MediaCapabilityProfile | null,
+    createSourceDescriptor: (mediaItem: TMediaItem) => MediaSourceDescriptor,
   ): MediaPlanSession {
     const sourceDescriptor: MediaSourceDescriptor =
-      MediaSourceDescriptorFactory.createForMediaItem(mediaItem);
+      createSourceDescriptor(mediaItem);
     const previewWarmth: MediaWarmth =
       intentType === "focused-delay-elapsed" ? "preloaded" : "first-frame";
     const reason: MediaPlanReason = {
@@ -178,14 +185,15 @@ export class MediaSessionPlanner {
    *
    * @returns Planned background session
    */
-  private static createBackgroundSession(
-    mediaItem: MediaItem,
+  private static createBackgroundSession<TMediaItem extends MediaKernelItem>(
+    mediaItem: TMediaItem,
     intentType: "selected" | "background-active",
     appCapabilityProfile: MediaCapabilityProfile | null,
     reasonKind: "selected-item" | "background-active-item",
+    createSourceDescriptor: (mediaItem: TMediaItem) => MediaSourceDescriptor,
   ): MediaPlanSession {
     const sourceDescriptor: MediaSourceDescriptor =
-      MediaSourceDescriptorFactory.createForMediaItem(mediaItem);
+      createSourceDescriptor(mediaItem);
 
     return {
       sessionId: this.createSessionId("background", sourceDescriptor),

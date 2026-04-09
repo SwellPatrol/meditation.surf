@@ -6,20 +6,20 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { MediaItem } from "../catalog/MediaItem";
-import type { AppMediaCapabilities } from "./AppMediaCapabilities";
-import type { MediaCapabilityProfile } from "./MediaCapabilityProfile";
-import type { MediaIntent } from "./MediaIntent";
+import type { AppMediaCapabilities } from "../capabilities/AppMediaCapabilities";
+import type { MediaCapabilityProfile } from "../capabilities/MediaCapabilityProfile";
+import type { MediaIntent } from "../intent/MediaIntent";
+import type { MediaPlan } from "../planning/MediaPlan";
+import type { MediaPlanReason } from "../planning/MediaPlanReason";
+import type { MediaPlanSession } from "../planning/MediaPlanSession";
+import { MediaSessionPlanner } from "../planning/MediaSessionPlanner";
+import type { MediaSessionDescriptor } from "../sessions/MediaSessionDescriptor";
+import type { MediaSessionSnapshot } from "../sessions/MediaSessionSnapshot";
+import type { MediaSessionState } from "../sessions/MediaSessionState";
+import type { MediaWarmth } from "../sessions/MediaWarmth";
+import type { MediaSourceDescriptor } from "../sources/MediaSourceDescriptor";
+import type { MediaKernelItem } from "./MediaKernelItem";
 import type { MediaKernelState } from "./MediaKernelState";
-import type { MediaPlan } from "./MediaPlan";
-import type { MediaPlanReason } from "./MediaPlanReason";
-import type { MediaPlanSession } from "./MediaPlanSession";
-import type { MediaSessionDescriptor } from "./MediaSessionDescriptor";
-import { MediaSessionPlanner } from "./MediaSessionPlanner";
-import type { MediaSessionSnapshot } from "./MediaSessionSnapshot";
-import type { MediaSessionState } from "./MediaSessionState";
-import type { MediaSourceDescriptor } from "./MediaSourceDescriptor";
-import type { MediaWarmth } from "./MediaWarmth";
 
 /**
  * @brief Listener signature used by the shared media kernel controller
@@ -41,21 +41,36 @@ type MediaSessionDescriptorUpdate = Partial<
  */
 export class MediaKernelController {
   private readonly appCapabilitiesById: Map<string, AppMediaCapabilities>;
+  private readonly createSourceDescriptor: (
+    mediaItem: MediaKernelItem,
+  ) => MediaSourceDescriptor;
   private readonly sessionSnapshotsById: Map<string, MediaSessionSnapshot>;
   private readonly stateListeners: Set<MediaKernelStateListener>;
 
-  private activeItem: MediaItem | null;
+  private activeItem: MediaKernelItem | null;
   private currentIntent: MediaIntent | null;
   private currentPlan: MediaPlan;
-  private focusedItem: MediaItem | null;
-  private selectedItem: MediaItem | null;
+  private focusedItem: MediaKernelItem | null;
+  private selectedItem: MediaKernelItem | null;
 
   /**
    * @brief Create a runtime-agnostic media kernel controller
    */
-  public constructor() {
+  public constructor(
+    createSourceDescriptor:
+      | ((mediaItem: MediaKernelItem) => MediaSourceDescriptor)
+      | null = null,
+  ) {
     this.activeItem = null;
     this.appCapabilitiesById = new Map<string, AppMediaCapabilities>();
+    this.createSourceDescriptor =
+      createSourceDescriptor ??
+      ((mediaItem: MediaKernelItem): MediaSourceDescriptor => {
+        void mediaItem;
+        throw new Error(
+          "MediaKernelController requires a source descriptor factory before planning with media items",
+        );
+      });
     this.currentIntent = null;
     this.currentPlan = {
       sessions: [],
@@ -282,9 +297,9 @@ export class MediaKernelController {
    */
   public setPlanningContext(
     mediaIntent: MediaIntent | null,
-    focusedItem: MediaItem | null,
-    selectedItem: MediaItem | null,
-    activeItem: MediaItem | null,
+    focusedItem: MediaKernelItem | null,
+    selectedItem: MediaKernelItem | null,
+    activeItem: MediaKernelItem | null,
   ): void {
     if (
       this.areMediaIntentsEqual(this.currentIntent, mediaIntent) &&
@@ -433,6 +448,7 @@ export class MediaKernelController {
       focusedItem: this.focusedItem,
       selectedItem: this.selectedItem,
       activeItem: this.activeItem,
+      createSourceDescriptor: this.createSourceDescriptor,
     });
 
     if (this.areMediaPlansEqual(this.currentPlan, nextPlan)) {
@@ -781,8 +797,8 @@ export class MediaKernelController {
    * @returns `true` when both item references represent the same shared item
    */
   private areMediaItemsEqual(
-    leftMediaItem: MediaItem | null,
-    rightMediaItem: MediaItem | null,
+    leftMediaItem: MediaKernelItem | null,
+    rightMediaItem: MediaKernelItem | null,
   ): boolean {
     return leftMediaItem?.id === rightMediaItem?.id;
   }

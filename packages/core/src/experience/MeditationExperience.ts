@@ -6,6 +6,10 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type {
+  MediaKernelController,
+  MediaKernelExperienceBridge,
+} from "@meditation-surf/media";
 import type { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
 import type { BrowseFocusController } from "../browse/BrowseFocusController";
@@ -14,12 +18,10 @@ import type { Catalog } from "../catalog/Catalog";
 import type { MediaItem } from "../catalog/MediaItem";
 import type { AppLayout } from "../layout/AppLayout";
 import type { ForegroundLayerLayout } from "../layout/ForegroundLayerLayout";
-import type { MediaKernelController } from "../media/MediaKernelController";
 import type { BackgroundVideoModel } from "../playback/BackgroundVideoModel";
 import type { PlaybackSequenceController } from "../playback/PlaybackSequenceController";
 import type { OverlayController } from "../ui/OverlayController";
 import type { OverlayRevealHandoffController } from "../ui/OverlayRevealHandoffController";
-import type { MediaKernelExperienceBridge } from "./MediaKernelExperienceBridge";
 
 /**
  * @brief Runtime-agnostic app scene for meditation.surf
@@ -35,7 +37,7 @@ export class MeditationExperience {
   public readonly overlayController: OverlayController;
   public readonly overlayRevealHandoffController: OverlayRevealHandoffController;
   public readonly browseSelectionController: BrowseSelectionController;
-  public readonly mediaKernelExperienceBridge: MediaKernelExperienceBridge;
+  public readonly mediaKernelExperienceBridge: MediaKernelExperienceBridge<MediaItem>;
   public readonly mediaKernelController: MediaKernelController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
   public readonly playbackSequenceController: PlaybackSequenceController;
@@ -59,7 +61,7 @@ export class MeditationExperience {
     browseFocusController: BrowseFocusController,
     browseSelectionController: BrowseSelectionController,
     catalog: Catalog,
-    mediaKernelExperienceBridge: MediaKernelExperienceBridge,
+    mediaKernelExperienceBridge: MediaKernelExperienceBridge<MediaItem>,
     mediaKernelController: MediaKernelController,
     overlayController: OverlayController,
     overlayRevealHandoffController: OverlayRevealHandoffController,

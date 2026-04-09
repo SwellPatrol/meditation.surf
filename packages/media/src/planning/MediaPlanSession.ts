@@ -6,14 +6,14 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { MediaPlaybackLane } from "../sessions/MediaPlaybackLane";
+import type { MediaRendererKind } from "../sessions/MediaRendererKind";
+import type { MediaSessionRole } from "../sessions/MediaSessionRole";
+import type { MediaWarmth } from "../sessions/MediaWarmth";
+import type { MediaSourceDescriptor } from "../sources/MediaSourceDescriptor";
 import type { MediaPlanReason } from "./MediaPlanReason";
-import type { MediaPlaybackLane } from "./MediaPlaybackLane";
-import type { MediaRendererKind } from "./MediaRendererKind";
 import type { MediaSessionPriority } from "./MediaSessionPriority";
-import type { MediaSessionRole } from "./MediaSessionRole";
 import type { MediaSessionVisibility } from "./MediaSessionVisibility";
-import type { MediaSourceDescriptor } from "./MediaSourceDescriptor";
-import type { MediaWarmth } from "./MediaWarmth";
 
 /**
  * @brief Planned logical media session derived from current intent and content state

@@ -6,6 +6,12 @@
  * See the file LICENSE.txt for more information.
  */
 
+import {
+  MediaKernelController,
+  MediaKernelExperienceBridge,
+  type MediaKernelItem,
+  type MediaSourceDescriptor,
+} from "@meditation-surf/media";
 import { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
 import {
@@ -20,7 +26,7 @@ import {
 import { Catalog } from "../catalog/Catalog";
 import { FixtureCatalog } from "../catalog/FixtureCatalog";
 import type { MediaItem } from "../catalog/MediaItem";
-import { MediaKernelExperienceBridge } from "../experience/MediaKernelExperienceBridge";
+import { MediaSourceDescriptorFactory } from "../catalog/MediaSourceDescriptorFactory";
 import { MeditationExperience } from "../experience/MeditationExperience";
 import { AppLayout } from "../layout/AppLayout";
 import { BackgroundLayerLayout } from "../layout/BackgroundLayerLayout";
@@ -29,7 +35,6 @@ import {
   DEMO_CENTERED_OVERLAY_LAYOUT,
 } from "../layout/CenteredOverlayLayout";
 import { ForegroundLayerLayout } from "../layout/ForegroundLayerLayout";
-import { MediaKernelController } from "../media/MediaKernelController";
 import { BackgroundVideoModel } from "../playback/BackgroundVideoModel";
 import { DemoBackgroundVideo } from "../playback/DemoBackgroundVideo";
 import { PlaybackSequenceController } from "../playback/PlaybackSequenceController";
@@ -80,8 +85,13 @@ export class DemoExperienceFactory {
     const browseSelectionController: BrowseSelectionController =
       new BrowseSelectionController(initialRowItemCounts);
     const mediaKernelController: MediaKernelController =
-      new MediaKernelController();
-    const mediaKernelExperienceBridge: MediaKernelExperienceBridge =
+      new MediaKernelController(
+        (mediaKernelItem: MediaKernelItem): MediaSourceDescriptor =>
+          MediaSourceDescriptorFactory.createForMediaItem(
+            mediaKernelItem as MediaItem,
+          ),
+      );
+    const mediaKernelExperienceBridge: MediaKernelExperienceBridge<MediaItem> =
       new MediaKernelExperienceBridge(
         browseContentAdapter,
         browseFocusController,

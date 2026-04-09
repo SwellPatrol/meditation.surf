@@ -6,22 +6,73 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { BrowseContentAdapter } from "../browse/BrowseContentAdapter";
-import type {
-  BrowseFocusController,
-  BrowseFocusState,
-} from "../browse/BrowseFocusController";
-import type {
-  BrowseSelectionController,
-  BrowseSelectionState,
-} from "../browse/BrowseSelectionController";
-import type { MediaItem } from "../catalog/MediaItem";
-import type { MediaIntent } from "../media/MediaIntent";
-import type { MediaKernelController } from "../media/MediaKernelController";
-import type {
-  PlaybackSequenceController,
-  PlaybackSequenceState,
-} from "../playback/PlaybackSequenceController";
+import type { MediaIntent } from "../intent/MediaIntent";
+import type { MediaKernelController } from "../kernel/MediaKernelController";
+import type { MediaKernelItem } from "../kernel/MediaKernelItem";
+
+/**
+ * @brief Immutable focus state consumed by the shared media bridge
+ */
+export type MediaBrowseFocusState = {
+  hasFocusedItem: boolean;
+  activeRowIndex: number;
+  activeItemIndexByRow: ArrayLike<number>;
+};
+
+/**
+ * @brief Immutable selection state consumed by the shared media bridge
+ */
+export type MediaBrowseSelectionState = {
+  hasSelectedItem: boolean;
+  selectedRowIndex: number;
+  selectedItemIndex: number;
+};
+
+/**
+ * @brief Immutable playback sequence state consumed by the shared media bridge
+ */
+export type MediaPlaybackSequenceState<
+  TMediaItem extends MediaKernelItem = MediaKernelItem,
+> = {
+  activeItem: TMediaItem | null;
+};
+
+/**
+ * @brief Shared browse resolver contract needed by the media bridge
+ */
+export interface MediaBrowseContentResolver<
+  TMediaItem extends MediaKernelItem = MediaKernelItem,
+> {
+  getMediaItemAt(rowIndex: number, itemIndex: number): TMediaItem | null;
+}
+
+/**
+ * @brief Shared focus controller contract needed by the media bridge
+ */
+export interface MediaBrowseFocusController {
+  getState(): MediaBrowseFocusState;
+  subscribe(listener: (state: MediaBrowseFocusState) => void): () => void;
+}
+
+/**
+ * @brief Shared selection controller contract needed by the media bridge
+ */
+export interface MediaBrowseSelectionController {
+  getState(): MediaBrowseSelectionState;
+  subscribe(listener: (state: MediaBrowseSelectionState) => void): () => void;
+}
+
+/**
+ * @brief Shared playback controller contract needed by the media bridge
+ */
+export interface MediaPlaybackSequenceController<
+  TMediaItem extends MediaKernelItem = MediaKernelItem,
+> {
+  getState(): MediaPlaybackSequenceState<TMediaItem>;
+  subscribe(
+    listener: (state: MediaPlaybackSequenceState<TMediaItem>) => void,
+  ): () => void;
+}
 
 /**
  * @brief Translate shared browse and playback state into media-kernel planning inputs
@@ -29,17 +80,19 @@ import type {
  * The bridge keeps orchestration updates inside shared code so each app shell
  * can keep reporting capabilities without owning planning logic.
  */
-export class MediaKernelExperienceBridge {
-  private readonly browseContentAdapter: BrowseContentAdapter;
-  private readonly browseFocusController: BrowseFocusController;
-  private readonly browseSelectionController: BrowseSelectionController;
+export class MediaKernelExperienceBridge<
+  TMediaItem extends MediaKernelItem = MediaKernelItem,
+> {
+  private readonly browseContentAdapter: MediaBrowseContentResolver<TMediaItem>;
+  private readonly browseFocusController: MediaBrowseFocusController;
+  private readonly browseSelectionController: MediaBrowseSelectionController;
   private readonly mediaKernelController: MediaKernelController;
-  private readonly playbackSequenceController: PlaybackSequenceController;
+  private readonly playbackSequenceController: MediaPlaybackSequenceController<TMediaItem>;
   private readonly unsubscribeCallbacks: Array<() => void>;
 
-  private browseFocusState: BrowseFocusState;
-  private browseSelectionState: BrowseSelectionState;
-  private playbackSequenceState: PlaybackSequenceState;
+  private browseFocusState: MediaBrowseFocusState;
+  private browseSelectionState: MediaBrowseSelectionState;
+  private playbackSequenceState: MediaPlaybackSequenceState<TMediaItem>;
 
   /**
    * @brief Create a shared bridge from current app state into the media kernel
@@ -51,11 +104,11 @@ export class MediaKernelExperienceBridge {
    * @param playbackSequenceController - Shared playback sequence controller
    */
   public constructor(
-    browseContentAdapter: BrowseContentAdapter,
-    browseFocusController: BrowseFocusController,
-    browseSelectionController: BrowseSelectionController,
+    browseContentAdapter: MediaBrowseContentResolver<TMediaItem>,
+    browseFocusController: MediaBrowseFocusController,
+    browseSelectionController: MediaBrowseSelectionController,
     mediaKernelController: MediaKernelController,
-    playbackSequenceController: PlaybackSequenceController,
+    playbackSequenceController: MediaPlaybackSequenceController<TMediaItem>,
   ) {
     this.browseContentAdapter = browseContentAdapter;
     this.browseFocusController = browseFocusController;
@@ -69,7 +122,7 @@ export class MediaKernelExperienceBridge {
 
     this.unsubscribeCallbacks.push(
       this.browseFocusController.subscribe(
-        (browseFocusState: BrowseFocusState): void => {
+        (browseFocusState: MediaBrowseFocusState): void => {
           this.browseFocusState = browseFocusState;
           this.syncMediaKernelPlanningContext();
         },
@@ -77,7 +130,7 @@ export class MediaKernelExperienceBridge {
     );
     this.unsubscribeCallbacks.push(
       this.browseSelectionController.subscribe(
-        (browseSelectionState: BrowseSelectionState): void => {
+        (browseSelectionState: MediaBrowseSelectionState): void => {
           this.browseSelectionState = browseSelectionState;
           this.syncMediaKernelPlanningContext();
         },
@@ -85,7 +138,9 @@ export class MediaKernelExperienceBridge {
     );
     this.unsubscribeCallbacks.push(
       this.playbackSequenceController.subscribe(
-        (playbackSequenceState: PlaybackSequenceState): void => {
+        (
+          playbackSequenceState: MediaPlaybackSequenceState<TMediaItem>,
+        ): void => {
           this.playbackSequenceState = playbackSequenceState;
           this.syncMediaKernelPlanningContext();
         },
@@ -108,9 +163,9 @@ export class MediaKernelExperienceBridge {
    * @brief Push the latest shared browse and playback state into the media kernel
    */
   private syncMediaKernelPlanningContext(): void {
-    const focusedItem: MediaItem | null = this.resolveFocusedItem();
-    const selectedItem: MediaItem | null = this.resolveSelectedItem();
-    const activeItem: MediaItem | null = this.playbackSequenceState.activeItem;
+    const focusedItem: TMediaItem | null = this.resolveFocusedItem();
+    const selectedItem: TMediaItem | null = this.resolveSelectedItem();
+    const activeItem: TMediaItem | null = this.playbackSequenceState.activeItem;
     const mediaIntent: MediaIntent = this.createMediaIntent(
       focusedItem,
       selectedItem,
@@ -130,7 +185,7 @@ export class MediaKernelExperienceBridge {
    *
    * @returns Focused media item, or `null` when nothing is focused
    */
-  private resolveFocusedItem(): MediaItem | null {
+  private resolveFocusedItem(): TMediaItem | null {
     if (!this.browseFocusState.hasFocusedItem) {
       return null;
     }
@@ -147,7 +202,7 @@ export class MediaKernelExperienceBridge {
    *
    * @returns Selected media item, or `null` when nothing is selected
    */
-  private resolveSelectedItem(): MediaItem | null {
+  private resolveSelectedItem(): TMediaItem | null {
     if (!this.browseSelectionState.hasSelectedItem) {
       return null;
     }
@@ -168,9 +223,9 @@ export class MediaKernelExperienceBridge {
    * @returns High-level intent snapshot for the media planner
    */
   private createMediaIntent(
-    focusedItem: MediaItem | null,
-    selectedItem: MediaItem | null,
-    activeItem: MediaItem | null,
+    focusedItem: TMediaItem | null,
+    selectedItem: TMediaItem | null,
+    activeItem: TMediaItem | null,
   ): MediaIntent {
     if (selectedItem !== null) {
       return {

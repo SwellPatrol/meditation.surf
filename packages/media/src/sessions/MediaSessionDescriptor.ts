@@ -6,10 +6,10 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { MediaSourceDescriptor } from "../sources/MediaSourceDescriptor";
 import type { MediaPlaybackLane } from "./MediaPlaybackLane";
 import type { MediaRendererKind } from "./MediaRendererKind";
 import type { MediaSessionRole } from "./MediaSessionRole";
-import type { MediaSourceDescriptor } from "./MediaSourceDescriptor";
 
 /**
  * @brief Runtime-agnostic identity and routing metadata for one media session

@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { MediaIntentType } from "./MediaIntentType";
+import type { MediaIntentType } from "../intent/MediaIntentType";
 
 /**
  * @brief Serializable explanation for why a logical session was planned

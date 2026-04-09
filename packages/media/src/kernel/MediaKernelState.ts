@@ -6,10 +6,10 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { AppMediaCapabilities } from "./AppMediaCapabilities";
-import type { MediaIntent } from "./MediaIntent";
-import type { MediaPlan } from "./MediaPlan";
-import type { MediaSessionSnapshot } from "./MediaSessionSnapshot";
+import type { AppMediaCapabilities } from "../capabilities/AppMediaCapabilities";
+import type { MediaIntent } from "../intent/MediaIntent";
+import type { MediaPlan } from "../planning/MediaPlan";
+import type { MediaSessionSnapshot } from "../sessions/MediaSessionSnapshot";
 
 /**
  * @brief Immutable shared snapshot published by the media kernel controller

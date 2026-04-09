@@ -7,36 +7,43 @@
  */
 
 export { DemoExperienceFactory } from "./bootstrap/DemoExperienceFactory";
-export { MediaKernelExperienceBridge } from "./experience/MediaKernelExperienceBridge";
 export { MeditationExperience } from "./experience/MeditationExperience";
-export type { AppMediaCapabilities } from "./media/AppMediaCapabilities";
-export type { MediaCapabilityProfile } from "./media/MediaCapabilityProfile";
 export {
   MediaKernelController,
-  type MediaKernelStateListener,
-} from "./media/MediaKernelController";
-export type { MediaIntent } from "./media/MediaIntent";
-export type { MediaIntentType } from "./media/MediaIntentType";
-export type { MediaKernelState } from "./media/MediaKernelState";
-export type { MediaPlan } from "./media/MediaPlan";
-export type { MediaPlanReason } from "./media/MediaPlanReason";
-export type { MediaPlanSession } from "./media/MediaPlanSession";
-export type { MediaPlaybackLane } from "./media/MediaPlaybackLane";
-export type { MediaRendererKind } from "./media/MediaRendererKind";
-export type { MediaSessionDescriptor } from "./media/MediaSessionDescriptor";
-export type { MediaSessionPriority } from "./media/MediaSessionPriority";
-export type { MediaSessionRole } from "./media/MediaSessionRole";
-export type { MediaSessionSnapshot } from "./media/MediaSessionSnapshot";
-export type { MediaSessionState } from "./media/MediaSessionState";
-export type { MediaSessionVisibility } from "./media/MediaSessionVisibility";
-export type { MediaSourceDescriptor } from "./media/MediaSourceDescriptor";
-export { MediaSourceDescriptorFactory } from "./media/MediaSourceDescriptorFactory";
-export type { MediaSourceKind } from "./media/MediaSourceKind";
-export {
+  MediaKernelExperienceBridge,
   MediaSessionPlanner,
+  type AppMediaCapabilities,
+  type MediaBrowseContentResolver,
+  type MediaBrowseFocusController,
+  type MediaBrowseFocusState,
+  type MediaBrowseSelectionController,
+  type MediaBrowseSelectionState,
+  type MediaCapabilityProfile,
+  type MediaIntent,
+  type MediaIntentType,
+  type MediaKernelItem,
+  type MediaKernelState,
+  type MediaKernelStateListener,
+  type MediaPlan,
+  type MediaPlanReason,
+  type MediaPlanSession,
+  type MediaPlaybackLane,
+  type MediaPlaybackSequenceController,
+  type MediaPlaybackSequenceState,
+  type MediaRendererKind,
+  type MediaSessionDescriptor,
   type MediaSessionPlannerInput,
-} from "./media/MediaSessionPlanner";
-export type { MediaWarmth } from "./media/MediaWarmth";
+  type MediaSessionPriority,
+  type MediaSessionRole,
+  type MediaSessionSnapshot,
+  type MediaSessionState,
+  type MediaSessionVisibility,
+  type MediaSourceDescriptor,
+  type MediaSourceKind,
+  type MediaSourcePlaybackSource,
+  type MediaWarmth,
+} from "@meditation-surf/media";
+export { MediaSourceDescriptorFactory } from "./catalog/MediaSourceDescriptorFactory";
 export { AppLayout } from "./layout/AppLayout";
 export { BackgroundLayerLayout } from "./layout/BackgroundLayerLayout";
 export {

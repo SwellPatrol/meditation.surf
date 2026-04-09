@@ -6,41 +6,38 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { PlaybackSource } from "@meditation-surf/player-core";
-
-import type { MediaItem } from "../catalog/MediaItem";
 import type { MediaSourceDescriptor } from "./MediaSourceDescriptor";
 import type { MediaSourceKind } from "./MediaSourceKind";
+import type { MediaSourcePlaybackSource } from "./MediaSourcePlaybackSource";
 
 /**
  * @brief Build stable source descriptors for shared media planning
  *
- * The current demo catalog exposes a single playback source per `MediaItem`.
  * This helper keeps source inference centralized so later source-model growth
  * does not leak into planners or experience wiring.
  */
 export class MediaSourceDescriptorFactory {
   /**
-   * @brief Create a stable source descriptor from a shared media item
+   * @brief Create a stable source descriptor from shared playback metadata
    *
-   * @param mediaItem - Shared media item that owns playback metadata
+   * @param sourceId - Stable identifier assigned by the caller
+   * @param playbackSource - Shared playback metadata for one source
    *
    * @returns Shared source descriptor suitable for orchestration state
    */
-  public static createForMediaItem(
-    mediaItem: MediaItem,
+  public static create(
+    sourceId: string,
+    playbackSource: MediaSourcePlaybackSource,
   ): MediaSourceDescriptor {
-    const playbackSource: PlaybackSource = mediaItem.getPlaybackSource();
-
     return {
-      sourceId: `media-source:${mediaItem.id}`,
+      sourceId,
       kind: this.inferMediaSourceKind(
         playbackSource.url,
-        playbackSource.mimeType ?? null,
+        playbackSource.mimeType,
       ),
       url: playbackSource.url,
-      mimeType: playbackSource.mimeType ?? null,
-      posterUrl: playbackSource.posterUrl ?? null,
+      mimeType: playbackSource.mimeType,
+      posterUrl: playbackSource.posterUrl,
     };
   }
 
