@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@lightningjs/blits": "^2.0.1",
+    "@lightningjs/msdf-generator": "^1.2.0",
     "@lightningjs/sdk": "^5.5.7",
     "@meditation-surf/core": "workspace:*",
     "@meditation-surf/player-core": "workspace:*",
