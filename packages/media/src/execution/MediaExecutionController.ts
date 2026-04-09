@@ -209,7 +209,7 @@ export class MediaExecutionController {
           this.executionSnapshotsBySessionId.get(plannedSession.sessionId)
             ?.runtimeSessionHandle ?? null,
           this.executionSnapshotsBySessionId.get(plannedSession.sessionId)
-            ?.state ?? "pending",
+            ?.state ?? "inactive",
           this.executionSnapshotsBySessionId.get(plannedSession.sessionId)
             ?.lastCommandType ?? null,
           this.executionSnapshotsBySessionId.get(plannedSession.sessionId)
@@ -281,7 +281,10 @@ export class MediaExecutionController {
    * @returns `true` when a warm command should be issued
    */
   private shouldWarmSession(plannedSession: MediaPlanSession): boolean {
-    if (plannedSession.desiredWarmth === "cold") {
+    if (
+      plannedSession.role !== "preview" ||
+      plannedSession.desiredWarmth === "cold"
+    ) {
       return false;
     }
 
@@ -293,9 +296,10 @@ export class MediaExecutionController {
     }
 
     return !(
-      executionSnapshot.state === "warming" ||
-      executionSnapshot.state === "warmed" ||
-      executionSnapshot.state === "active"
+      executionSnapshot.state === "warming-metadata" ||
+      executionSnapshot.state === "warming-first-frame" ||
+      executionSnapshot.state === "ready-first-frame" ||
+      executionSnapshot.state === "preview-active"
     );
   }
 
@@ -307,17 +311,24 @@ export class MediaExecutionController {
    * @returns `true` when an activate command should be issued
    */
   private shouldActivateSession(plannedSession: MediaPlanSession): boolean {
-    if (
-      plannedSession.role !== "background" ||
-      plannedSession.desiredWarmth !== "active"
-    ) {
-      return false;
-    }
-
     const executionSnapshot: MediaExecutionSnapshot | undefined =
       this.executionSnapshotsBySessionId.get(plannedSession.sessionId);
 
-    return executionSnapshot?.state !== "active";
+    if (
+      plannedSession.role === "preview" &&
+      plannedSession.desiredWarmth === "preloaded"
+    ) {
+      return executionSnapshot?.state !== "preview-active";
+    }
+
+    if (
+      plannedSession.role === "background" &&
+      plannedSession.desiredWarmth === "active"
+    ) {
+      return executionSnapshot?.state !== "background-active";
+    }
+
+    return false;
   }
 
   /**
@@ -370,7 +381,7 @@ export class MediaExecutionController {
         plannedSession.sessionId,
         plannedSession,
         null,
-        "pending",
+        "inactive",
         null,
         null,
       );
@@ -395,10 +406,15 @@ export class MediaExecutionController {
       return;
     }
 
+    const nextTransientState: MediaExecutionState | null =
+      this.createTransientExecutionState(commandType, plannedSession);
+
     this.upsertExecutionSnapshot({
       ...currentSnapshot,
       planSession: this.clonePlanSession(plannedSession),
+      state: nextTransientState ?? currentSnapshot.state,
       lastCommandType: commandType,
+      failureReason: null,
     });
 
     const command: MediaExecutionCommand = {
@@ -512,7 +528,7 @@ export class MediaExecutionController {
     executionSnapshot: MediaExecutionSnapshot,
   ): void {
     switch (executionSnapshot.state) {
-      case "warming":
+      case "warming-metadata":
         this.mediaKernelController.markSessionWarmth(
           executionSnapshot.sessionId,
           "metadata",
@@ -522,26 +538,44 @@ export class MediaExecutionController {
           "loading",
         );
         return;
-      case "warmed":
+      case "warming-first-frame":
         this.mediaKernelController.markSessionWarmth(
           executionSnapshot.sessionId,
-          executionSnapshot.planSession?.desiredWarmth ?? "first-frame",
+          "first-frame",
+        );
+        this.mediaKernelController.setSessionState(
+          executionSnapshot.sessionId,
+          "loading",
+        );
+        return;
+      case "ready-first-frame":
+        this.mediaKernelController.markSessionWarmth(
+          executionSnapshot.sessionId,
+          "first-frame",
         );
         this.mediaKernelController.setSessionState(
           executionSnapshot.sessionId,
           "first-frame-ready",
         );
         return;
-      case "active":
+      case "preview-active":
         this.mediaKernelController.markSessionWarmth(
           executionSnapshot.sessionId,
           "active",
         );
         this.mediaKernelController.setSessionState(
           executionSnapshot.sessionId,
-          executionSnapshot.planSession?.role === "preview"
-            ? "previewing"
-            : "playing",
+          "previewing",
+        );
+        return;
+      case "background-active":
+        this.mediaKernelController.markSessionWarmth(
+          executionSnapshot.sessionId,
+          "active",
+        );
+        this.mediaKernelController.setSessionState(
+          executionSnapshot.sessionId,
+          "playing",
         );
         return;
       case "failed":
@@ -551,8 +585,8 @@ export class MediaExecutionController {
           executionSnapshot.failureReason,
         );
         return;
+      case "disposed":
       case "inactive":
-      case "pending":
       case "unsupported":
         this.mediaKernelController.markSessionWarmth(
           executionSnapshot.sessionId,
@@ -599,6 +633,10 @@ export class MediaExecutionController {
   ): boolean {
     switch (commandType) {
       case "warm-session":
+        if (plannedSession.role !== "preview") {
+          return false;
+        }
+
         if (
           plannedSession.role === "preview" &&
           plannedSession.visibility !== "visible" &&
@@ -609,6 +647,10 @@ export class MediaExecutionController {
 
         return runtimeCapabilities.canWarmFirstFrame;
       case "activate-session":
+        if (plannedSession.role === "preview") {
+          return runtimeCapabilities.canPreviewInline;
+        }
+
         return runtimeCapabilities.canActivateBackground;
       case "deactivate-session":
       case "dispose-session":
@@ -641,11 +683,17 @@ export class MediaExecutionController {
     }
 
     if (commandType === "warm-session") {
+      if (plannedSession.role !== "preview") {
+        return "Runtime adapter does not warm background sessions in this phase.";
+      }
+
       return "Runtime adapter cannot warm a first frame for this session.";
     }
 
     if (commandType === "activate-session") {
-      return "Runtime adapter cannot activate a background session.";
+      return plannedSession.role === "preview"
+        ? "Runtime adapter cannot activate an inline preview session."
+        : "Runtime adapter cannot activate a background session.";
     }
 
     return "Runtime adapter does not support this execution command.";
@@ -706,6 +754,27 @@ export class MediaExecutionController {
       lastCommandType,
       failureReason,
     };
+  }
+
+  /**
+   * @brief Report the in-flight state associated with one execution command
+   *
+   * @param commandType - Command about to be issued
+   * @param plannedSession - Planned session receiving the command
+   *
+   * @returns Transient execution state, or `null` when no change is needed
+   */
+  private createTransientExecutionState(
+    commandType: MediaExecutionCommandType,
+    plannedSession: MediaPlanSession,
+  ): MediaExecutionState | null {
+    if (commandType === "warm-session") {
+      return plannedSession.desiredWarmth === "metadata"
+        ? "warming-metadata"
+        : "warming-first-frame";
+    }
+
+    return null;
   }
 
   /**

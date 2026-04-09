@@ -22,6 +22,7 @@ import type { PlaybackVisualReadinessController } from "@meditation-surf/player-
 
 import { WebAppLayoutController } from "../layout/WebAppLayoutController";
 import { WebMediaRuntimeAdapter } from "../media/WebMediaRuntimeAdapter";
+import { WebPreviewSurfaceRegistry } from "../media/WebPreviewSurfaceRegistry";
 import { WebBackgroundVideoController } from "../playback/WebBackgroundVideoController";
 
 /**
@@ -54,6 +55,7 @@ export class WebExperienceAdapter {
   public readonly overlayController: OverlayController;
   public readonly playbackSequenceController: PlaybackSequenceController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
+  public readonly previewSurfaceRegistry: WebPreviewSurfaceRegistry;
 
   /**
    * @brief Build web runtime adapters for the shared experience
@@ -63,6 +65,7 @@ export class WebExperienceAdapter {
   public constructor(experience: MeditationExperience) {
     this.mediaKernelController = experience.getMediaKernelController();
     this.mediaExecutionController = experience.getMediaExecutionController();
+    this.previewSurfaceRegistry = new WebPreviewSurfaceRegistry();
     this.mediaKernelController.reportAppCapabilities(
       "web-vite",
       WebExperienceAdapter.MEDIA_CAPABILITY_PROFILE,
@@ -71,6 +74,7 @@ export class WebExperienceAdapter {
       new WebMediaRuntimeAdapter(
         experience.catalog,
         experience.getPlaybackSequenceController(),
+        this.previewSurfaceRegistry,
       ),
     );
     this.appLayoutController = new WebAppLayoutController(experience.appLayout);

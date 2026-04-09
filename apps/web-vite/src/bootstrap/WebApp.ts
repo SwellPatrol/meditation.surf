@@ -64,6 +64,7 @@ export class WebApp {
     this.shell = new WebAppShell(
       this.experienceAdapter.appLayoutController,
       initialBrowseContent,
+      this.experienceAdapter.previewSurfaceRegistry,
     );
     this.inputAdapter = new WebBrowseInputAdapter(
       this.shell,

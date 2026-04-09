@@ -17,6 +17,10 @@ import type {
 } from "@meditation-surf/core";
 
 import { WebAppLayoutController } from "../layout/WebAppLayoutController";
+import {
+  type WebPreviewSurfaceEntry,
+  WebPreviewSurfaceRegistry,
+} from "../media/WebPreviewSurfaceRegistry";
 
 /**
  * @brief Own the DOM shell used by the web demo surface
@@ -33,6 +37,8 @@ export class WebAppShell {
   public readonly mountElement: HTMLDivElement;
 
   private browseFocusState: BrowseFocusState;
+  private readonly previewSurfaceRegistry: WebPreviewSurfaceRegistry;
+  private previewSurfaceEntries: WebPreviewSurfaceEntry[];
   private thumbnailCardElements: HTMLElement[][];
 
   /**
@@ -44,12 +50,15 @@ export class WebAppShell {
   public constructor(
     appLayoutController: WebAppLayoutController,
     browseContent: BrowseScreenContent,
+    previewSurfaceRegistry: WebPreviewSurfaceRegistry,
   ) {
     this.browseFocusState = {
       activeRowIndex: 0,
       activeItemIndexByRow: [],
       hasFocusedItem: false,
     };
+    this.previewSurfaceRegistry = previewSurfaceRegistry;
+    this.previewSurfaceEntries = [];
     this.thumbnailCardElements = [];
     this.mountElement = this.getMountElement();
     this.backgroundVideoElement = document.createElement("video");
@@ -116,6 +125,7 @@ export class WebAppShell {
    */
   public renderBrowseContent(browseContent: BrowseScreenContent): void {
     this.thumbnailCardElements = [];
+    this.previewSurfaceEntries = [];
     this.overlayUiElement.replaceChildren(
       this.createBrowseOverlayElement(browseContent),
     );
@@ -153,6 +163,8 @@ export class WebAppShell {
         thumbnailCardElement.classList.toggle("is-focused", isFocused);
       }
     }
+
+    this.previewSurfaceRegistry.replaceEntries(this.previewSurfaceEntries);
   }
 
   /**
@@ -354,25 +366,32 @@ export class WebAppShell {
   ): HTMLElement {
     const thumbnailCardElement: HTMLElement = document.createElement("article");
     const artworkElement: HTMLDivElement = document.createElement("div");
+    const previewHostElement: HTMLDivElement = document.createElement("div");
     const monogramElement: HTMLParagraphElement = document.createElement("p");
     const titleElement: HTMLParagraphElement = document.createElement("p");
     const metaElement: HTMLParagraphElement = document.createElement("p");
 
     thumbnailCardElement.className = "browse-thumbnail-card";
     artworkElement.className = "browse-thumbnail-artwork";
+    previewHostElement.className = "browse-thumbnail-preview-slot";
     titleElement.className = "browse-thumbnail-title";
     metaElement.className = "browse-thumbnail-meta";
     monogramElement.className = "browse-thumbnail-monogram";
 
     artworkElement.dataset.placeholderKey =
       thumbnailContent.artwork.placeholderKey;
+    previewHostElement.dataset.itemId = thumbnailContent.id;
     thumbnailCardElement.dataset.rowIndex = `${rowIndex}`;
     thumbnailCardElement.dataset.itemIndex = `${itemIndex}`;
     monogramElement.textContent = thumbnailContent.artwork.placeholderMonogram;
     titleElement.textContent = thumbnailContent.title;
     metaElement.textContent = thumbnailContent.secondaryText;
-    artworkElement.append(monogramElement);
+    artworkElement.append(previewHostElement, monogramElement);
     thumbnailCardElement.append(artworkElement, titleElement, metaElement);
+    this.previewSurfaceEntries.push({
+      itemId: thumbnailContent.id,
+      hostElement: previewHostElement,
+    });
 
     return thumbnailCardElement;
   }

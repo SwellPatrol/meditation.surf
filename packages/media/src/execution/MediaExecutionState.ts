@@ -10,10 +10,12 @@
  * @brief Runtime execution phases tracked for one planned media session
  */
 export type MediaExecutionState =
-  | "pending"
-  | "warming"
-  | "warmed"
-  | "active"
   | "inactive"
+  | "warming-metadata"
+  | "warming-first-frame"
+  | "ready-first-frame"
+  | "preview-active"
+  | "background-active"
+  | "disposed"
   | "failed"
   | "unsupported";

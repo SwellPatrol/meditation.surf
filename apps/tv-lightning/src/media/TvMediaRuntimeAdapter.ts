@@ -134,7 +134,7 @@ export class TvMediaRuntimeAdapter implements MediaRuntimeAdapter {
       this.playbackSequenceController.setActiveItem(mediaItem);
     }
 
-    return this.createResult("active", runtimeSessionHandle, null);
+    return this.createResult("background-active", runtimeSessionHandle, null);
   }
 
   /**
@@ -175,8 +175,15 @@ export class TvMediaRuntimeAdapter implements MediaRuntimeAdapter {
   private createRuntimeSessionHandle(
     command: MediaExecutionCommand,
   ): MediaRuntimeSessionHandle {
+    const runtimeHandleId: string =
+      command.session?.role === "preview"
+        ? "preview-session"
+        : command.session?.role === "background"
+          ? "background-session"
+          : "global";
+
     return {
-      handleId: command.session?.sessionId ?? "global",
+      handleId: runtimeHandleId,
       runtimeId: this.runtimeId,
     };
   }
