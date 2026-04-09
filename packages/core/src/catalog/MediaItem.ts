@@ -58,7 +58,7 @@ export class MediaItem {
   /**
    * @brief Return the human-readable metadata associated with this item
    *
-   * @returns Shared metadata describing duration, status, creation, and views
+   * @returns Shared metadata describing creation, stream details, and views
    */
   public getMetadata(): MediaItemMetadata {
     return this.metadata;

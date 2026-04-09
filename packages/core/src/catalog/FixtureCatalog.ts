@@ -27,7 +27,17 @@ export class FixtureCatalog {
     FixtureCatalog.createMuxPlaybackSource(
       "7YtWnCpXIt014uMcBK65ZjGfnScdcAneU9TjM9nGAJhk",
     ),
-    new MediaItemMetadata("14:52", "Ready", "May 27, 1:22 PM", "1 view"),
+    new MediaItemMetadata({
+      duration: "14:52",
+      status: "Ready",
+      created: "May 27, 1:22 PM",
+      viewCount: "1 view",
+      resolution: "4K",
+      aspectRatio: "16:9",
+      videoCodec: "H.265",
+      audioCodec: "AAC",
+      channelLayout: "2.0",
+    }),
   );
 
   private static readonly BLOCKTRAIN_2025: MediaItem = new MediaItem(
@@ -37,7 +47,17 @@ export class FixtureCatalog {
     FixtureCatalog.createMuxPlaybackSource(
       "tt5vuhvalEUU5XlliVzHb00Fc2rMDkCSu1KEmAS01ovbA",
     ),
-    new MediaItemMetadata("0:42", "Ready", "Dec 23, 2:45 PM", "100,000 views"),
+    new MediaItemMetadata({
+      duration: "0:42",
+      status: "Ready",
+      created: "Dec 23, 2:45 PM",
+      viewCount: "100,000 views",
+      resolution: "1080p",
+      aspectRatio: "16:9",
+      videoCodec: "H.264",
+      audioCodec: "AAC",
+      channelLayout: "5.1",
+    }),
   );
 
   private static readonly BLOCKTRAIN_2025_CLOSE_UP: MediaItem = new MediaItem(
@@ -47,7 +67,17 @@ export class FixtureCatalog {
     FixtureCatalog.createMuxPlaybackSource(
       "x1s1daoUyt1HAHHPpqyrIM7G501dbX1Nbx9ES01pTE8rE",
     ),
-    new MediaItemMetadata("0:34", "Ready", "Dec 23, 3:19 PM", "1 view"),
+    new MediaItemMetadata({
+      duration: "0:34",
+      status: "Ready",
+      created: "Dec 23, 3:19 PM",
+      viewCount: "1 view",
+      resolution: "4K",
+      aspectRatio: "16:9",
+      videoCodec: "H.265",
+      audioCodec: "AAC",
+      channelLayout: "7.1",
+    }),
   );
 
   private static readonly SEVEN_ONE_FOUR_TEST: MediaItem = new MediaItem(
@@ -57,7 +87,17 @@ export class FixtureCatalog {
     FixtureCatalog.createMuxPlaybackSource(
       "wuWgaivJDEjgfE7te9dqsZ5Z02Lyy02ltcAeREkug55YI",
     ),
-    new MediaItemMetadata("3:18", "Ready", "Mar 2, 1:52 AM", "100,000 views"),
+    new MediaItemMetadata({
+      duration: "3:18",
+      status: "Ready",
+      created: "Mar 2, 1:52 AM",
+      viewCount: "100,000 views",
+      resolution: "4K",
+      aspectRatio: "16:9",
+      videoCodec: "H.265",
+      audioCodec: "AAC",
+      channelLayout: "Atmos",
+    }),
   );
 
   private static readonly CATALOG: Catalog = new Catalog([
