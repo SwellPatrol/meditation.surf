@@ -9,6 +9,7 @@
 import type {
   BrowseFocusState,
   BrowseScreenContent,
+  MediaItem,
   MeditationExperience,
   OverlayState,
   PlaybackSequenceState,
@@ -31,6 +32,7 @@ export class WebApp {
   private readonly shell: WebAppShell;
   private readonly handleBeforeUnload: () => void;
   private readonly handleResize: () => void;
+  private activePlaybackItem: MediaItem | null;
   private removeLoadingSubscription: (() => void) | null;
   private removeOverlaySubscription: (() => void) | null;
   private removePlaybackSequenceSubscription: (() => void) | null;
@@ -43,9 +45,12 @@ export class WebApp {
    */
   public constructor(experience: MeditationExperience) {
     this.experienceAdapter = new WebExperienceAdapter(experience);
+    this.activePlaybackItem =
+      this.experienceAdapter.playbackSequenceController.getActiveItem();
     const initialBrowseContent: BrowseScreenContent =
       this.experienceAdapter.browseContentAdapter.getBrowseScreenContent(
-        this.experienceAdapter.playbackSequenceController.getActiveItem(),
+        this.activePlaybackItem,
+        this.experienceAdapter.browseFocusController.getState(),
       );
     const initialRowItemCounts: number[] = initialBrowseContent.rows.map(
       (browseRow): number => browseRow.items.length,
@@ -120,9 +125,11 @@ export class WebApp {
     this.removePlaybackSequenceSubscription =
       this.experienceAdapter.playbackSequenceController.subscribe(
         (playbackSequenceState: PlaybackSequenceState): void => {
+          this.activePlaybackItem = playbackSequenceState.activeItem;
           const browseContent: BrowseScreenContent =
             this.experienceAdapter.browseContentAdapter.getBrowseScreenContent(
-              playbackSequenceState.activeItem,
+              this.activePlaybackItem,
+              this.experienceAdapter.browseFocusController.getState(),
             );
           const rowItemCounts: number[] = browseContent.rows.map(
             (browseRow): number => browseRow.items.length,
@@ -136,7 +143,15 @@ export class WebApp {
     this.removeBrowseFocusSubscription =
       this.experienceAdapter.browseFocusController.subscribe(
         (browseFocusState: BrowseFocusState): void => {
+          const browseContent: BrowseScreenContent =
+            this.experienceAdapter.browseContentAdapter.getBrowseScreenContent(
+              this.activePlaybackItem,
+              browseFocusState,
+            );
+
+          this.shell.renderBrowseContent(browseContent);
           this.shell.renderBrowseFocusState(browseFocusState);
+          this.inputAdapter.syncBrowseTargets();
         },
       );
     window.addEventListener("beforeunload", this.handleBeforeUnload);

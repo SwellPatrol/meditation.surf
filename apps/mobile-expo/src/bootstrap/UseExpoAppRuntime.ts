@@ -10,6 +10,7 @@ import type {
   BrowseFocusState,
   BrowseScreenContent,
   CenteredOverlaySize,
+  MediaItem,
   OverlayState,
   PlaybackSequenceState,
 } from "@meditation-surf/core";
@@ -69,11 +70,10 @@ export function useExpoAppRuntime(
     props.app.getExperienceAdapter();
   const windowDimensions: { width: number; height: number } =
     useWindowDimensions();
-  const [browseContent, setBrowseContent] = useState<BrowseScreenContent>(
-    experienceAdapter.browseContentAdapter.getBrowseScreenContent(
+  const [activePlaybackItem, setActivePlaybackItem] =
+    useState<MediaItem | null>(
       experienceAdapter.playbackSequenceController.getActiveItem(),
-    ),
-  );
+    );
   const [browseFocusState, setBrowseFocusState] = useState<BrowseFocusState>(
     experienceAdapter.browseFocusController.getState(),
   );
@@ -104,28 +104,22 @@ export function useExpoAppRuntime(
   useEffect((): (() => void) => {
     return experienceAdapter.playbackSequenceController.subscribe(
       (playbackSequenceState: PlaybackSequenceState): void => {
+        const nextActivePlaybackItem: MediaItem | null =
+          playbackSequenceState.activeItem;
         const nextBrowseContent: BrowseScreenContent =
           experienceAdapter.browseContentAdapter.getBrowseScreenContent(
-            playbackSequenceState.activeItem,
+            nextActivePlaybackItem,
+            experienceAdapter.browseFocusController.getState(),
           );
         const rowItemCounts: number[] = nextBrowseContent.rows.map(
           (browseRow): number => browseRow.items.length,
         );
 
         experienceAdapter.browseFocusController.syncRows(rowItemCounts);
-        setBrowseContent(nextBrowseContent);
+        setActivePlaybackItem(nextActivePlaybackItem);
       },
     );
   }, [experienceAdapter]);
-
-  // Keep the shared browse focus controller clamped to the current rows
-  useEffect((): void => {
-    const rowItemCounts: number[] = browseContent.rows.map(
-      (browseRow): number => browseRow.items.length,
-    );
-
-    experienceAdapter.browseFocusController.syncRows(rowItemCounts);
-  }, [browseContent, experienceAdapter]);
 
   // Bind the shared browse focus state to the Expo screen state
   useEffect((): (() => void) => {
@@ -175,6 +169,11 @@ export function useExpoAppRuntime(
     experienceAdapter.appLayoutController.getCenteredOverlaySize(
       windowDimensions.width,
       windowDimensions.height,
+    );
+  const browseContent: BrowseScreenContent =
+    experienceAdapter.browseContentAdapter.getBrowseScreenContent(
+      activePlaybackItem,
+      browseFocusState,
     );
   const backgroundVideoViewProps: {
     readonly contentFit: "cover";

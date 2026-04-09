@@ -31,5 +31,6 @@ export type LightningRowState = {
   items: LightningThumbnailState[];
   rowPosition: number;
   activeItemIndex: number;
+  hasFocusedItem: boolean;
   isActiveRow: boolean;
 };

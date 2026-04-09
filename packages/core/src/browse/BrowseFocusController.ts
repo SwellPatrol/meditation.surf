@@ -12,6 +12,7 @@
 export type BrowseFocusState = {
   activeRowIndex: number;
   activeItemIndexByRow: number[];
+  hasFocusedItem: boolean;
 };
 
 /**
@@ -43,6 +44,7 @@ export class BrowseFocusController {
     this.state = this.createClampedState({
       activeRowIndex: 0,
       activeItemIndexByRow: this.rowItemCounts.map((): number => 0),
+      hasFocusedItem: false,
     });
   }
 
@@ -55,6 +57,7 @@ export class BrowseFocusController {
     return {
       activeRowIndex: this.state.activeRowIndex,
       activeItemIndexByRow: [...this.state.activeItemIndexByRow],
+      hasFocusedItem: this.state.hasFocusedItem,
     };
   }
 
@@ -150,6 +153,7 @@ export class BrowseFocusController {
       rowIndex,
       itemIndex,
     );
+    nextState.hasFocusedItem = true;
     this.transitionTo(this.createClampedState(nextState));
   }
 
@@ -166,6 +170,7 @@ export class BrowseFocusController {
     const nextState: BrowseFocusState = this.getState();
 
     nextState.activeRowIndex = rowIndex;
+    nextState.hasFocusedItem = true;
     this.transitionTo(this.createClampedState(nextState));
   }
 
@@ -205,6 +210,7 @@ export class BrowseFocusController {
       return {
         activeRowIndex: 0,
         activeItemIndexByRow,
+        hasFocusedItem: state.hasFocusedItem,
       };
     }
 
@@ -214,6 +220,7 @@ export class BrowseFocusController {
         firstFocusableRowIndex,
       ),
       activeItemIndexByRow,
+      hasFocusedItem: state.hasFocusedItem,
     };
   }
 
@@ -332,7 +339,8 @@ export class BrowseFocusController {
 
     if (
       this.state.activeRowIndex === nextState.activeRowIndex &&
-      currentItemIndexes === nextItemIndexes
+      currentItemIndexes === nextItemIndexes &&
+      this.state.hasFocusedItem === nextState.hasFocusedItem
     ) {
       return;
     }

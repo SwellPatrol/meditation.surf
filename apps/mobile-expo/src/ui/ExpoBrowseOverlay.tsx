@@ -112,6 +112,7 @@ export function ExpoBrowseOverlay(
                   itemIndex: number,
                 ): JSX.Element => {
                   const isFocused: boolean =
+                    props.browseFocusState.hasFocusedItem &&
                     props.browseFocusState.activeRowIndex === rowIndex &&
                     (props.browseFocusState.activeItemIndexByRow[rowIndex] ??
                       0) === itemIndex;

@@ -10,6 +10,7 @@ import type { Catalog } from "../catalog/Catalog";
 import type { CatalogSection } from "../catalog/CatalogSection";
 import type { MediaItem } from "../catalog/MediaItem";
 import type { MediaItemMetadataTag } from "../catalog/MediaItemMetadata";
+import type { BrowseFocusState } from "./BrowseFocusController";
 
 /**
  * @brief Artwork slot data prepared for browse-style presentation
@@ -78,6 +79,14 @@ export interface BrowseScreenContent {
 }
 
 /**
+ * @brief Internal browse row model that preserves source media items
+ */
+interface BrowseRowModel {
+  readonly content: BrowseRowContent;
+  readonly sourceItems: readonly MediaItem[];
+}
+
+/**
  * @brief Adapt shared catalog items into a browse-screen presentation model
  *
  * The adapter keeps browse-specific ordering and fallback rules out of each
@@ -97,20 +106,30 @@ export class BrowseContentAdapter {
   }
 
   /**
-   * @brief Build the browse overlay content for the current active item
+   * @brief Build the browse overlay content for the current playback and focus state
    *
-   * @param activeItem - Current playback item used as the browse hero when set
+   * @param activeItem - Current playback item used as the fallback hero when set
+   * @param browseFocusState - Shared browse focus state that can override the hero
    *
    * @returns Browse hero and rows derived from the shared catalog
    */
   public getBrowseScreenContent(
     activeItem: MediaItem | null,
+    browseFocusState: BrowseFocusState | null = null,
   ): BrowseScreenContent {
-    const heroItem: MediaItem | null = this.resolveHeroItem(activeItem);
+    const browseRowModels: readonly BrowseRowModel[] = this.createRowModels();
+    const heroItem: MediaItem | null = this.resolveHeroItem(
+      activeItem,
+      browseFocusState,
+      browseRowModels,
+    );
 
     return {
       hero: heroItem === null ? null : this.createHeroContent(heroItem),
-      rows: this.createRows(),
+      rows: browseRowModels.map(
+        (browseRowModel: BrowseRowModel): BrowseRowContent =>
+          browseRowModel.content,
+      ),
     };
   }
 
@@ -118,15 +137,64 @@ export class BrowseContentAdapter {
    * @brief Resolve the item that should currently occupy the hero slot
    *
    * @param activeItem - Current playback item when available
+   * @param browseFocusState - Shared browse focus state when one exists
+   * @param browseRowModels - Browse rows paired with their source media items
    *
-   * @returns Active item first, then the catalog featured item as fallback
+   * @returns Focused item first, then playback, then the catalog featured item
    */
-  private resolveHeroItem(activeItem: MediaItem | null): MediaItem | null {
+  private resolveHeroItem(
+    activeItem: MediaItem | null,
+    browseFocusState: BrowseFocusState | null,
+    browseRowModels: readonly BrowseRowModel[],
+  ): MediaItem | null {
+    const focusedItem: MediaItem | null = this.resolveFocusedHeroItem(
+      browseFocusState,
+      browseRowModels,
+    );
+
+    if (focusedItem !== null) {
+      return focusedItem;
+    }
+
     if (activeItem !== null) {
       return activeItem;
     }
 
     return this.catalog.getFeaturedItem();
+  }
+
+  /**
+   * @brief Resolve the focused browse item that should drive the hero when present
+   *
+   * @param browseFocusState - Shared browse focus state when available
+   * @param browseRowModels - Browse rows paired with their source media items
+   *
+   * @returns Focused media item or `null` when the focus state has no target yet
+   */
+  private resolveFocusedHeroItem(
+    browseFocusState: BrowseFocusState | null,
+    browseRowModels: readonly BrowseRowModel[],
+  ): MediaItem | null {
+    if (browseFocusState === null) {
+      return null;
+    }
+
+    if (!browseFocusState.hasFocusedItem) {
+      return null;
+    }
+
+    const focusedRow: BrowseRowModel | undefined =
+      browseRowModels[browseFocusState.activeRowIndex];
+
+    if (focusedRow === undefined) {
+      return null;
+    }
+
+    const focusedItemIndex: number =
+      browseFocusState.activeItemIndexByRow[browseFocusState.activeRowIndex] ??
+      0;
+
+    return focusedRow.sourceItems[focusedItemIndex] ?? null;
   }
 
   /**
@@ -209,16 +277,16 @@ export class BrowseContentAdapter {
    * fewer than two rails, this method derives additional rails from the same
    * shared items so every surface still renders a browse-style layout.
    *
-   * @returns Ordered browse rows sourced from the shared catalog
+   * @returns Ordered browse rows paired with their source media items
    */
-  private createRows(): readonly BrowseRowContent[] {
+  private createRowModels(): readonly BrowseRowModel[] {
     const catalogSections: CatalogSection[] = this.catalog
       .getSections()
       .filter((catalogSection: CatalogSection): boolean =>
         catalogSection.hasItems(),
       );
-    const browseRows: BrowseRowContent[] = catalogSections.map(
-      (catalogSection: CatalogSection): BrowseRowContent =>
+    const browseRows: BrowseRowModel[] = catalogSections.map(
+      (catalogSection: CatalogSection): BrowseRowModel =>
         this.createRowFromItems(
           catalogSection.id,
           catalogSection.title,
@@ -267,14 +335,17 @@ export class BrowseContentAdapter {
     rowId: string,
     rowTitle: string,
     items: MediaItem[],
-  ): BrowseRowContent {
+  ): BrowseRowModel {
     return {
-      id: rowId,
-      title: rowTitle,
-      items: items.map(
-        (mediaItem: MediaItem): BrowseThumbnailContent =>
-          this.createThumbnailContent(mediaItem),
-      ),
+      content: {
+        id: rowId,
+        title: rowTitle,
+        items: items.map(
+          (mediaItem: MediaItem): BrowseThumbnailContent =>
+            this.createThumbnailContent(mediaItem),
+        ),
+      },
+      sourceItems: [...items],
     };
   }
 

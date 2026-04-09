@@ -28,6 +28,7 @@ type BrowseRowFactory = ReturnType<typeof Blits.Component>;
  * @property {LightningThumbnailState[]} rowItems Thumbnail state to render
  * @property {number} rowPosition Zero-based row index used for stable identity and focus logic
  * @property {number} activeItemIndex Focused item index for the active row
+ * @property {boolean} hasFocusedItem Whether browse focus is currently active
  * @property {boolean} isActiveRow Whether this row currently owns horizontal focus
  */
 const BrowseRow: BrowseRowFactory = Blits.Component("BrowseRow", {
@@ -38,6 +39,7 @@ const BrowseRow: BrowseRowFactory = Blits.Component("BrowseRow", {
     "rowItems",
     "rowPosition",
     "activeItemIndex",
+    "hasFocusedItem",
     "isActiveRow",
   ],
   computed: {
@@ -74,7 +76,7 @@ const BrowseRow: BrowseRowFactory = Blits.Component("BrowseRow", {
         :y="$browseItem.y"
       >
         <Element
-          :alpha="$isActiveRow && $itemIndex === $activeItemIndex ? 1 : 0"
+          :alpha="$hasFocusedItem && $isActiveRow && $itemIndex === $activeItemIndex ? 1 : 0"
           color="#FFFFFF"
           :h="$browseItem.height + 8"
           :w="$browseItem.width + 8"

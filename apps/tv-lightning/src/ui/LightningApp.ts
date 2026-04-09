@@ -15,6 +15,7 @@ import type {
   BrowseRowContent,
   BrowseScreenContent,
   BrowseThumbnailContent,
+  MediaItem,
   OverlayController,
   OverlayState,
   PlaybackSequenceController,
@@ -71,6 +72,7 @@ export type LightningAppOptions = {
 
 type LightningAppState = {
   appLayoutController: TvAppLayoutController;
+  activePlaybackItem: MediaItem | null;
   browseContent: BrowseScreenContent;
   fadeDurationMs: number;
   loadingAlpha: number;
@@ -80,6 +82,7 @@ type LightningAppState = {
   heroDescription: string;
   metadataEntries: LightningMetadataEntryState[];
   browseRows: LightningRowState[];
+  hasFocusedItem: boolean;
   activeRowIndex: number;
   activeItemIndexByRow: number[];
   stageW: number;
@@ -138,10 +141,12 @@ export function createLightningApp(
       const browseContent: BrowseScreenContent =
         options.browseContentAdapter.getBrowseScreenContent(
           options.playbackSequenceController.getActiveItem(),
+          options.browseFocusController.getState(),
         );
 
       return {
         appLayoutController: options.appLayoutController,
+        activePlaybackItem: options.playbackSequenceController.getActiveItem(),
         browseContent,
         fadeDurationMs: options.overlayController.getConfig().fadeDurationMs,
         loadingAlpha: 1,
@@ -151,6 +156,7 @@ export function createLightningApp(
         heroDescription: "",
         metadataEntries: [],
         browseRows: [],
+        hasFocusedItem: false,
         activeRowIndex: 0,
         activeItemIndexByRow: [],
         stageW: LIGHTNING_APP_WIDTH,
@@ -243,8 +249,14 @@ export function createLightningApp(
        * @param browseFocusState - Shared browse focus snapshot
        */
       handleBrowseFocusState(browseFocusState: BrowseFocusState): void {
+        this.hasFocusedItem = browseFocusState.hasFocusedItem;
         this.activeRowIndex = browseFocusState.activeRowIndex;
         this.activeItemIndexByRow = [...browseFocusState.activeItemIndexByRow];
+        this.browseContent =
+          options.browseContentAdapter.getBrowseScreenContent(
+            this.activePlaybackItem,
+            browseFocusState,
+          );
         this.rebuildBrowsePresentation();
       },
 
@@ -256,11 +268,14 @@ export function createLightningApp(
       handlePlaybackSequenceState(
         playbackSequenceState: PlaybackSequenceState,
       ): void {
+        this.activePlaybackItem = playbackSequenceState.activeItem;
         this.browseContent =
           options.browseContentAdapter.getBrowseScreenContent(
-            playbackSequenceState.activeItem,
+            this.activePlaybackItem,
+            options.browseFocusController.getState(),
           );
         this.syncBrowseFocusController();
+        this.rebuildBrowsePresentation();
       },
 
       /**
@@ -370,6 +385,7 @@ export function createLightningApp(
             items,
             rowPosition: rowIndex,
             activeItemIndex,
+            hasFocusedItem: this.hasFocusedItem,
             isActiveRow: rowIndex === this.activeRowIndex,
           });
         }
@@ -575,6 +591,7 @@ export function createLightningApp(
           :rowItems="$browseRow.items"
           :rowPosition="$browseRow.rowPosition"
           :activeItemIndex="$browseRow.activeItemIndex"
+          :hasFocusedItem="$browseRow.hasFocusedItem"
           :isActiveRow="$browseRow.isActiveRow"
         />
       </Element>

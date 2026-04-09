@@ -48,6 +48,7 @@ export class WebAppShell {
     this.browseFocusState = {
       activeRowIndex: 0,
       activeItemIndexByRow: [],
+      hasFocusedItem: false,
     };
     this.thumbnailCardElements = [];
     this.mountElement = this.getMountElement();
@@ -130,6 +131,7 @@ export class WebAppShell {
     this.browseFocusState = {
       activeRowIndex: browseFocusState.activeRowIndex,
       activeItemIndexByRow: [...browseFocusState.activeItemIndexByRow],
+      hasFocusedItem: browseFocusState.hasFocusedItem,
     };
 
     for (const [
@@ -144,6 +146,7 @@ export class WebAppShell {
         thumbnailCardElement,
       ] of rowCardElements.entries()) {
         const isFocused: boolean =
+          this.browseFocusState.hasFocusedItem &&
           rowIndex === this.browseFocusState.activeRowIndex &&
           itemIndex === activeItemIndex;
 
