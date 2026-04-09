@@ -8,6 +8,10 @@
 
 import Blits from "@lightningjs/blits";
 import type {
+  BrowseContentAdapter,
+  BrowseRowContent,
+  BrowseScreenContent,
+  BrowseThumbnailContent,
   OverlayController,
   OverlayState,
   PlaybackSequenceController,
@@ -24,14 +28,33 @@ import {
 } from "../layout/StageLayout";
 import { TvAppLayoutController } from "../layout/TvAppLayoutController";
 import { TvViewportSync } from "../layout/TvViewportSync";
+import type {
+  LightningRowState,
+  LightningThumbnailState,
+} from "./BrowsePresentation";
+import BrowseRow from "./BrowseRow";
 import Icon from "./Icon";
-import OverlayTitle from "./OverlayTitle";
 
 // Type alias for the factory returned by Blits.Application
 type LightningAppFactory = ReturnType<typeof Blits.Application>;
 
+type LightningMetadataEntryState = {
+  id: string;
+  value: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  textX: number;
+  textY: number;
+  textMaxWidth: number;
+  calendarAlpha: number;
+  tagAlpha: number;
+};
+
 export type LightningAppOptions = {
   appLayoutController: TvAppLayoutController;
+  browseContentAdapter: BrowseContentAdapter;
   overlayController: OverlayController;
   playbackSequenceController: PlaybackSequenceController;
   playbackVisualReadinessController: PlaybackVisualReadinessController;
@@ -42,10 +65,17 @@ export type LightningAppOptions = {
 
 type LightningAppState = {
   appLayoutController: TvAppLayoutController;
+  browseContent: BrowseScreenContent;
   fadeDurationMs: number;
   loadingAlpha: number;
-  overlayTitle: string;
   overlayAlpha: number;
+  heroTitle: string;
+  heroViewCount: string;
+  heroDescription: string;
+  metadataEntries: LightningMetadataEntryState[];
+  browseRows: LightningRowState[];
+  activeRowIndex: number;
+  activeItemIndexByRow: number[];
   stageW: number;
   stageH: number;
   viewportW: number;
@@ -57,6 +87,7 @@ type LightningAppState = {
 };
 
 type LightningAppMethods = {
+  initializeBrowseContent(): void;
   initializeLoadingSubscription(): void;
   initializeOverlaySubscription(): void;
   initializePlaybackSequenceSubscription(): void;
@@ -68,6 +99,10 @@ type LightningAppMethods = {
     playbackVisualReadinessState: PlaybackVisualReadinessState,
   ): void;
   handleOverlayState(overlayState: OverlayState): void;
+  moveHorizontalFocus(offset: number): void;
+  moveVerticalFocus(offset: number): void;
+  rebuildBrowsePresentation(): void;
+  syncActiveIndexesWithRows(): void;
   tearDownViewportSync(): void;
 };
 
@@ -93,13 +128,24 @@ export function createLightningApp(
   >({
     // Keep the stage dimensions fixed for the TV-only experience.
     state(): LightningAppState {
+      const browseContent: BrowseScreenContent =
+        options.browseContentAdapter.getBrowseScreenContent(
+          options.playbackSequenceController.getActiveItem(),
+        );
+
       return {
         appLayoutController: options.appLayoutController,
+        browseContent,
         fadeDurationMs: options.overlayController.getConfig().fadeDurationMs,
         loadingAlpha: 1,
-        overlayTitle:
-          options.playbackSequenceController.getActiveItemTitle() ?? "",
         overlayAlpha: 0,
+        heroTitle: "",
+        heroViewCount: "",
+        heroDescription: "",
+        metadataEntries: [],
+        browseRows: [],
+        activeRowIndex: 0,
+        activeItemIndexByRow: [],
         stageW: LIGHTNING_APP_WIDTH,
         stageH: LIGHTNING_APP_HEIGHT,
         viewportW: 0,
@@ -112,6 +158,14 @@ export function createLightningApp(
     },
 
     methods: {
+      /**
+       * @brief Prime the browse presentation before the first overlay reveal
+       */
+      initializeBrowseContent(): void {
+        this.syncActiveIndexesWithRows();
+        this.rebuildBrowsePresentation();
+      },
+
       /**
        * @brief Subscribe the Lightning root to playback visual readiness
        */
@@ -164,14 +218,19 @@ export function createLightningApp(
       },
 
       /**
-       * @brief Map the shared active item onto the rendered overlay title
+       * @brief Map the shared active item onto the rendered browse overlay
        *
        * @param playbackSequenceState - Shared playback sequence snapshot
        */
       handlePlaybackSequenceState(
         playbackSequenceState: PlaybackSequenceState,
       ): void {
-        this.overlayTitle = playbackSequenceState.activeItem?.title ?? "";
+        this.browseContent =
+          options.browseContentAdapter.getBrowseScreenContent(
+            playbackSequenceState.activeItem,
+          );
+        this.syncActiveIndexesWithRows();
+        this.rebuildBrowsePresentation();
       },
 
       /**
@@ -193,6 +252,159 @@ export function createLightningApp(
        */
       handleOverlayState(overlayState: OverlayState): void {
         this.overlayAlpha = overlayState.visibility === "visible" ? 1 : 0;
+      },
+
+      /**
+       * @brief Move focus horizontally within the currently active browse row
+       *
+       * @param offset - Directional change applied to the active item index
+       */
+      moveHorizontalFocus(offset: number): void {
+        const activeRow: BrowseRowContent | undefined =
+          this.browseContent.rows[this.activeRowIndex];
+
+        if (activeRow === undefined || activeRow.items.length === 0) {
+          return;
+        }
+
+        const activeIndexes: number[] = [...this.activeItemIndexByRow];
+        const currentIndex: number = activeIndexes[this.activeRowIndex] ?? 0;
+        const nextIndex: number = Math.max(
+          0,
+          Math.min(activeRow.items.length - 1, currentIndex + offset),
+        );
+
+        activeIndexes[this.activeRowIndex] = nextIndex;
+        this.activeItemIndexByRow = activeIndexes;
+        this.rebuildBrowsePresentation();
+      },
+
+      /**
+       * @brief Reserve a vertical navigation hook for the next browse step
+       *
+       * @param offset - Directional change that future row navigation will consume
+       */
+      moveVerticalFocus(offset: number): void {
+        void offset;
+      },
+
+      /**
+       * @brief Rebuild all positioned browse presentation state for Lightning
+       *
+       * The shared browse content model stays runtime-agnostic, while this
+       * method translates it into fixed-stage coordinates and focus styling.
+       */
+      rebuildBrowsePresentation(): void {
+        const heroContent = this.browseContent.hero;
+        const metadataEntries: LightningMetadataEntryState[] = [];
+        const browseRows: LightningRowState[] = [];
+        const metadataStartX: number = 92;
+        const metadataStartY: number = 254;
+        const metadataGap: number = 14;
+        let metadataCursorX: number = metadataStartX;
+        let metadataCursorY: number = metadataStartY;
+
+        if (heroContent !== null) {
+          for (const metadataEntry of heroContent.metadataEntries) {
+            const entryWidth: number =
+              metadataEntry.kind === "calendar"
+                ? 178
+                : Math.max(116, metadataEntry.value.length * 15 + 34);
+
+            if (metadataCursorX + entryWidth > 1300) {
+              metadataCursorX = metadataStartX;
+              metadataCursorY += 44;
+            }
+
+            metadataEntries.push({
+              id: metadataEntry.id,
+              value: metadataEntry.value,
+              x: metadataCursorX,
+              y: metadataCursorY,
+              width: entryWidth,
+              height: 34,
+              textX: metadataEntry.kind === "calendar" ? 36 : 14,
+              textY: 8,
+              textMaxWidth:
+                entryWidth - (metadataEntry.kind === "calendar" ? 46 : 28),
+              calendarAlpha: metadataEntry.kind === "calendar" ? 1 : 0,
+              tagAlpha: metadataEntry.kind === "tag" ? 1 : 0,
+            });
+            metadataCursorX += entryWidth + metadataGap;
+          }
+        }
+
+        for (const [rowIndex, browseRow] of this.browseContent.rows.entries()) {
+          const titleY: number = 446 + rowIndex * 188;
+          const activeItemIndex: number =
+            this.activeItemIndexByRow[rowIndex] ?? 0;
+          const items: LightningThumbnailState[] = browseRow.items.map(
+            (
+              browseItem: BrowseThumbnailContent,
+              itemIndex: number,
+            ): LightningThumbnailState => ({
+              id: browseItem.id,
+              title: browseItem.title,
+              secondaryText: browseItem.secondaryText,
+              monogram: browseItem.artwork.placeholderMonogram,
+              x: 0 + itemIndex * 246,
+              y: 42,
+              width: 224,
+              height: 126,
+            }),
+          );
+
+          browseRows.push({
+            id: browseRow.id,
+            title: browseRow.title,
+            titleX: 92,
+            titleY,
+            items,
+            rowPosition: rowIndex,
+            activeItemIndex,
+            isActiveRow: rowIndex === this.activeRowIndex,
+          });
+        }
+
+        this.heroTitle = heroContent?.title ?? "";
+        this.heroViewCount = heroContent?.viewCount ?? "";
+        this.heroDescription = heroContent?.description ?? "";
+        this.metadataEntries = metadataEntries;
+        this.browseRows = browseRows;
+      },
+
+      /**
+       * @brief Clamp per-row selection indexes after row-content changes
+       */
+      syncActiveIndexesWithRows(): void {
+        const activeItemIndexByRow: number[] = this.browseContent.rows.map(
+          (browseRow: BrowseRowContent, rowIndex: number): number => {
+            const previousIndex: number =
+              this.activeItemIndexByRow[rowIndex] ?? 0;
+
+            if (browseRow.items.length === 0) {
+              return 0;
+            }
+
+            return Math.max(
+              0,
+              Math.min(browseRow.items.length - 1, previousIndex),
+            );
+          },
+        );
+
+        this.activeItemIndexByRow = activeItemIndexByRow;
+
+        if (this.browseContent.rows.length === 0) {
+          this.activeRowIndex = 0;
+
+          return;
+        }
+
+        this.activeRowIndex = Math.max(
+          0,
+          Math.min(this.browseContent.rows.length - 1, this.activeRowIndex),
+        );
       },
 
       /**
@@ -221,13 +433,41 @@ export function createLightningApp(
       },
     },
 
-    // Register child components available in the template
-    components: {
-      Icon,
-      OverlayTitle,
+    input: {
+      /**
+       * @brief Move focus to the previous thumbnail inside the active row
+       */
+      left(): void {
+        this.moveHorizontalFocus(-1);
+      },
+
+      /**
+       * @brief Move focus to the next thumbnail inside the active row
+       */
+      right(): void {
+        this.moveHorizontalFocus(1);
+      },
+
+      /**
+       * @brief Reserve upward row navigation for the next browse step
+       */
+      up(): void {
+        this.moveVerticalFocus(-1);
+      },
+
+      /**
+       * @brief Reserve downward row navigation for the next browse step
+       */
+      down(): void {
+        this.moveVerticalFocus(1);
+      },
     },
 
-    // No computed properties for the stage itself
+    // Register child components available in the template
+    components: {
+      BrowseRow,
+      Icon,
+    },
 
     hooks: {
       /**
@@ -236,10 +476,12 @@ export function createLightningApp(
        * UI lifecycle stays separate from media playback internals.
        */
       ready(): void {
+        this.initializeBrowseContent();
         this.initializeLoadingSubscription();
         this.initializeOverlaySubscription();
         this.initializePlaybackSequenceSubscription();
         this.initializeViewportSync();
+        this.$focus();
         options.onReady();
       },
 
@@ -252,7 +494,7 @@ export function createLightningApp(
       },
     },
 
-    // Render separate loading and overlay UI planes on the fixed TV stage
+    // Render separate loading and browse UI planes on the fixed TV stage.
     template: `<Element :w="$stageW" :h="$stageH">
       <Icon
         :appLayoutController="$appLayoutController"
@@ -263,13 +505,90 @@ export function createLightningApp(
         :viewportW="$viewportW"
         :viewportH="$viewportH"
       />
-      <OverlayTitle
-        :alpha="$overlayAlpha"
-        :fadeDurationMs="$fadeDurationMs"
-        :stageW="$stageW"
-        :stageH="$stageH"
-        :title="$overlayTitle"
-      />
+      <Element
+        :alpha.transition="{ value: $overlayAlpha, duration: $fadeDurationMs, easing: 'ease' }"
+        :w="$stageW"
+        :h="$stageH"
+      >
+        <Text
+          color="#FFFFFF"
+          :content="$heroTitle"
+          maxwidth="760"
+          size="62"
+          x="92"
+          y="88"
+        />
+        <Text
+          color="#F2F2F2"
+          :content="$heroViewCount"
+          maxwidth="520"
+          size="24"
+          x="94"
+          y="176"
+        />
+        <Text
+          color="#FFFFFF"
+          :content="$heroDescription"
+          lineheight="34"
+          maxwidth="980"
+          size="24"
+          x="94"
+          y="208"
+        />
+        <Element
+          :for="(metadataEntry, metadataIndex) in $metadataEntries"
+          :h="$metadataEntry.height"
+          key="$metadataEntry.id"
+          :w="$metadataEntry.width"
+          :x="$metadataEntry.x"
+          :y="$metadataEntry.y"
+        >
+          <Element
+            :alpha="$metadataEntry.tagAlpha"
+            color="#FFFFFF"
+            :h="$metadataEntry.height"
+            :w="$metadataEntry.width"
+          />
+          <Element
+            :alpha="$metadataEntry.tagAlpha"
+            color="#11151A"
+            h="30"
+            :w="$metadataEntry.width - 4"
+            x="2"
+            y="2"
+          />
+          <Element
+            :alpha="$metadataEntry.calendarAlpha"
+            h="18"
+            w="18"
+            x="8"
+            y="8"
+          >
+            <Element color="#FFFFFF" h="18" w="18" />
+            <Element color="#11151A" h="14" w="14" x="2" y="2" />
+            <Element color="#FFFFFF" h="4" w="18" x="0" y="0" />
+          </Element>
+          <Text
+            color="#FFFFFF"
+            :content="$metadataEntry.value"
+            :maxwidth="$metadataEntry.textMaxWidth"
+            size="18"
+            :x="$metadataEntry.textX"
+            :y="$metadataEntry.textY"
+          />
+        </Element>
+        <BrowseRow
+          :for="(browseRow, rowIndex) in $browseRows"
+          key="$browseRow.id"
+          :rowTitle="$browseRow.title"
+          :rowTitleX="$browseRow.titleX"
+          :rowTitleY="$browseRow.titleY"
+          :rowItems="$browseRow.items"
+          :rowPosition="$browseRow.rowPosition"
+          :activeItemIndex="$browseRow.activeItemIndex"
+          :isActiveRow="$browseRow.isActiveRow"
+        />
+      </Element>
     </Element>`,
   });
 }

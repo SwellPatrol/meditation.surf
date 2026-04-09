@@ -6,10 +6,11 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type {
-  MeditationExperience,
-  OverlayController,
-  PlaybackSequenceController,
+import {
+  BrowseContentAdapter,
+  type MeditationExperience,
+  type OverlayController,
+  type PlaybackSequenceController,
 } from "@meditation-surf/core";
 import type { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
@@ -26,6 +27,7 @@ import { TvBackgroundVideoController } from "../playback/TvBackgroundVideoContro
 export class TvExperienceAdapter {
   public readonly appLayoutController: TvAppLayoutController;
   public readonly backgroundVideoController: TvBackgroundVideoController;
+  public readonly browseContentAdapter: BrowseContentAdapter;
   public readonly overlayController: OverlayController;
   public readonly playbackSequenceController: PlaybackSequenceController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
@@ -50,6 +52,7 @@ export class TvExperienceAdapter {
       lightningPlaybackAdapter,
       playbackVisualReadinessController,
     );
+    this.browseContentAdapter = new BrowseContentAdapter(experience.catalog);
     this.overlayController = experience.getOverlayController();
     this.playbackSequenceController =
       experience.getPlaybackSequenceController();

@@ -16,6 +16,7 @@ import {
 } from "../layout/StageLayout";
 import { TvViewportSync } from "../layout/TvViewportSync";
 import { createLightningApp } from "../ui/LightningApp";
+import { TvTextFont } from "./TvTextFont";
 
 /**
  * @brief Top-level lifecycle owner for the TV Lightning app
@@ -50,6 +51,7 @@ export class TvApp {
     const lightningApp: ReturnType<typeof Blits.Application> =
       createLightningApp({
         appLayoutController: this.experienceAdapter.appLayoutController,
+        browseContentAdapter: this.experienceAdapter.browseContentAdapter,
         overlayController: this.experienceAdapter.overlayController,
         playbackSequenceController:
           this.experienceAdapter.playbackSequenceController,
@@ -65,11 +67,23 @@ export class TvApp {
           this.viewportSync.destroy();
         },
       });
+    const textFontDefinition: {
+      family: string;
+      type: "web";
+      file: string;
+    } = TvTextFont.createBlitsFontDefinition();
 
     mountElement.style.position = "relative";
     Blits.Launch(lightningApp, mountElement, {
       w: LIGHTNING_APP_WIDTH,
       h: LIGHTNING_APP_HEIGHT,
+      // Web fonts are loaded through the canvas text renderer in Blits.
+      // Running the TV app in canvas mode keeps the entire text path on the
+      // documented renderer route instead of mixing web-font text with the
+      // default WebGL stage configuration.
+      renderMode: "canvas",
+      defaultFont: TvTextFont.family,
+      fonts: [textFontDefinition],
     });
 
     this.viewportSync.start(

@@ -92,15 +92,13 @@ export class MediaItemMetadata {
    *
    * The calendar item is intentionally excluded here so UI layers can render
    * the created label separately next to an icon before the boxed tag chips.
+   * Duration remains in the shared metadata model for thumbnail secondary text,
+   * but the hero badge row intentionally starts with resolution.
    *
-   * @returns Ordered tag values for duration, resolution, codecs, and layout
+   * @returns Ordered tag values for resolution, codecs, and layout
    */
   public getOrderedStreamDetailTags(): readonly MediaItemMetadataTag[] {
     return [
-      {
-        id: "duration",
-        value: this.duration,
-      },
       {
         id: "resolution",
         value: this.resolution,

@@ -7,6 +7,7 @@
  */
 
 import type {
+  BrowseScreenContent,
   MeditationExperience,
   OverlayState,
   PlaybackSequenceState,
@@ -38,10 +39,14 @@ export class WebApp {
    */
   public constructor(experience: MeditationExperience) {
     this.experienceAdapter = new WebExperienceAdapter(experience);
+    const initialBrowseContent: BrowseScreenContent =
+      this.experienceAdapter.browseContentAdapter.getBrowseScreenContent(
+        this.experienceAdapter.playbackSequenceController.getActiveItem(),
+      );
+
     this.shell = new WebAppShell(
       this.experienceAdapter.appLayoutController,
-      this.experienceAdapter.playbackSequenceController.getActiveItemTitle() ??
-        "",
+      initialBrowseContent,
     );
     this.removeLoadingSubscription = null;
     this.removeOverlaySubscription = null;
@@ -93,8 +98,11 @@ export class WebApp {
     this.removePlaybackSequenceSubscription =
       this.experienceAdapter.playbackSequenceController.subscribe(
         (playbackSequenceState: PlaybackSequenceState): void => {
-          this.shell.overlayUiElement.textContent =
-            playbackSequenceState.activeItem?.title ?? "";
+          this.shell.renderBrowseContent(
+            this.experienceAdapter.browseContentAdapter.getBrowseScreenContent(
+              playbackSequenceState.activeItem,
+            ),
+          );
         },
       );
     window.addEventListener("beforeunload", this.handleBeforeUnload);

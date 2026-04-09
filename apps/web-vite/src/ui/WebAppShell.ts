@@ -6,6 +6,14 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type {
+  BrowseHeroContent,
+  BrowseMetadataEntry,
+  BrowseRowContent,
+  BrowseScreenContent,
+  BrowseThumbnailContent,
+} from "@meditation-surf/core";
+
 import { WebAppLayoutController } from "../layout/WebAppLayoutController";
 
 /**
@@ -19,25 +27,25 @@ export class WebAppShell {
   public readonly backgroundVideoElement: HTMLVideoElement;
   public readonly fullscreenInteractionElement: HTMLButtonElement;
   public readonly loadingOverlayElement: HTMLImageElement;
-  public readonly overlayUiElement: HTMLHeadingElement;
+  public readonly overlayUiElement: HTMLDivElement;
   public readonly mountElement: HTMLDivElement;
 
   /**
    * @brief Build the DOM shell for the web app
    *
    * @param appLayoutController - Runtime adapter for the shared app layout
-   * @param overlayTitle - Human-readable title rendered in the overlay UI plane
+   * @param browseContent - Shared browse content rendered in the overlay UI plane
    */
   public constructor(
     appLayoutController: WebAppLayoutController,
-    overlayTitle: string,
+    browseContent: BrowseScreenContent,
   ) {
     this.mountElement = this.getMountElement();
     this.backgroundVideoElement = document.createElement("video");
     this.fullscreenInteractionElement = document.createElement("button");
     this.loadingOverlayElement =
       appLayoutController.createCenteredOverlayElement();
-    this.overlayUiElement = this.createOverlayTitleElement(overlayTitle);
+    this.overlayUiElement = this.createOverlayUiElement();
     const loadingPlaneElement: HTMLDivElement = this.createOverlayPlaneElement(
       "loading-plane",
       false,
@@ -63,6 +71,7 @@ export class WebAppShell {
      * sizing guidance.
      */
     appLayoutController.applyCenteredOverlayLayout(this.loadingOverlayElement);
+    this.renderBrowseContent(browseContent);
     loadingPlaneElement.append(this.loadingOverlayElement);
     overlayUiPlaneElement.append(this.overlayUiElement);
     this.mountElement.append(
@@ -90,20 +99,197 @@ export class WebAppShell {
   }
 
   /**
-   * @brief Create the semantic title element rendered inside the overlay UI plane
+   * @brief Render the shared browse content into the overlay UI plane
    *
-   * @param overlayTitle - Human-readable title rendered above the video
-   *
-   * @returns DOM heading element used for the overlay UI title
+   * @param browseContent - Shared browse content prepared by the core adapter
    */
-  private createOverlayTitleElement(overlayTitle: string): HTMLHeadingElement {
-    const overlayTitleElement: HTMLHeadingElement =
-      document.createElement("h1");
+  public renderBrowseContent(browseContent: BrowseScreenContent): void {
+    this.overlayUiElement.replaceChildren(
+      this.createBrowseOverlayElement(browseContent),
+    );
+  }
 
-    overlayTitleElement.className = "overlay-title";
-    overlayTitleElement.textContent = overlayTitle;
+  /**
+   * @brief Create the overlay UI root element
+   *
+   * @returns DOM element used as the overlay UI root
+   */
+  private createOverlayUiElement(): HTMLDivElement {
+    const overlayUiElement: HTMLDivElement = document.createElement("div");
 
-    return overlayTitleElement;
+    overlayUiElement.className = "browse-overlay";
+
+    return overlayUiElement;
+  }
+
+  /**
+   * @brief Create the full browse overlay DOM tree from shared content
+   *
+   * @param browseContent - Shared browse content prepared by the core adapter
+   *
+   * @returns DOM subtree rendered inside the overlay UI plane
+   */
+  private createBrowseOverlayElement(
+    browseContent: BrowseScreenContent,
+  ): HTMLDivElement {
+    const browseOverlayRootElement: HTMLDivElement =
+      document.createElement("div");
+    const heroContent: BrowseHeroContent | null = browseContent.hero;
+    const browseRowsElement: HTMLDivElement = document.createElement("div");
+
+    browseOverlayRootElement.className = "browse-overlay-root";
+    browseRowsElement.className = "browse-rows";
+
+    if (heroContent !== null) {
+      browseOverlayRootElement.append(
+        this.createHeroSectionElement(heroContent),
+      );
+    }
+
+    for (const browseRow of browseContent.rows) {
+      browseRowsElement.append(this.createBrowseRowElement(browseRow));
+    }
+
+    browseOverlayRootElement.append(browseRowsElement);
+
+    return browseOverlayRootElement;
+  }
+
+  /**
+   * @brief Create the hero section shown above the browse rows
+   *
+   * @param heroContent - Shared browse hero content
+   *
+   * @returns DOM element representing the hero area
+   */
+  private createHeroSectionElement(
+    heroContent: BrowseHeroContent,
+  ): HTMLElement {
+    const heroSectionElement: HTMLElement = document.createElement("section");
+    const heroTextColumnElement: HTMLDivElement = document.createElement("div");
+    const titleElement: HTMLHeadingElement = document.createElement("h1");
+    const viewCountElement: HTMLParagraphElement = document.createElement("p");
+    const descriptionElement: HTMLParagraphElement =
+      document.createElement("p");
+    const metadataRowElement: HTMLDivElement = document.createElement("div");
+
+    heroSectionElement.className = "browse-hero";
+    heroTextColumnElement.className = "browse-hero-text";
+    titleElement.className = "browse-hero-title";
+    viewCountElement.className = "browse-hero-view-count";
+    descriptionElement.className = "browse-hero-description";
+    metadataRowElement.className = "browse-metadata-row";
+
+    titleElement.textContent = heroContent.title;
+    viewCountElement.textContent = heroContent.viewCount;
+    descriptionElement.textContent = heroContent.description;
+
+    for (const metadataEntry of heroContent.metadataEntries) {
+      metadataRowElement.append(this.createMetadataEntryElement(metadataEntry));
+    }
+
+    heroTextColumnElement.append(
+      titleElement,
+      viewCountElement,
+      descriptionElement,
+      metadataRowElement,
+    );
+    heroSectionElement.append(heroTextColumnElement);
+
+    return heroSectionElement;
+  }
+
+  /**
+   * @brief Create a single ordered hero metadata element
+   *
+   * @param metadataEntry - Shared metadata entry already ordered by the core adapter
+   *
+   * @returns DOM element representing the created label or a boxed tag
+   */
+  private createMetadataEntryElement(
+    metadataEntry: BrowseMetadataEntry,
+  ): HTMLDivElement {
+    if (metadataEntry.kind === "calendar") {
+      const calendarItemElement: HTMLDivElement = document.createElement("div");
+      const calendarIconElement: HTMLSpanElement =
+        document.createElement("span");
+      const calendarTextElement: HTMLSpanElement =
+        document.createElement("span");
+
+      calendarItemElement.className = "browse-calendar-item";
+      calendarIconElement.className = "browse-calendar-icon";
+      calendarTextElement.className = "browse-calendar-text";
+      calendarTextElement.textContent = metadataEntry.value;
+      calendarItemElement.append(calendarIconElement, calendarTextElement);
+
+      return calendarItemElement;
+    }
+
+    const tagElement: HTMLDivElement = document.createElement("div");
+
+    tagElement.className = "browse-metadata-tag";
+    tagElement.textContent = metadataEntry.value;
+
+    return tagElement;
+  }
+
+  /**
+   * @brief Create one horizontal browse rail with thumbnail cards
+   *
+   * @param browseRow - Shared browse row content sourced from the catalog
+   *
+   * @returns DOM element representing one browse row
+   */
+  private createBrowseRowElement(browseRow: BrowseRowContent): HTMLElement {
+    const browseRowElement: HTMLElement = document.createElement("section");
+    const rowTitleElement: HTMLHeadingElement = document.createElement("h2");
+    const rowTrackElement: HTMLDivElement = document.createElement("div");
+
+    browseRowElement.className = "browse-row";
+    rowTitleElement.className = "browse-row-title";
+    rowTrackElement.className = "browse-row-track";
+    rowTitleElement.textContent = browseRow.title;
+
+    for (const thumbnailContent of browseRow.items) {
+      rowTrackElement.append(this.createThumbnailCardElement(thumbnailContent));
+    }
+
+    browseRowElement.append(rowTitleElement, rowTrackElement);
+
+    return browseRowElement;
+  }
+
+  /**
+   * @brief Create one thumbnail card shown inside a browse rail
+   *
+   * @param thumbnailContent - Shared thumbnail content prepared by the core adapter
+   *
+   * @returns DOM element representing one thumbnail card
+   */
+  private createThumbnailCardElement(
+    thumbnailContent: BrowseThumbnailContent,
+  ): HTMLElement {
+    const thumbnailCardElement: HTMLElement = document.createElement("article");
+    const artworkElement: HTMLDivElement = document.createElement("div");
+    const monogramElement: HTMLParagraphElement = document.createElement("p");
+    const titleElement: HTMLParagraphElement = document.createElement("p");
+    const metaElement: HTMLParagraphElement = document.createElement("p");
+
+    thumbnailCardElement.className = "browse-thumbnail-card";
+    artworkElement.className = "browse-thumbnail-artwork";
+    titleElement.className = "browse-thumbnail-title";
+    metaElement.className = "browse-thumbnail-meta";
+    monogramElement.className = "browse-thumbnail-monogram";
+
+    artworkElement.dataset.placeholderKey =
+      thumbnailContent.artwork.placeholderKey;
+    monogramElement.textContent = thumbnailContent.artwork.placeholderMonogram;
+    titleElement.textContent = thumbnailContent.title;
+    metaElement.textContent = thumbnailContent.secondaryText;
+    artworkElement.append(monogramElement);
+    thumbnailCardElement.append(artworkElement, titleElement, metaElement);
+
+    return thumbnailCardElement;
   }
 
   /**

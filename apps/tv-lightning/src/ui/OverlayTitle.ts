@@ -28,7 +28,6 @@ type OverlayTitleFactory = ReturnType<typeof Blits.Component>;
  */
 const OverlayTitle: OverlayTitleFactory = Blits.Component("OverlayTitle", {
   props: ["alpha", "fadeDurationMs", "stageW", "stageH", "title"],
-
   computed: {
     /**
      * @brief Resolve the maximum title width within the fixed stage
@@ -83,7 +82,6 @@ const OverlayTitle: OverlayTitleFactory = Blits.Component("OverlayTitle", {
         align="center"
         color="#000000"
         :content="$title"
-        font="sans-serif"
         :maxwidth="$titleMaxWidth"
         :mount="{ x: 0.5, y: 0.5 }"
         size="48"
@@ -95,7 +93,6 @@ const OverlayTitle: OverlayTitleFactory = Blits.Component("OverlayTitle", {
         align="center"
         color="#FFFFFF"
         :content="$title"
-        font="sans-serif"
         :maxwidth="$titleMaxWidth"
         :mount="{ x: 0.5, y: 0.5 }"
         size="48"

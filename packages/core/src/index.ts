@@ -60,6 +60,15 @@ export {
   PlaybackStartedAnalyticsEvent,
   type PlaybackStartedAnalyticsEventPayload,
 } from "./analytics/PlaybackStartedAnalyticsEvent";
+export {
+  BrowseContentAdapter,
+  type BrowseArtworkContent,
+  type BrowseHeroContent,
+  type BrowseMetadataEntry,
+  type BrowseRowContent,
+  type BrowseScreenContent,
+  type BrowseThumbnailContent,
+} from "./browse/BrowseContentAdapter";
 export { Catalog } from "./catalog/Catalog";
 export { CatalogSection } from "./catalog/CatalogSection";
 export { FixtureCatalog } from "./catalog/FixtureCatalog";
