@@ -9,6 +9,7 @@
 import type { MediaAudioTrackInfo } from "../inventory/MediaAudioTrackInfo";
 import { MediaInventoryCloner } from "../inventory/MediaInventoryCloner";
 import type { MediaInventoryResult } from "../inventory/MediaInventoryResult";
+import type { MediaInventorySelectionReason } from "../inventory/MediaInventorySelectionReason";
 import type { MediaInventorySnapshot } from "../inventory/MediaInventorySnapshot";
 import type { AudioActivationIntent } from "./AudioActivationIntent";
 import type { AudioCapabilityProfile } from "./AudioCapabilityProfile";
@@ -71,6 +72,8 @@ export class AudioPolicy {
       input.inventoryResult === null
         ? null
         : MediaInventoryCloner.cloneSnapshot(input.inventoryResult.snapshot);
+    const inventorySelectionReason: MediaInventorySelectionReason =
+      this.resolveInventorySelectionReason(inventorySnapshot);
     const reasons: AudioPolicyDecisionReason[] = [];
     const reasonDetails: string[] = [];
     const committedPlaybackLane = activationIntent.committedPlaybackLane;
@@ -94,8 +97,11 @@ export class AudioPolicy {
         requestedPremiumAttempt: false,
         usedFallback: false,
         trackPolicy: audioTrackPolicy,
+        inventorySelectionReason,
         inventorySnapshot,
+        premiumCandidateAvailable: null,
         selectedAudioTrack: null,
+        selectedTrackStrategy: "no-track",
         capabilityProfile: this.cloneCapabilityProfile(
           runtimeAudioCapabilities,
         ),
@@ -124,8 +130,11 @@ export class AudioPolicy {
         requestedPremiumAttempt: false,
         usedFallback: false,
         trackPolicy: audioTrackPolicy,
+        inventorySelectionReason,
         inventorySnapshot,
+        premiumCandidateAvailable: null,
         selectedAudioTrack: null,
+        selectedTrackStrategy: "no-track",
         capabilityProfile: this.cloneCapabilityProfile(
           runtimeAudioCapabilities,
         ),
@@ -138,6 +147,8 @@ export class AudioPolicy {
     const wantsPremiumAttempt: boolean =
       activationIntent.committedPlaybackMode === "premium-attempt" &&
       audioTrackPolicy.preferPremiumAudio;
+    const premiumCandidateAvailable: boolean | null =
+      this.resolvePremiumCandidateAvailability(inventorySnapshot);
     const selectedPremiumTrack: MediaAudioTrackInfo | null =
       this.selectPremiumAudioTrack(inventorySnapshot, audioTrackPolicy);
     const selectedDefaultTrack: MediaAudioTrackInfo | null =
@@ -173,9 +184,12 @@ export class AudioPolicy {
         requestedPremiumAttempt: true,
         usedFallback: false,
         trackPolicy: audioTrackPolicy,
+        inventorySelectionReason,
         inventorySnapshot,
+        premiumCandidateAvailable,
         selectedAudioTrack:
           MediaInventoryCloner.cloneAudioTrackInfo(selectedPremiumTrack),
+        selectedTrackStrategy: "premium-candidate",
         capabilityProfile: this.cloneCapabilityProfile(
           runtimeAudioCapabilities,
         ),
@@ -224,9 +238,13 @@ export class AudioPolicy {
         requestedPremiumAttempt: wantsPremiumAttempt,
         usedFallback: wantsPremiumAttempt,
         trackPolicy: audioTrackPolicy,
+        inventorySelectionReason,
         inventorySnapshot,
+        premiumCandidateAvailable,
         selectedAudioTrack:
           MediaInventoryCloner.cloneAudioTrackInfo(selectedDefaultTrack),
+        selectedTrackStrategy:
+          selectedDefaultTrack === null ? "no-track" : "default-track",
         capabilityProfile: this.cloneCapabilityProfile(
           runtimeAudioCapabilities,
         ),
@@ -260,10 +278,14 @@ export class AudioPolicy {
         requestedPremiumAttempt: wantsPremiumAttempt,
         usedFallback: true,
         trackPolicy: audioTrackPolicy,
+        inventorySelectionReason,
         inventorySnapshot,
+        premiumCandidateAvailable,
         selectedAudioTrack: MediaInventoryCloner.cloneAudioTrackInfo(
           selectedFallbackTrack,
         ),
+        selectedTrackStrategy:
+          selectedFallbackTrack === null ? "no-track" : "fallback-stereo",
         capabilityProfile: this.cloneCapabilityProfile(
           runtimeAudioCapabilities,
         ),
@@ -284,10 +306,18 @@ export class AudioPolicy {
       requestedPremiumAttempt: wantsPremiumAttempt,
       usedFallback: true,
       trackPolicy: audioTrackPolicy,
+      inventorySelectionReason,
       inventorySnapshot,
+      premiumCandidateAvailable,
       selectedAudioTrack: MediaInventoryCloner.cloneAudioTrackInfo(
         selectedDefaultTrack ?? selectedFallbackTrack,
       ),
+      selectedTrackStrategy:
+        selectedDefaultTrack !== null
+          ? "default-track"
+          : selectedFallbackTrack !== null
+            ? "fallback-stereo"
+            : "no-track",
       capabilityProfile: this.cloneCapabilityProfile(runtimeAudioCapabilities),
       committedPlaybackLane,
       reasons,
@@ -377,19 +407,25 @@ export class AudioPolicy {
   ): MediaAudioTrackInfo | null {
     const availableAudioTracks: MediaAudioTrackInfo[] =
       inventorySnapshot?.inventory?.audioTracks ?? [];
-    const sortedAudioTracks: MediaAudioTrackInfo[] = [
-      ...availableAudioTracks,
-    ].sort(
-      (
-        leftAudioTrackInfo: MediaAudioTrackInfo,
-        rightAudioTrackInfo: MediaAudioTrackInfo,
-      ): number =>
-        this.scoreAudioTrack(rightAudioTrackInfo, audioTrackPolicy) -
-        this.scoreAudioTrack(leftAudioTrackInfo, audioTrackPolicy),
+    const defaultStandardTracks: MediaAudioTrackInfo[] =
+      availableAudioTracks.filter(
+        (audioTrackInfo: MediaAudioTrackInfo): boolean =>
+          audioTrackInfo.isDefault && !audioTrackInfo.isPremiumCandidate,
+      );
+    const defaultTracks: MediaAudioTrackInfo[] = availableAudioTracks.filter(
+      (audioTrackInfo: MediaAudioTrackInfo): boolean =>
+        audioTrackInfo.isDefault,
+    );
+    const standardTracks: MediaAudioTrackInfo[] = availableAudioTracks.filter(
+      (audioTrackInfo: MediaAudioTrackInfo): boolean =>
+        !audioTrackInfo.isPremiumCandidate,
     );
 
-    return MediaInventoryCloner.cloneAudioTrackInfo(
-      sortedAudioTracks[0] ?? null,
+    return (
+      this.selectBestAudioTrack(defaultStandardTracks, audioTrackPolicy) ??
+      this.selectBestAudioTrack(defaultTracks, audioTrackPolicy) ??
+      this.selectBestAudioTrack(standardTracks, audioTrackPolicy) ??
+      this.selectBestAudioTrack(availableAudioTracks, audioTrackPolicy)
     );
   }
 
@@ -407,22 +443,55 @@ export class AudioPolicy {
   ): MediaAudioTrackInfo | null {
     const availableAudioTracks: MediaAudioTrackInfo[] =
       inventorySnapshot?.inventory?.audioTracks ?? [];
-    const stereoTracks: MediaAudioTrackInfo[] = availableAudioTracks
-      .filter(
+    const stereoTracks: MediaAudioTrackInfo[] = availableAudioTracks.filter(
+      (audioTrackInfo: MediaAudioTrackInfo): boolean =>
+        audioTrackInfo.channelCount === null ||
+        audioTrackInfo.channelCount <= 2,
+    );
+    const defaultStandardStereoTracks: MediaAudioTrackInfo[] =
+      stereoTracks.filter(
         (audioTrackInfo: MediaAudioTrackInfo): boolean =>
-          audioTrackInfo.channelCount === null ||
-          audioTrackInfo.channelCount <= 2,
-      )
-      .sort(
-        (
-          leftAudioTrackInfo: MediaAudioTrackInfo,
-          rightAudioTrackInfo: MediaAudioTrackInfo,
-        ): number =>
-          this.scoreAudioTrack(rightAudioTrackInfo, audioTrackPolicy) -
-          this.scoreAudioTrack(leftAudioTrackInfo, audioTrackPolicy),
+          audioTrackInfo.isDefault && !audioTrackInfo.isPremiumCandidate,
       );
+    const standardStereoTracks: MediaAudioTrackInfo[] = stereoTracks.filter(
+      (audioTrackInfo: MediaAudioTrackInfo): boolean =>
+        !audioTrackInfo.isPremiumCandidate,
+    );
 
-    return MediaInventoryCloner.cloneAudioTrackInfo(stereoTracks[0] ?? null);
+    return (
+      this.selectBestAudioTrack(
+        defaultStandardStereoTracks,
+        audioTrackPolicy,
+      ) ??
+      this.selectBestAudioTrack(standardStereoTracks, audioTrackPolicy) ??
+      this.selectBestAudioTrack(stereoTracks, audioTrackPolicy)
+    );
+  }
+
+  /**
+   * @brief Select the best track from one already-filtered cohort
+   *
+   * @param audioTracks - Candidate audio-track cohort
+   * @param audioTrackPolicy - Shared audio policy preferences
+   *
+   * @returns Highest-scoring audio track, or `null` when the cohort is empty
+   */
+  private static selectBestAudioTrack(
+    audioTracks: MediaAudioTrackInfo[],
+    audioTrackPolicy: AudioTrackPolicy,
+  ): MediaAudioTrackInfo | null {
+    const sortedAudioTracks: MediaAudioTrackInfo[] = [...audioTracks].sort(
+      (
+        leftAudioTrackInfo: MediaAudioTrackInfo,
+        rightAudioTrackInfo: MediaAudioTrackInfo,
+      ): number =>
+        this.scoreAudioTrack(rightAudioTrackInfo, audioTrackPolicy) -
+        this.scoreAudioTrack(leftAudioTrackInfo, audioTrackPolicy),
+    );
+
+    return MediaInventoryCloner.cloneAudioTrackInfo(
+      sortedAudioTracks[0] ?? null,
+    );
   }
 
   /**
@@ -462,6 +531,45 @@ export class AudioPolicy {
     }
 
     return score;
+  }
+
+  /**
+   * @brief Resolve how this decision treated the current inventory snapshot
+   *
+   * @param inventorySnapshot - Optional inventory snapshot
+   *
+   * @returns Stable inventory selection reason for debug state
+   */
+  private static resolveInventorySelectionReason(
+    inventorySnapshot: MediaInventorySnapshot | null,
+  ): MediaInventorySelectionReason {
+    return inventorySnapshot?.selectionReason ?? "policy-fallback-only";
+  }
+
+  /**
+   * @brief Resolve whether committed playback explicitly exposed premium audio
+   *
+   * @param inventorySnapshot - Optional inventory snapshot
+   *
+   * @returns `true` or `false` when inventory is explicit, otherwise `null`
+   */
+  private static resolvePremiumCandidateAvailability(
+    inventorySnapshot: MediaInventorySnapshot | null,
+  ): boolean | null {
+    if (
+      inventorySnapshot === null ||
+      inventorySnapshot.supportLevel === "unsupported"
+    ) {
+      return null;
+    }
+
+    const availableAudioTracks: MediaAudioTrackInfo[] =
+      inventorySnapshot.inventory?.audioTracks ?? [];
+
+    return availableAudioTracks.some(
+      (audioTrackInfo: MediaAudioTrackInfo): boolean =>
+        audioTrackInfo.isPremiumCandidate,
+    );
   }
 
   /**

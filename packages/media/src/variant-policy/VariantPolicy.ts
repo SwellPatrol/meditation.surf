@@ -7,6 +7,7 @@
  */
 
 import { MediaInventoryCloner } from "../inventory/MediaInventoryCloner";
+import type { MediaInventorySelectionReason } from "../inventory/MediaInventorySelectionReason";
 import type { MediaInventorySnapshot } from "../inventory/MediaInventorySnapshot";
 import type { MediaVariantInfo } from "../inventory/MediaVariantInfo";
 import type { VariantQualityTier } from "./VariantQualityTier";
@@ -36,6 +37,8 @@ export class VariantPolicy {
       request.inventoryResult === null
         ? null
         : MediaInventoryCloner.cloneSnapshot(request.inventoryResult.snapshot);
+    const inventorySelectionReason: MediaInventorySelectionReason =
+      this.resolveInventorySelectionReason(inventorySnapshot);
     let desiredQualityTier: VariantQualityTier = "medium";
     let preferStartupLatency: boolean = false;
     let preferImageQuality: boolean = false;
@@ -132,14 +135,28 @@ export class VariantPolicy {
     }
 
     this.foldInventoryReasons(inventorySnapshot, reasons, notes);
+    const compatibleVariants: MediaVariantInfo[] =
+      this.createCompatibleVariants(
+        inventorySnapshot,
+        request.maxWidth,
+        request.maxHeight,
+        request.maxBandwidth,
+      );
+    const premiumCandidateAvailable: boolean | null =
+      this.resolvePremiumCandidateAvailability(
+        inventorySnapshot,
+        compatibleVariants,
+      );
     const selectedVariant: MediaVariantInfo | null = this.selectVariant(
-      inventorySnapshot,
+      compatibleVariants,
       desiredQualityTier,
-      request.maxWidth,
-      request.maxHeight,
-      request.maxBandwidth,
     );
     const matchedAvailableVariant: boolean = selectedVariant !== null;
+    const matchedDesiredVariantIntent: boolean | null =
+      this.resolveMatchedDesiredVariantIntent(
+        desiredQualityTier,
+        selectedVariant,
+      );
 
     if (selectedVariant !== null) {
       reasons.push("matched-available-variant");
@@ -149,13 +166,33 @@ export class VariantPolicy {
         reasons.push("selected-standard-variant");
       }
 
-      notes.push(
-        `Variant policy matched quality intent to available variant ${selectedVariant.id}.`,
-      );
+      if (matchedDesiredVariantIntent === true) {
+        notes.push(
+          `Variant policy matched quality intent to available variant ${selectedVariant.id}.`,
+        );
+      } else if (desiredQualityTier === "premium-attempt") {
+        notes.push(
+          `Variant policy fell back from a premium intent to standard-compatible variant ${selectedVariant.id}.`,
+        );
+      } else {
+        notes.push(
+          `Variant policy selected variant ${selectedVariant.id}, but the available inventory did not exactly match the requested standard-compatible intent.`,
+        );
+      }
     } else if (inventorySnapshot?.inventory !== null) {
       reasons.push("no-compatible-variant");
       notes.push(
         "Inventory was available, but no compatible variant matched the shared quality intent.",
+      );
+    }
+
+    if (
+      preferPremiumPlayback &&
+      premiumCandidateAvailable === false &&
+      inventorySelectionReason !== "policy-fallback-only"
+    ) {
+      notes.push(
+        "Inventory exposed only standard-compatible video variants for committed playback.",
       );
     }
 
@@ -168,9 +205,12 @@ export class VariantPolicy {
       maxWidth: request.maxWidth,
       maxHeight: request.maxHeight,
       maxBandwidth: request.maxBandwidth,
+      inventorySelectionReason,
       inventorySnapshot,
+      premiumCandidateAvailable,
       selectedVariant: MediaInventoryCloner.cloneVariantInfo(selectedVariant),
       matchedAvailableVariant,
+      matchedDesiredVariantIntent,
       reasons,
       notes,
     };
@@ -223,32 +263,9 @@ export class VariantPolicy {
    * @returns Best matching available variant, or `null` when none matched
    */
   private static selectVariant(
-    inventorySnapshot: MediaInventorySnapshot | null,
+    compatibleVariants: MediaVariantInfo[],
     desiredQualityTier: VariantQualityTier,
-    maxWidth: number | null,
-    maxHeight: number | null,
-    maxBandwidth: number | null,
   ): MediaVariantInfo | null {
-    const availableVariants: MediaVariantInfo[] =
-      inventorySnapshot?.inventory?.variants ?? [];
-    const compatibleVariants: MediaVariantInfo[] = availableVariants
-      .filter((variantInfo: MediaVariantInfo): boolean =>
-        this.isVariantCompatible(
-          variantInfo,
-          maxWidth,
-          maxHeight,
-          maxBandwidth,
-        ),
-      )
-      .sort(
-        (
-          leftVariantInfo: MediaVariantInfo,
-          rightVariantInfo: MediaVariantInfo,
-        ): number =>
-          this.scoreVariant(rightVariantInfo) -
-          this.scoreVariant(leftVariantInfo),
-      );
-
     if (compatibleVariants.length === 0) {
       return null;
     }
@@ -274,6 +291,105 @@ export class VariantPolicy {
     return MediaInventoryCloner.cloneVariantInfo(
       standardVariant ?? compatibleVariants[0],
     );
+  }
+
+  /**
+   * @brief Create the sorted compatible-variant list used for selection
+   *
+   * @param inventorySnapshot - Optional inventory snapshot
+   * @param maxWidth - Optional width cap
+   * @param maxHeight - Optional height cap
+   * @param maxBandwidth - Optional bandwidth cap
+   *
+   * @returns Compatible variants sorted from richest to most conservative
+   */
+  private static createCompatibleVariants(
+    inventorySnapshot: MediaInventorySnapshot | null,
+    maxWidth: number | null,
+    maxHeight: number | null,
+    maxBandwidth: number | null,
+  ): MediaVariantInfo[] {
+    const availableVariants: MediaVariantInfo[] =
+      inventorySnapshot?.inventory?.variants ?? [];
+
+    return availableVariants
+      .filter((variantInfo: MediaVariantInfo): boolean =>
+        this.isVariantCompatible(
+          variantInfo,
+          maxWidth,
+          maxHeight,
+          maxBandwidth,
+        ),
+      )
+      .sort(
+        (
+          leftVariantInfo: MediaVariantInfo,
+          rightVariantInfo: MediaVariantInfo,
+        ): number =>
+          this.scoreVariant(rightVariantInfo) -
+          this.scoreVariant(leftVariantInfo),
+      );
+  }
+
+  /**
+   * @brief Resolve how this decision treated the current inventory snapshot
+   *
+   * @param inventorySnapshot - Optional inventory snapshot
+   *
+   * @returns Stable inventory selection reason for debug state
+   */
+  private static resolveInventorySelectionReason(
+    inventorySnapshot: MediaInventorySnapshot | null,
+  ): MediaInventorySelectionReason {
+    return inventorySnapshot?.selectionReason ?? "policy-fallback-only";
+  }
+
+  /**
+   * @brief Resolve whether compatible premium candidates are explicitly known
+   *
+   * @param inventorySnapshot - Optional inventory snapshot
+   * @param compatibleVariants - Compatible variants already filtered for this request
+   *
+   * @returns `true` or `false` when inventory is explicit, otherwise `null`
+   */
+  private static resolvePremiumCandidateAvailability(
+    inventorySnapshot: MediaInventorySnapshot | null,
+    compatibleVariants: MediaVariantInfo[],
+  ): boolean | null {
+    if (
+      inventorySnapshot === null ||
+      inventorySnapshot.supportLevel === "unsupported"
+    ) {
+      return null;
+    }
+
+    return compatibleVariants.some(
+      (variantInfo: MediaVariantInfo): boolean =>
+        variantInfo.isPremiumCandidate,
+    );
+  }
+
+  /**
+   * @brief Determine whether the chosen variant matched the requested quality intent
+   *
+   * @param desiredQualityTier - Requested shared quality tier
+   * @param selectedVariant - Chosen available variant
+   *
+   * @returns `true` when the available variant matched the requested intent
+   */
+  private static resolveMatchedDesiredVariantIntent(
+    desiredQualityTier: VariantQualityTier,
+    selectedVariant: MediaVariantInfo | null,
+  ): boolean | null {
+    if (selectedVariant === null) {
+      return null;
+    }
+
+    if (desiredQualityTier === "premium-attempt") {
+      return selectedVariant.isPremiumCandidate;
+    }
+
+    return !selectedVariant.isPremiumCandidate;
   }
 
   /**

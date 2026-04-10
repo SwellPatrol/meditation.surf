@@ -384,15 +384,21 @@ export class TvMediaRuntimeAdapter implements MediaRuntimeAdapter {
                     audioExecution.policyDecision.trackPolicy
                       .allowFallbackStereo,
                 },
+                inventorySelectionReason:
+                  audioExecution.policyDecision.inventorySelectionReason,
                 inventorySnapshot:
                   audioExecution.policyDecision.inventorySnapshot === null
                     ? null
                     : MediaInventoryCloner.cloneSnapshot(
                         audioExecution.policyDecision.inventorySnapshot,
                       ),
+                premiumCandidateAvailable:
+                  audioExecution.policyDecision.premiumCandidateAvailable,
                 selectedAudioTrack: MediaInventoryCloner.cloneAudioTrackInfo(
                   audioExecution.policyDecision.selectedAudioTrack,
                 ),
+                selectedTrackStrategy:
+                  audioExecution.policyDecision.selectedTrackStrategy,
                 capabilityProfile:
                   audioExecution.policyDecision.capabilityProfile === null
                     ? null

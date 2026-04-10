@@ -296,6 +296,9 @@ export class WebAppShell {
                       thumbnailEntry.request.variantSelection.maxHeight,
                     maxBandwidth:
                       thumbnailEntry.request.variantSelection.maxBandwidth,
+                    inventorySelectionReason:
+                      thumbnailEntry.request.variantSelection
+                        .inventorySelectionReason,
                     inventorySnapshot:
                       thumbnailEntry.request.variantSelection
                         .inventorySnapshot === null
@@ -304,12 +307,18 @@ export class WebAppShell {
                             thumbnailEntry.request.variantSelection
                               .inventorySnapshot,
                           ),
+                    premiumCandidateAvailable:
+                      thumbnailEntry.request.variantSelection
+                        .premiumCandidateAvailable,
                     selectedVariant: MediaInventoryCloner.cloneVariantInfo(
                       thumbnailEntry.request.variantSelection.selectedVariant,
                     ),
                     matchedAvailableVariant:
                       thumbnailEntry.request.variantSelection
                         .matchedAvailableVariant,
+                    matchedDesiredVariantIntent:
+                      thumbnailEntry.request.variantSelection
+                        .matchedDesiredVariantIntent,
                     reasons: [
                       ...thumbnailEntry.request.variantSelection.reasons,
                     ],
@@ -372,6 +381,9 @@ export class WebAppShell {
                         thumbnailEntry.request.audioPolicyDecision.trackPolicy
                           .allowFallbackStereo,
                     },
+                    inventorySelectionReason:
+                      thumbnailEntry.request.audioPolicyDecision
+                        .inventorySelectionReason,
                     inventorySnapshot:
                       thumbnailEntry.request.audioPolicyDecision
                         .inventorySnapshot === null
@@ -380,11 +392,17 @@ export class WebAppShell {
                             thumbnailEntry.request.audioPolicyDecision
                               .inventorySnapshot,
                           ),
+                    premiumCandidateAvailable:
+                      thumbnailEntry.request.audioPolicyDecision
+                        .premiumCandidateAvailable,
                     selectedAudioTrack:
                       MediaInventoryCloner.cloneAudioTrackInfo(
                         thumbnailEntry.request.audioPolicyDecision
                           .selectedAudioTrack,
                       ),
+                    selectedTrackStrategy:
+                      thumbnailEntry.request.audioPolicyDecision
+                        .selectedTrackStrategy,
                     capabilityProfile:
                       thumbnailEntry.request.audioPolicyDecision
                         .capabilityProfile === null
@@ -478,6 +496,9 @@ export class WebAppShell {
                           thumbnailEntry.result.debug.audioPolicyDecision
                             .trackPolicy.allowFallbackStereo,
                       },
+                      inventorySelectionReason:
+                        thumbnailEntry.result.debug.audioPolicyDecision
+                          .inventorySelectionReason,
                       inventorySnapshot:
                         thumbnailEntry.result.debug.audioPolicyDecision
                           .inventorySnapshot === null
@@ -486,11 +507,17 @@ export class WebAppShell {
                               thumbnailEntry.result.debug.audioPolicyDecision
                                 .inventorySnapshot,
                             ),
+                      premiumCandidateAvailable:
+                        thumbnailEntry.result.debug.audioPolicyDecision
+                          .premiumCandidateAvailable,
                       selectedAudioTrack:
                         MediaInventoryCloner.cloneAudioTrackInfo(
                           thumbnailEntry.result.debug.audioPolicyDecision
                             .selectedAudioTrack,
                         ),
+                      selectedTrackStrategy:
+                        thumbnailEntry.result.debug.audioPolicyDecision
+                          .selectedTrackStrategy,
                       capabilityProfile:
                         thumbnailEntry.result.debug.audioPolicyDecision
                           .capabilityProfile === null

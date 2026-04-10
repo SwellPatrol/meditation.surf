@@ -10,6 +10,7 @@ import type { AudioPolicyDecision } from "../audio/AudioPolicyDecision";
 import type { AudioTrackPolicy } from "../audio/AudioTrackPolicy";
 import type { MediaRoleCapabilitySnapshot } from "../capability-oracle/MediaRoleCapabilitySnapshot";
 import type { MediaInventoryResult } from "../inventory/MediaInventoryResult";
+import type { MediaInventorySelectionReason } from "../inventory/MediaInventorySelectionReason";
 import type { MediaPlaybackLane } from "../sessions/MediaPlaybackLane";
 import type { MediaRendererKind } from "../sessions/MediaRendererKind";
 import type { VariantSelectionDecision } from "../variant-policy/VariantSelectionDecision";
@@ -26,6 +27,7 @@ export type CommittedPlaybackDecision = {
   capabilitySnapshot: MediaRoleCapabilitySnapshot;
   qualitySelection: VariantSelectionDecision;
   inventoryResult: MediaInventoryResult | null;
+  inventorySelectionReason: MediaInventorySelectionReason;
   preferredLaneOrder: MediaPlaybackLane[];
   preferredLane: MediaPlaybackLane | null;
   chosenLane: MediaPlaybackLane | null;
@@ -34,6 +36,8 @@ export type CommittedPlaybackDecision = {
   premiumPlaybackViable: boolean;
   premiumAttemptRequested: boolean;
   premiumAttemptAccepted: boolean;
+  premiumVideoCandidateAvailable: boolean | null;
+  premiumAudioCandidateAvailable: boolean | null;
   premiumFallbackReason: string | null;
   reasons: CommittedPlaybackDecisionReason[];
   reasonDetails: string[];

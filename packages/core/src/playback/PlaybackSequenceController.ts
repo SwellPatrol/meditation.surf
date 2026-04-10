@@ -207,6 +207,8 @@ export class PlaybackSequenceController {
       inventoryResult: MediaInventoryCloner.cloneResult(
         committedPlaybackDecision.inventoryResult,
       ),
+      inventorySelectionReason:
+        committedPlaybackDecision.inventorySelectionReason,
       preferredLaneOrder: [...committedPlaybackDecision.preferredLaneOrder],
       preferredLane: committedPlaybackDecision.preferredLane,
       chosenLane: committedPlaybackDecision.chosenLane,
@@ -216,6 +218,10 @@ export class PlaybackSequenceController {
       premiumAttemptRequested:
         committedPlaybackDecision.premiumAttemptRequested,
       premiumAttemptAccepted: committedPlaybackDecision.premiumAttemptAccepted,
+      premiumVideoCandidateAvailable:
+        committedPlaybackDecision.premiumVideoCandidateAvailable,
+      premiumAudioCandidateAvailable:
+        committedPlaybackDecision.premiumAudioCandidateAvailable,
       premiumFallbackReason: committedPlaybackDecision.premiumFallbackReason,
       reasons: [...committedPlaybackDecision.reasons],
       reasonDetails: [...committedPlaybackDecision.reasonDetails],
@@ -244,6 +250,9 @@ export class PlaybackSequenceController {
             committedPlaybackDecision.audioPolicyDecision.trackPolicy
               .allowFallbackStereo,
         },
+        inventorySelectionReason:
+          committedPlaybackDecision.audioPolicyDecision
+            .inventorySelectionReason,
         inventorySnapshot:
           committedPlaybackDecision.audioPolicyDecision.inventorySnapshot ===
           null
@@ -251,9 +260,14 @@ export class PlaybackSequenceController {
             : MediaInventoryCloner.cloneSnapshot(
                 committedPlaybackDecision.audioPolicyDecision.inventorySnapshot,
               ),
+        premiumCandidateAvailable:
+          committedPlaybackDecision.audioPolicyDecision
+            .premiumCandidateAvailable,
         selectedAudioTrack: MediaInventoryCloner.cloneAudioTrackInfo(
           committedPlaybackDecision.audioPolicyDecision.selectedAudioTrack,
         ),
+        selectedTrackStrategy:
+          committedPlaybackDecision.audioPolicyDecision.selectedTrackStrategy,
         capabilityProfile:
           committedPlaybackDecision.audioPolicyDecision.capabilityProfile ===
           null

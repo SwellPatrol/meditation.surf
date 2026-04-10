@@ -1065,15 +1065,18 @@ export class MediaExecutionController {
         allowFallbackStereo:
           audioPolicyDecision.trackPolicy.allowFallbackStereo,
       },
+      inventorySelectionReason: audioPolicyDecision.inventorySelectionReason,
       inventorySnapshot:
         audioPolicyDecision.inventorySnapshot === null
           ? null
           : MediaInventoryCloner.cloneSnapshot(
               audioPolicyDecision.inventorySnapshot,
             ),
+      premiumCandidateAvailable: audioPolicyDecision.premiumCandidateAvailable,
       selectedAudioTrack: MediaInventoryCloner.cloneAudioTrackInfo(
         audioPolicyDecision.selectedAudioTrack,
       ),
+      selectedTrackStrategy: audioPolicyDecision.selectedTrackStrategy,
       capabilityProfile:
         audioPolicyDecision.capabilityProfile === null
           ? null
@@ -1363,6 +1366,8 @@ export class MediaExecutionController {
       inventoryResult: MediaInventoryCloner.cloneResult(
         committedPlaybackDecision.inventoryResult,
       ),
+      inventorySelectionReason:
+        committedPlaybackDecision.inventorySelectionReason,
       preferredLaneOrder: [...committedPlaybackDecision.preferredLaneOrder],
       preferredLane: committedPlaybackDecision.preferredLane,
       chosenLane: committedPlaybackDecision.chosenLane,
@@ -1372,6 +1377,10 @@ export class MediaExecutionController {
       premiumAttemptRequested:
         committedPlaybackDecision.premiumAttemptRequested,
       premiumAttemptAccepted: committedPlaybackDecision.premiumAttemptAccepted,
+      premiumVideoCandidateAvailable:
+        committedPlaybackDecision.premiumVideoCandidateAvailable,
+      premiumAudioCandidateAvailable:
+        committedPlaybackDecision.premiumAudioCandidateAvailable,
       premiumFallbackReason: committedPlaybackDecision.premiumFallbackReason,
       reasons: [...committedPlaybackDecision.reasons],
       reasonDetails: [...committedPlaybackDecision.reasonDetails],

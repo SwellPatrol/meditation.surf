@@ -1003,17 +1003,23 @@ export class MediaThumbnailController {
         maxWidth: request.variantSelection.maxWidth,
         maxHeight: request.variantSelection.maxHeight,
         maxBandwidth: request.variantSelection.maxBandwidth,
+        inventorySelectionReason:
+          request.variantSelection.inventorySelectionReason,
         inventorySnapshot:
           request.variantSelection.inventorySnapshot === null
             ? null
             : MediaInventoryCloner.cloneSnapshot(
                 request.variantSelection.inventorySnapshot,
               ),
+        premiumCandidateAvailable:
+          request.variantSelection.premiumCandidateAvailable,
         selectedVariant: MediaInventoryCloner.cloneVariantInfo(
           request.variantSelection.selectedVariant,
         ),
         matchedAvailableVariant:
           request.variantSelection.matchedAvailableVariant,
+        matchedDesiredVariantIntent:
+          request.variantSelection.matchedDesiredVariantIntent,
         reasons: [...request.variantSelection.reasons],
         notes: [...request.variantSelection.notes],
       },
@@ -1469,15 +1475,18 @@ export class MediaThumbnailController {
         allowFallbackStereo:
           audioPolicyDecision.trackPolicy.allowFallbackStereo,
       },
+      inventorySelectionReason: audioPolicyDecision.inventorySelectionReason,
       inventorySnapshot:
         audioPolicyDecision.inventorySnapshot === null
           ? null
           : MediaInventoryCloner.cloneSnapshot(
               audioPolicyDecision.inventorySnapshot,
             ),
+      premiumCandidateAvailable: audioPolicyDecision.premiumCandidateAvailable,
       selectedAudioTrack: MediaInventoryCloner.cloneAudioTrackInfo(
         audioPolicyDecision.selectedAudioTrack,
       ),
+      selectedTrackStrategy: audioPolicyDecision.selectedTrackStrategy,
       capabilityProfile:
         audioPolicyDecision.capabilityProfile === null
           ? null

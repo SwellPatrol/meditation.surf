@@ -7,6 +7,7 @@
  */
 
 import type { MediaAudioTrackInfo } from "../inventory/MediaAudioTrackInfo";
+import type { MediaInventorySelectionReason } from "../inventory/MediaInventorySelectionReason";
 import type { MediaInventorySnapshot } from "../inventory/MediaInventorySnapshot";
 import type { MediaPlaybackLane } from "../sessions/MediaPlaybackLane";
 import type { AudioCapabilityProfile } from "./AudioCapabilityProfile";
@@ -24,8 +25,15 @@ export type AudioPolicyDecision = {
   requestedPremiumAttempt: boolean;
   usedFallback: boolean;
   trackPolicy: AudioTrackPolicy;
+  inventorySelectionReason: MediaInventorySelectionReason;
   inventorySnapshot: MediaInventorySnapshot | null;
+  premiumCandidateAvailable: boolean | null;
   selectedAudioTrack: MediaAudioTrackInfo | null;
+  selectedTrackStrategy:
+    | "premium-candidate"
+    | "default-track"
+    | "fallback-stereo"
+    | "no-track";
   capabilityProfile: AudioCapabilityProfile | null;
   committedPlaybackLane: MediaPlaybackLane | null;
   reasons: AudioPolicyDecisionReason[];

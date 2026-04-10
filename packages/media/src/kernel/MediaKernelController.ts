@@ -971,17 +971,23 @@ export class MediaKernelController {
               maxWidth: mediaPlanSession.variantSelection.maxWidth,
               maxHeight: mediaPlanSession.variantSelection.maxHeight,
               maxBandwidth: mediaPlanSession.variantSelection.maxBandwidth,
+              inventorySelectionReason:
+                mediaPlanSession.variantSelection.inventorySelectionReason,
               inventorySnapshot:
                 mediaPlanSession.variantSelection.inventorySnapshot === null
                   ? null
                   : MediaInventoryCloner.cloneSnapshot(
                       mediaPlanSession.variantSelection.inventorySnapshot,
                     ),
+              premiumCandidateAvailable:
+                mediaPlanSession.variantSelection.premiumCandidateAvailable,
               selectedVariant: MediaInventoryCloner.cloneVariantInfo(
                 mediaPlanSession.variantSelection.selectedVariant,
               ),
               matchedAvailableVariant:
                 mediaPlanSession.variantSelection.matchedAvailableVariant,
+              matchedDesiredVariantIntent:
+                mediaPlanSession.variantSelection.matchedDesiredVariantIntent,
               reasons: [...mediaPlanSession.variantSelection.reasons],
               notes: [...mediaPlanSession.variantSelection.notes],
             },

@@ -6,6 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { MediaInventorySelectionReason } from "../inventory/MediaInventorySelectionReason";
 import type { MediaInventorySnapshot } from "../inventory/MediaInventorySnapshot";
 import type { MediaVariantInfo } from "../inventory/MediaVariantInfo";
 import type { VariantQualityTier } from "./VariantQualityTier";
@@ -24,9 +25,12 @@ export type VariantSelectionDecision = {
   maxWidth: number | null;
   maxHeight: number | null;
   maxBandwidth: number | null;
+  inventorySelectionReason: MediaInventorySelectionReason;
   inventorySnapshot: MediaInventorySnapshot | null;
+  premiumCandidateAvailable: boolean | null;
   selectedVariant: MediaVariantInfo | null;
   matchedAvailableVariant: boolean;
+  matchedDesiredVariantIntent: boolean | null;
   reasons: VariantSelectionReason[];
   notes: string[];
 };
