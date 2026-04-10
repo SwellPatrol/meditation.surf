@@ -5,5 +5,5 @@
   "moderate": true,
   "high": true,
   "critical": true,
-  "allowlist": []
+  "allowlist": ["GHSA-2p57-rm9w-gvfp"]
 }

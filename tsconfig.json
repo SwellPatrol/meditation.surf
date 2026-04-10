@@ -22,7 +22,8 @@
       ],
       "@meditation-surf/core/brand/web": ["packages/core/src/brand/web.ts"],
       "@meditation-surf/media": ["packages/media/src/index.ts"],
-      "@meditation-surf/player-core": ["packages/player-core/src/index.ts"]
+      "@meditation-surf/player-core": ["packages/player-core/src/index.ts"],
+      "@meditation-surf/vfs": ["packages/vfs/src/index.ts"]
     }
   },
   "exclude": [
@@ -41,6 +42,7 @@
     "packages/core/**/*",
     "packages/media/**/*",
     "packages/player-core/**/*",
+    "packages/vfs/**/*",
     "test/**/*"
   ]
 }

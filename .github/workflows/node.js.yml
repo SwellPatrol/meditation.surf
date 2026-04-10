@@ -40,7 +40,9 @@ jobs:
             apps/web-vite/node_modules
             node_modules
             packages/core/node_modules
+            packages/media/node_modules
             packages/player-core/node_modules
+            packages/vfs/node_modules
           key: cache-pnpm-modules-${{ matrix.os }}-${{ matrix.node-version }}-${{ hashFiles('pnpm-lock.yaml', 'package.json', 'apps/*/package.json', 'packages/*/package.json') }}
 
       - name: Setup Node.js ${{ matrix.node-version }}
