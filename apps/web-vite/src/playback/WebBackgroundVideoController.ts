@@ -6,11 +6,12 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type {
+import {
   BackgroundLayerLayout,
   BackgroundVideoPlaybackPolicy,
   CommittedPlaybackDecision,
   MediaItem,
+  MediaSourceDescriptorFactory,
   PlaybackSequenceController,
   PlaybackSequenceState,
 } from "@meditation-surf/core";
@@ -18,6 +19,7 @@ import type {
   PlaybackSource,
   PlaybackVisualReadinessController,
 } from "@meditation-surf/player-core";
+import { VfsController } from "@meditation-surf/vfs";
 
 type ShakaModule =
   (typeof import("shaka-player/dist/shaka-player.compiled.js"))["default"];
@@ -33,6 +35,7 @@ export class WebBackgroundVideoController {
   private readonly backgroundLayer: BackgroundLayerLayout;
   private readonly playbackSequenceController: PlaybackSequenceController;
   private readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
+  private readonly vfsController: VfsController;
   private activeShakaPlayer: ShakaPlayer | null;
   private currentAudioActivationMode: string | null;
   private currentCommittedLane: string | null;
@@ -43,15 +46,18 @@ export class WebBackgroundVideoController {
    * @brief Capture the shared experience consumed by the web background player
    *
    * @param backgroundLayer - Shared fullscreen background layer
+   * @param vfsController - Shared VFS controller used for startup warming
    */
   public constructor(
     backgroundLayer: BackgroundLayerLayout,
     playbackSequenceController: PlaybackSequenceController,
     playbackVisualReadinessController: PlaybackVisualReadinessController,
+    vfsController: VfsController,
   ) {
     this.backgroundLayer = backgroundLayer;
     this.playbackSequenceController = playbackSequenceController;
     this.playbackVisualReadinessController = playbackVisualReadinessController;
+    this.vfsController = vfsController;
     this.activeShakaPlayer = null;
     this.currentAudioActivationMode = null;
     this.currentCommittedLane = null;
@@ -205,6 +211,22 @@ export class WebBackgroundVideoController {
     this.currentSourceUrl = nextSourceUrl;
     this.currentCommittedLane = nextCommittedLane;
     this.currentAudioActivationMode = nextAudioActivationMode;
+    try {
+      await this.vfsController.warmStartupArtifacts({
+        source: MediaSourceDescriptorFactory.createForMediaItem(activeItem),
+        variantKey: null,
+        useCase: "committed-playback-startup",
+        cachePolicy: this.vfsController.getDefaultCachePolicy(),
+        allowServiceWorkerLookup: true,
+        startupWindowByteLength: 131072,
+        hotRangeByteLength: 262144,
+      });
+    } catch (error: unknown) {
+      console.warn(
+        "VFS committed playback warming fell back to the direct runtime path.",
+        error,
+      );
+    }
     this.playbackVisualReadinessController.beginLoading();
     this.installFirstRenderedFrameObserver(videoElement);
     await this.destroyActiveShakaPlayer();

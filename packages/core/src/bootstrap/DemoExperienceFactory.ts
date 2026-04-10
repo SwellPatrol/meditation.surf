@@ -105,7 +105,11 @@ export class DemoExperienceFactory {
         mediaThumbnailController,
       );
     const mediaExecutionController: MediaExecutionController =
-      new MediaExecutionController(mediaKernelController);
+      new MediaExecutionController(
+        mediaKernelController,
+        null,
+        mediaThumbnailController.getVfsController(),
+      );
 
     playbackVisualReadinessController.subscribe(
       (playbackVisualReadinessState: PlaybackVisualReadinessState): void => {

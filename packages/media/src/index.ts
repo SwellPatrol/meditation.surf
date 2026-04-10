@@ -44,6 +44,7 @@ export type { MediaExecutionCommandType } from "./execution/MediaExecutionComman
 export type { MediaExecutionResult } from "./execution/MediaExecutionResult";
 export type { MediaExecutionSnapshot } from "./execution/MediaExecutionSnapshot";
 export type { MediaExecutionState } from "./execution/MediaExecutionState";
+export type { MediaStartupDebugState } from "./execution/MediaStartupDebugState";
 export type { MediaRuntimeAdapter } from "./execution/MediaRuntimeAdapter";
 export type { MediaRuntimeCapabilities } from "./execution/MediaRuntimeCapabilities";
 export type { MediaRuntimeSessionHandle } from "./execution/MediaRuntimeSessionHandle";

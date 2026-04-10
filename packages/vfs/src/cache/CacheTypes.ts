@@ -12,6 +12,21 @@
 export type CacheKey = string;
 
 /**
+ * @brief Ordered cache layers consulted by VFS reads
+ */
+export type VfsCacheLayer =
+  | "memory-hot"
+  | "disk-persistent"
+  | "service-worker"
+  | "network-origin"
+  | "none";
+
+/**
+ * @brief Outcome recorded for one cache-layer lookup
+ */
+export type VfsCacheOutcome = "hit" | "miss" | "write-through" | "bypass";
+
+/**
  * @brief Storage tier used by one cached entry
  */
 export type CacheTier = "memory" | "persistent" | "origin" | "unsupported";
@@ -49,6 +64,18 @@ export type CacheEntry = {
   lastAccessedAt: number;
   byteLength: number | null;
   metadata: PersistenceMetadata;
+};
+
+/**
+ * @brief Inspectable lookup step recorded for one VFS-backed read or write flow
+ */
+export type VfsCacheLookupStep = {
+  key: CacheKey;
+  layer: VfsCacheLayer;
+  outcome: VfsCacheOutcome;
+  requestUrl: string | null;
+  detail: string | null;
+  recordedAt: number;
 };
 
 /**

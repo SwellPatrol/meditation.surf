@@ -56,12 +56,13 @@ export class HttpOriginAdapter {
    */
   public async readText(
     sourceUrl: string,
-  ): Promise<{ contentType: string | null; text: string }> {
+  ): Promise<{ contentType: string | null; statusCode: number; text: string }> {
     const response: Response = await globalThis.fetch(sourceUrl);
     const text: string = await response.text();
 
     return {
       contentType: response.headers.get("content-type"),
+      statusCode: response.status,
       text,
     };
   }

@@ -269,6 +269,7 @@ export class ExpoMediaRuntimeAdapter implements MediaRuntimeAdapter {
               reasonDetails: [...committedPlaybackDecision.reasonDetails],
             },
       failureReason,
+      startupDebugState: null,
     };
   }
 }

@@ -12,6 +12,7 @@ import type { PreviewSessionAssignment } from "../preview/PreviewSessionAssignme
 import type { MediaExecutionCommandType } from "./MediaExecutionCommandType";
 import type { MediaExecutionState } from "./MediaExecutionState";
 import type { MediaRuntimeSessionHandle } from "./MediaRuntimeSessionHandle";
+import type { MediaStartupDebugState } from "./MediaStartupDebugState";
 
 /**
  * @brief Read-only execution snapshot for one planned media session
@@ -23,6 +24,7 @@ export type MediaExecutionSnapshot = {
   runtimeSessionHandle: MediaRuntimeSessionHandle | null;
   previewSessionAssignment: PreviewSessionAssignment | null;
   committedPlayback: CommittedPlaybackSnapshot | null;
+  startupDebugState: MediaStartupDebugState | null;
   lastCommandType: MediaExecutionCommandType | null;
   failureReason: string | null;
 };

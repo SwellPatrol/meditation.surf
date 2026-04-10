@@ -10,6 +10,8 @@ export { DerivedArtifactStore } from "./artifacts/DerivedArtifactStore";
 export type {
   DerivedArtifactDescriptor,
   DerivedArtifactEntry,
+  DerivedArtifactKey,
+  DerivedArtifactResult,
   DerivedArtifactWrite,
 } from "./artifacts/DerivedArtifactTypes";
 export type {
@@ -19,6 +21,9 @@ export type {
   CacheTier,
   PersistenceMetadata,
   PersistenceMetadataValue,
+  VfsCacheLayer,
+  VfsCacheLookupStep,
+  VfsCacheOutcome,
 } from "./cache/CacheTypes";
 export { DEFAULT_CACHE_POLICY } from "./cache/CacheTypes";
 export { HttpOriginAdapter } from "./http/HttpOriginAdapter";
@@ -48,9 +53,21 @@ export type {
   VfsServiceWorkerSnapshot,
 } from "./service-worker/VfsServiceWorkerCoordinator";
 export type {
+  ManifestCacheEntry,
+  ManifestRequest,
+  ManifestResult,
   ManifestStorageEntry,
   RangeStorageEntry,
+  StartupArtifactKind,
+  StartupUseCase,
+  StartupWarmRequest,
+  StartupWarmResult,
+  StartupWindowCacheEntry,
+  StartupWindowDescriptor,
+  StartupWindowRequest,
+  StartupWindowResult,
 } from "./startup/StorageTypes";
+export { StartupManifestParser } from "./startup/StartupManifestParser";
 export type {
   TorrentOriginAdapter,
   TorrentPieceStore,
@@ -61,4 +78,8 @@ export { VfsController } from "./VfsController";
 export type { VfsHandle } from "./VfsHandle";
 export type { VfsNode } from "./VfsNode";
 export { VfsPath } from "./VfsPath";
-export type { VfsSnapshot } from "./VfsSnapshot";
+export type {
+  VfsDebugSnapshot,
+  VfsSnapshot,
+  VfsSnapshotDebugEvent,
+} from "./VfsSnapshot";

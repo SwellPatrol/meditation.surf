@@ -20,6 +20,7 @@ import {
   type PlaybackSequenceController,
 } from "@meditation-surf/core";
 import type { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
+import type { VfsController } from "@meditation-surf/vfs";
 
 import { WebAppLayoutController } from "../layout/WebAppLayoutController";
 import { WebMediaRuntimeAdapter } from "../media/WebMediaRuntimeAdapter";
@@ -67,6 +68,7 @@ export class WebExperienceAdapter {
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
   public readonly previewSurfaceRegistry: WebPreviewSurfaceRegistry;
   public readonly mediaThumbnailController: MediaThumbnailController;
+  public readonly vfsController: VfsController;
 
   /**
    * @brief Build web runtime adapters for the shared experience
@@ -77,19 +79,21 @@ export class WebExperienceAdapter {
     this.mediaKernelController = experience.getMediaKernelController();
     this.mediaExecutionController = experience.getMediaExecutionController();
     this.mediaThumbnailController = experience.getMediaThumbnailController();
+    this.vfsController = this.mediaExecutionController.getVfsController();
     this.previewSurfaceRegistry = new WebPreviewSurfaceRegistry();
     this.mediaKernelController.reportAppCapabilities(
       "web-vite",
       WebExperienceAdapter.MEDIA_CAPABILITY_PROFILE,
     );
     this.mediaThumbnailController.setRuntimeAdapter(
-      new WebMediaThumbnailRuntimeAdapter(),
+      new WebMediaThumbnailRuntimeAdapter(this.vfsController),
     );
     this.mediaExecutionController.setRuntimeAdapter(
       new WebMediaRuntimeAdapter(
         experience.catalog,
         experience.getPlaybackSequenceController(),
         this.previewSurfaceRegistry,
+        this.vfsController,
       ),
     );
     this.appLayoutController = new WebAppLayoutController(experience.appLayout);
@@ -97,6 +101,7 @@ export class WebExperienceAdapter {
       experience.appLayout.getBackgroundLayer(),
       experience.getPlaybackSequenceController(),
       experience.getPlaybackVisualReadinessController(),
+      this.vfsController,
     );
     this.browseContentAdapter = new BrowseContentAdapter(experience.catalog);
     this.browseFocusController = experience.getBrowseFocusController();

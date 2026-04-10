@@ -269,6 +269,7 @@ export class TvMediaRuntimeAdapter implements MediaRuntimeAdapter {
               reasonDetails: [...committedPlaybackDecision.reasonDetails],
             },
       failureReason,
+      startupDebugState: null,
     };
   }
 }

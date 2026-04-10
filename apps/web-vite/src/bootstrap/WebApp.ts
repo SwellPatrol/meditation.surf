@@ -106,6 +106,7 @@ export class WebApp {
    * @returns A promise that resolves after startup work has been kicked off
    */
   public async start(): Promise<void> {
+    await this.experienceAdapter.vfsController.serviceWorker.registerDefaultWorker();
     this.experienceAdapter.backgroundVideoController.configureElement(
       this.shell.backgroundVideoElement,
     );

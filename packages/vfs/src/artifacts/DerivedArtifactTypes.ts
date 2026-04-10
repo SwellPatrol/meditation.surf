@@ -11,14 +11,27 @@ import type {
   CachePolicy,
   CacheTier,
   PersistenceMetadata,
+  VfsCacheLayer,
+  VfsCacheLookupStep,
 } from "../cache/CacheTypes";
 import type { ReadableFileDescriptor } from "../sources/ReadableFileTypes";
+
+/**
+ * @brief Stable identity wrapper for one VFS-managed derived artifact
+ */
+export type DerivedArtifactKey = {
+  cacheKey: CacheKey;
+  identityKey: string;
+  artifactKind: string;
+  variantKey: string | null;
+  sourceId: string;
+};
 
 /**
  * @brief Stable descriptor for one VFS-managed derived artifact
  */
 export type DerivedArtifactDescriptor = {
-  artifactKey: CacheKey;
+  artifactKey: DerivedArtifactKey;
   source: ReadableFileDescriptor;
   artifactKind: string;
   variantKey: string | null;
@@ -48,4 +61,14 @@ export type DerivedArtifactEntry = {
   updatedAt: number;
   metadata: PersistenceMetadata;
   viewUrl: string | null;
+};
+
+/**
+ * @brief Inspectable artifact lookup result returned by the VFS controller
+ */
+export type DerivedArtifactResult = {
+  entry: DerivedArtifactEntry | null;
+  lookupSteps: VfsCacheLookupStep[];
+  resolvedLayer: VfsCacheLayer;
+  fallbackReason: string | null;
 };

@@ -12,6 +12,7 @@ import type {
   MediaThumbnailRuntimeAdapter,
   MediaThumbnailRuntimeCapabilities,
 } from "@meditation-surf/core";
+import { VfsController } from "@meditation-surf/vfs";
 
 type ShakaModule =
   (typeof import("shaka-player/dist/shaka-player.compiled.js"))["default"];
@@ -41,16 +42,20 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
   private extractionRootElement: HTMLDivElement | null;
   private extractionVideoElement: HTMLVideoElement | null;
   private shakaPlayer: ShakaPlayer | null;
+  private readonly vfsController: VfsController | null;
 
   /**
    * @brief Create the reusable web thumbnail extraction adapter
+   *
+   * @param vfsController - Optional VFS controller used for startup warming
    */
-  public constructor() {
+  public constructor(vfsController: VfsController | null = null) {
     this.runtimeId = WebMediaThumbnailRuntimeAdapter.RUNTIME_ID;
     this.extractionCanvasElement = null;
     this.extractionRootElement = null;
     this.extractionVideoElement = null;
     this.shakaPlayer = null;
+    this.vfsController = vfsController;
   }
 
   /**
@@ -79,6 +84,7 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
       this.ensureExtractionCanvasElement();
 
     try {
+      await this.warmStartupArtifacts(request);
       await this.loadRequestSource(request, videoElement);
       await this.applyTimeHintIfNeeded(request, videoElement);
 
@@ -568,5 +574,28 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
         );
       },
     );
+  }
+
+  /**
+   * @brief Ask VFS to prewarm the highest-value startup bytes for extraction
+   *
+   * @param request - Shared thumbnail request being prepared
+   */
+  private async warmStartupArtifacts(
+    request: MediaThumbnailRequest,
+  ): Promise<void> {
+    if (this.vfsController === null) {
+      return;
+    }
+
+    await this.vfsController.warmStartupArtifacts({
+      source: request.sourceDescriptor,
+      variantKey: null,
+      useCase: "thumbnail-extract",
+      cachePolicy: this.vfsController.getDefaultCachePolicy(),
+      allowServiceWorkerLookup: true,
+      startupWindowByteLength: 131072,
+      hotRangeByteLength: 262144,
+    });
   }
 }

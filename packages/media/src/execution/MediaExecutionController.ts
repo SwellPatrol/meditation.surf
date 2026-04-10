@@ -6,6 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
+import { VfsController } from "@meditation-surf/vfs";
+
 import type { MediaCapabilityProfile } from "../capabilities/MediaCapabilityProfile";
 import { CommittedPlaybackChooser } from "../committed/CommittedPlaybackChooser";
 import type { CommittedPlaybackDecision } from "../committed/CommittedPlaybackDecision";
@@ -27,6 +29,7 @@ import type { MediaExecutionState } from "./MediaExecutionState";
 import type { MediaRuntimeAdapter } from "./MediaRuntimeAdapter";
 import type { MediaRuntimeCapabilities } from "./MediaRuntimeCapabilities";
 import type { MediaRuntimeSessionHandle } from "./MediaRuntimeSessionHandle";
+import type { MediaStartupDebugState } from "./MediaStartupDebugState";
 
 /**
  * @brief Listener signature used by the shared media execution controller
@@ -49,6 +52,7 @@ export class MediaExecutionController {
   >;
   private readonly mediaKernelController: MediaKernelController;
   private readonly stateListeners: Set<MediaExecutionStateListener>;
+  private readonly vfsController: VfsController;
 
   private currentPlan: MediaPlan;
   private currentPlanSignature: string;
@@ -61,10 +65,12 @@ export class MediaExecutionController {
    *
    * @param mediaKernelController - Shared media kernel that owns the current plan
    * @param runtimeAdapter - Optional runtime adapter supplied by the app shell
+   * @param vfsController - Shared VFS controller that owns startup-byte storage
    */
   public constructor(
     mediaKernelController: MediaKernelController,
     runtimeAdapter: MediaRuntimeAdapter | null = null,
+    vfsController: VfsController = new VfsController(),
   ) {
     this.executionSnapshotsBySessionId = new Map<
       string,
@@ -72,6 +78,7 @@ export class MediaExecutionController {
     >();
     this.mediaKernelController = mediaKernelController;
     this.stateListeners = new Set<MediaExecutionStateListener>();
+    this.vfsController = vfsController;
     this.currentPlan = this.mediaKernelController.getPlan();
     this.currentPlanSignature = this.createPlanSignature(this.currentPlan);
     this.runtimeAdapter = runtimeAdapter;
@@ -112,6 +119,15 @@ export class MediaExecutionController {
    */
   public getRuntimeCapabilities(): MediaRuntimeCapabilities | null {
     return this.runtimeAdapter?.getCapabilities() ?? null;
+  }
+
+  /**
+   * @brief Return the shared VFS controller used for startup acceleration
+   *
+   * @returns Shared VFS controller
+   */
+  public getVfsController(): VfsController {
+    return this.vfsController;
   }
 
   /**
@@ -249,6 +265,7 @@ export class MediaExecutionController {
           previousExecutionSnapshot?.state ?? "inactive",
           previousExecutionSnapshot?.previewSessionAssignment ?? null,
           committedPlaybackSnapshot,
+          previousExecutionSnapshot?.startupDebugState ?? null,
           previousExecutionSnapshot?.lastCommandType ?? null,
           previousExecutionSnapshot?.failureReason ?? null,
         ),
@@ -467,6 +484,7 @@ export class MediaExecutionController {
         null,
         null,
         null,
+        null,
       );
     const runtimeCapabilities: MediaRuntimeCapabilities =
       runtimeAdapter.getCapabilities();
@@ -478,6 +496,7 @@ export class MediaExecutionController {
         ...currentSnapshot,
         planSession: this.clonePlanSession(plannedSession),
         state: "unsupported",
+        startupDebugState: null,
         lastCommandType: commandType,
         failureReason: this.createUnsupportedReason(
           commandType,
@@ -503,6 +522,7 @@ export class MediaExecutionController {
               "activating-background",
             )
           : currentSnapshot.committedPlayback,
+      startupDebugState: currentSnapshot.startupDebugState,
       lastCommandType: commandType,
       failureReason: null,
     });
@@ -578,6 +598,7 @@ export class MediaExecutionController {
         runtimeSessionHandle: command.runtimeSessionHandle,
         committedPlaybackDecision: command.committedPlaybackDecision,
         failureReason: `${plannedSession.sessionId}: ${failureReason}`,
+        startupDebugState: null,
       };
     }
   }
@@ -619,6 +640,7 @@ export class MediaExecutionController {
               "selected",
           ),
         ),
+        commandResult.startupDebugState,
         commandType,
         commandResult.failureReason,
       );
@@ -860,6 +882,7 @@ export class MediaExecutionController {
    * @param plannedSession - Planned session associated with the snapshot
    * @param runtimeSessionHandle - Runtime-owned session handle
    * @param state - Execution state recorded for the session
+   * @param startupDebugState - Optional VFS startup debug state for the session
    * @param lastCommandType - Most recent command issued for the session
    * @param failureReason - Optional failure or unsupported detail
    *
@@ -872,6 +895,7 @@ export class MediaExecutionController {
     state: MediaExecutionState,
     previewSessionAssignment: PreviewSessionAssignment | null,
     committedPlayback: CommittedPlaybackSnapshot | null,
+    startupDebugState: MediaStartupDebugState | null,
     lastCommandType: MediaExecutionCommandType | null,
     failureReason: string | null,
   ): MediaExecutionSnapshot {
@@ -885,6 +909,7 @@ export class MediaExecutionController {
         previewSessionAssignment,
       ),
       committedPlayback: this.cloneCommittedPlaybackSnapshot(committedPlayback),
+      startupDebugState: this.cloneStartupDebugState(startupDebugState),
       lastCommandType,
       failureReason,
     };
@@ -941,8 +966,135 @@ export class MediaExecutionController {
       committedPlayback: this.cloneCommittedPlaybackSnapshot(
         executionSnapshot.committedPlayback,
       ),
+      startupDebugState: this.cloneStartupDebugState(
+        executionSnapshot.startupDebugState,
+      ),
       lastCommandType: executionSnapshot.lastCommandType,
       failureReason: executionSnapshot.failureReason,
+    };
+  }
+
+  /**
+   * @brief Clone VFS startup debug state for read-only execution snapshots
+   *
+   * @param startupDebugState - Startup debug state to clone
+   *
+   * @returns Cloned startup debug state, or `null` when absent
+   */
+  private cloneStartupDebugState(
+    startupDebugState: MediaStartupDebugState | null,
+  ): MediaStartupDebugState | null {
+    if (startupDebugState === null) {
+      return null;
+    }
+
+    return {
+      phase: startupDebugState.phase,
+      sourceId: startupDebugState.sourceId,
+      warmResult:
+        startupDebugState.warmResult === null
+          ? null
+          : {
+              manifest:
+                startupDebugState.warmResult.manifest === null
+                  ? null
+                  : {
+                      entry:
+                        startupDebugState.warmResult.manifest.entry === null
+                          ? null
+                          : {
+                              ...startupDebugState.warmResult.manifest.entry,
+                              source: {
+                                ...startupDebugState.warmResult.manifest.entry
+                                  .source,
+                              },
+                            },
+                      lookupSteps:
+                        startupDebugState.warmResult.manifest.lookupSteps.map(
+                          (
+                            lookupStep: (typeof startupDebugState.warmResult.manifest.lookupSteps)[number],
+                          ): (typeof startupDebugState.warmResult.manifest.lookupSteps)[number] => ({
+                            ...lookupStep,
+                          }),
+                        ),
+                      resolvedLayer:
+                        startupDebugState.warmResult.manifest.resolvedLayer,
+                      fallbackReason:
+                        startupDebugState.warmResult.manifest.fallbackReason,
+                      statusCode:
+                        startupDebugState.warmResult.manifest.statusCode,
+                    },
+              initSegment:
+                startupDebugState.warmResult.initSegment === null
+                  ? null
+                  : this.cloneStartupWindowResult(
+                      startupDebugState.warmResult.initSegment,
+                    ),
+              startupWindow:
+                startupDebugState.warmResult.startupWindow === null
+                  ? null
+                  : this.cloneStartupWindowResult(
+                      startupDebugState.warmResult.startupWindow,
+                    ),
+              hotRange:
+                startupDebugState.warmResult.hotRange === null
+                  ? null
+                  : this.cloneStartupWindowResult(
+                      startupDebugState.warmResult.hotRange,
+                    ),
+              notes: [...startupDebugState.warmResult.notes],
+            },
+      directRuntimeFallbackReason:
+        startupDebugState.directRuntimeFallbackReason,
+    };
+  }
+
+  /**
+   * @brief Clone one startup-window lookup result for shared debug output
+   *
+   * @param startupWindowResult - Startup-window result to clone
+   *
+   * @returns Cloned startup-window result
+   */
+  private cloneStartupWindowResult(
+    startupWindowResult: NonNullable<
+      MediaStartupDebugState["warmResult"]
+    >["startupWindow"],
+  ): NonNullable<MediaStartupDebugState["warmResult"]>["startupWindow"] {
+    if (startupWindowResult === null) {
+      return null;
+    }
+
+    return {
+      entry:
+        startupWindowResult.entry === null
+          ? null
+          : {
+              descriptor: {
+                ...startupWindowResult.entry.descriptor,
+                source: {
+                  ...startupWindowResult.entry.descriptor.source,
+                },
+                range: {
+                  ...startupWindowResult.entry.descriptor.range,
+                },
+              },
+              tier: startupWindowResult.entry.tier,
+              bytes: new Uint8Array(startupWindowResult.entry.bytes),
+              contentType: startupWindowResult.entry.contentType,
+              storedAt: startupWindowResult.entry.storedAt,
+              byteLength: startupWindowResult.entry.byteLength,
+            },
+      lookupSteps: startupWindowResult.lookupSteps.map(
+        (
+          lookupStep: (typeof startupWindowResult.lookupSteps)[number],
+        ): (typeof startupWindowResult.lookupSteps)[number] => ({
+          ...lookupStep,
+        }),
+      ),
+      resolvedLayer: startupWindowResult.resolvedLayer,
+      fallbackReason: startupWindowResult.fallbackReason,
+      statusCode: startupWindowResult.statusCode,
     };
   }
 

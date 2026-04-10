@@ -63,6 +63,7 @@ export {
   type MediaRuntimeCapabilities,
   type MediaRuntimeSupportLevel,
   type MediaRuntimeSessionHandle,
+  type MediaStartupDebugState,
   type MediaSessionDescriptor,
   type MediaSessionPlannerInput,
   type MediaSessionPriority,

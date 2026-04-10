@@ -6,18 +6,28 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { CacheKey } from "@meditation-surf/vfs";
+import type {
+  DerivedArtifactKey,
+  VfsCacheLayer,
+  VfsCacheLookupStep,
+} from "@meditation-surf/vfs";
 
 /**
  * @brief Runtime thumbnail payload that can be rendered by an app shell
  */
 export type MediaThumbnailResult = {
   sourceId: string;
-  artifactKey: CacheKey;
+  artifactKey: DerivedArtifactKey;
   imageUrl: string;
   width: number;
   height: number;
   frameTimeMs: number | null;
   extractedAt: number;
   wasApproximate: boolean;
+  debug: {
+    resolvedLayer: VfsCacheLayer;
+    lookupSteps: VfsCacheLookupStep[];
+    reusedFromVfs: boolean;
+    fallbackReason: string | null;
+  };
 };

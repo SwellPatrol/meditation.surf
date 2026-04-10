@@ -9,6 +9,7 @@
 import type { CommittedPlaybackDecision } from "../committed/CommittedPlaybackDecision";
 import type { MediaExecutionState } from "./MediaExecutionState";
 import type { MediaRuntimeSessionHandle } from "./MediaRuntimeSessionHandle";
+import type { MediaStartupDebugState } from "./MediaStartupDebugState";
 
 /**
  * @brief Result returned by a runtime adapter after one execution command
@@ -18,4 +19,5 @@ export type MediaExecutionResult = {
   runtimeSessionHandle: MediaRuntimeSessionHandle | null;
   committedPlaybackDecision: CommittedPlaybackDecision | null;
   failureReason: string | null;
+  startupDebugState: MediaStartupDebugState | null;
 };

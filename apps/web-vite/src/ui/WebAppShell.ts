@@ -316,13 +316,32 @@ export class WebAppShell {
               ? null
               : {
                   sourceId: thumbnailEntry.result.sourceId,
-                  artifactKey: thumbnailEntry.result.artifactKey,
+                  artifactKey: {
+                    cacheKey: thumbnailEntry.result.artifactKey.cacheKey,
+                    identityKey: thumbnailEntry.result.artifactKey.identityKey,
+                    artifactKind:
+                      thumbnailEntry.result.artifactKey.artifactKind,
+                    variantKey: thumbnailEntry.result.artifactKey.variantKey,
+                    sourceId: thumbnailEntry.result.artifactKey.sourceId,
+                  },
                   imageUrl: thumbnailEntry.result.imageUrl,
                   width: thumbnailEntry.result.width,
                   height: thumbnailEntry.result.height,
                   frameTimeMs: thumbnailEntry.result.frameTimeMs,
                   extractedAt: thumbnailEntry.result.extractedAt,
                   wasApproximate: thumbnailEntry.result.wasApproximate,
+                  debug: {
+                    resolvedLayer: thumbnailEntry.result.debug.resolvedLayer,
+                    lookupSteps: thumbnailEntry.result.debug.lookupSteps.map(
+                      (
+                        lookupStep: (typeof thumbnailEntry.result.debug.lookupSteps)[number],
+                      ): (typeof thumbnailEntry.result.debug.lookupSteps)[number] => ({
+                        ...lookupStep,
+                      }),
+                    ),
+                    reusedFromVfs: thumbnailEntry.result.debug.reusedFromVfs,
+                    fallbackReason: thumbnailEntry.result.debug.fallbackReason,
+                  },
                 },
           failureReason: thumbnailEntry.failureReason,
           isRelevant: thumbnailEntry.isRelevant,

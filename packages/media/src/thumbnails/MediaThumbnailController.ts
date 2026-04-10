@@ -7,10 +7,10 @@
  */
 
 import {
-  type CacheKey,
   DEFAULT_CACHE_POLICY,
   type DerivedArtifactDescriptor,
   type DerivedArtifactEntry,
+  type DerivedArtifactResult,
   VfsController,
 } from "@meditation-surf/vfs";
 
@@ -88,6 +88,15 @@ export class MediaThumbnailController {
    */
   public getRuntimeCapabilities(): MediaThumbnailRuntimeCapabilities | null {
     return this.runtimeAdapter?.getCapabilities() ?? null;
+  }
+
+  /**
+   * @brief Return the shared VFS controller that owns thumbnail artifact storage
+   *
+   * @returns Shared VFS controller
+   */
+  public getVfsController(): VfsController {
+    return this.vfsController;
   }
 
   /**
@@ -376,6 +385,22 @@ export class MediaThumbnailController {
 
       if (cacheEntry.state === "ready") {
         this.pendingSourceIds.delete(nextSourceId);
+        continue;
+      }
+
+      const restoredThumbnailResult: MediaThumbnailResult | null =
+        cacheEntry.request === null
+          ? null
+          : await this.tryRestoreCachedThumbnailResult(cacheEntry.request);
+
+      if (restoredThumbnailResult !== null) {
+        this.pendingSourceIds.delete(nextSourceId);
+        this.updateCacheEntryState(
+          nextSourceId,
+          "ready",
+          null,
+          restoredThumbnailResult,
+        );
         continue;
       }
 
@@ -721,9 +746,9 @@ export class MediaThumbnailController {
       return;
     }
 
-    const artifactKey: CacheKey = result.artifactKey;
+    const artifactKey: MediaThumbnailResult["artifactKey"] = result.artifactKey;
 
-    if (artifactKey.length === 0) {
+    if (artifactKey.cacheKey.length === 0) {
       return;
     }
 
@@ -836,13 +861,81 @@ export class MediaThumbnailController {
   private cloneResult(result: MediaThumbnailResult): MediaThumbnailResult {
     return {
       sourceId: result.sourceId,
-      artifactKey: result.artifactKey,
+      artifactKey: {
+        cacheKey: result.artifactKey.cacheKey,
+        identityKey: result.artifactKey.identityKey,
+        artifactKind: result.artifactKey.artifactKind,
+        variantKey: result.artifactKey.variantKey,
+        sourceId: result.artifactKey.sourceId,
+      },
       imageUrl: result.imageUrl,
       width: result.width,
       height: result.height,
       frameTimeMs: result.frameTimeMs,
       extractedAt: result.extractedAt,
       wasApproximate: result.wasApproximate,
+      debug: {
+        resolvedLayer: result.debug.resolvedLayer,
+        lookupSteps: result.debug.lookupSteps.map(
+          (lookupStep): (typeof result.debug.lookupSteps)[number] => ({
+            ...lookupStep,
+          }),
+        ),
+        reusedFromVfs: result.debug.reusedFromVfs,
+        fallbackReason: result.debug.fallbackReason,
+      },
+    };
+  }
+
+  /**
+   * @brief Attempt to restore one previously extracted thumbnail from VFS
+   *
+   * @param request - Shared thumbnail request being resolved
+   *
+   * @returns Cached thumbnail result, or `null` when VFS had no reusable still
+   */
+  private async tryRestoreCachedThumbnailResult(
+    request: MediaThumbnailRequest,
+  ): Promise<MediaThumbnailResult | null> {
+    const artifactDescriptor: DerivedArtifactDescriptor =
+      this.createArtifactDescriptorForRequest(request);
+    const derivedArtifactResult: DerivedArtifactResult =
+      await this.vfsController.resolveDerivedArtifact(
+        artifactDescriptor.artifactKey,
+        "VFS had no previously extracted still for this thumbnail request.",
+      );
+    const storedArtifact: DerivedArtifactEntry | null =
+      derivedArtifactResult.entry;
+    const viewUrl: string | null = storedArtifact?.viewUrl ?? null;
+
+    if (storedArtifact === null || viewUrl === null) {
+      return null;
+    }
+
+    return {
+      sourceId: request.sourceId,
+      artifactKey: storedArtifact.descriptor.artifactKey,
+      imageUrl: viewUrl,
+      width: Number(storedArtifact.metadata.width ?? 0),
+      height: Number(storedArtifact.metadata.height ?? 0),
+      frameTimeMs:
+        storedArtifact.metadata.frameTimeMs === null
+          ? null
+          : Number(storedArtifact.metadata.frameTimeMs ?? 0),
+      extractedAt: Number(
+        storedArtifact.metadata.extractedAt ?? storedArtifact.updatedAt,
+      ),
+      wasApproximate: storedArtifact.metadata.wasApproximate === true,
+      debug: {
+        resolvedLayer: derivedArtifactResult.resolvedLayer,
+        lookupSteps: derivedArtifactResult.lookupSteps.map(
+          (lookupStep): (typeof derivedArtifactResult.lookupSteps)[number] => ({
+            ...lookupStep,
+          }),
+        ),
+        reusedFromVfs: true,
+        fallbackReason: derivedArtifactResult.fallbackReason,
+      },
     };
   }
 
@@ -858,18 +951,8 @@ export class MediaThumbnailController {
     request: MediaThumbnailRequest,
     extractionResult: MediaThumbnailExtractionResult,
   ): Promise<MediaThumbnailResult> {
-    const artifactVariantKey: string = [
-      request.qualityHint,
-      `${request.targetWidth ?? request.extractionPolicy.targetWidth ?? "auto"}x${request.targetHeight ?? request.extractionPolicy.targetHeight ?? "auto"}`,
-      request.extractionPolicy.strategy,
-      `${request.timeHintMs ?? "start"}`,
-    ].join(":");
     const artifactDescriptor: DerivedArtifactDescriptor =
-      this.vfsController.createDerivedArtifactDescriptor(
-        request.sourceDescriptor,
-        "thumbnail-still",
-        artifactVariantKey,
-      );
+      this.createArtifactDescriptorForRequest(request);
     const storedArtifact: DerivedArtifactEntry =
       await this.vfsController.storeDerivedArtifact({
         descriptor: artifactDescriptor,
@@ -909,6 +992,36 @@ export class MediaThumbnailController {
       frameTimeMs: extractionResult.frameTimeMs,
       extractedAt: extractionResult.extractedAt,
       wasApproximate: extractionResult.wasApproximate,
+      debug: {
+        resolvedLayer: "memory-hot",
+        lookupSteps: [],
+        reusedFromVfs: false,
+        fallbackReason: null,
+      },
     };
+  }
+
+  /**
+   * @brief Build the stable VFS artifact descriptor associated with one request
+   *
+   * @param request - Shared thumbnail request
+   *
+   * @returns Stable artifact descriptor
+   */
+  private createArtifactDescriptorForRequest(
+    request: MediaThumbnailRequest,
+  ): DerivedArtifactDescriptor {
+    const artifactVariantKey: string = [
+      request.qualityHint,
+      `${request.targetWidth ?? request.extractionPolicy.targetWidth ?? "auto"}x${request.targetHeight ?? request.extractionPolicy.targetHeight ?? "auto"}`,
+      request.extractionPolicy.strategy,
+      `${request.timeHintMs ?? "start"}`,
+    ].join(":");
+
+    return this.vfsController.createDerivedArtifactDescriptor(
+      request.sourceDescriptor,
+      "thumbnail-still",
+      artifactVariantKey,
+    );
   }
 }

@@ -17,8 +17,10 @@ import type {
   MediaRuntimeCapabilities,
   MediaRuntimeSessionHandle,
   MediaSourceDescriptor,
+  MediaStartupDebugState,
   PlaybackSequenceController,
 } from "@meditation-surf/core";
+import { type StartupWarmResult, VfsController } from "@meditation-surf/vfs";
 
 import {
   type WebPreviewSurfaceEntry,
@@ -90,6 +92,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
   private readonly previewRuntimeSessions: ManagedPreviewRuntimeSession[];
   private readonly previewSurfaceRegistry: WebPreviewSurfaceRegistry;
   private readonly backgroundRuntimeSession: ManagedBackgroundRuntimeSession;
+  private readonly vfsController: VfsController;
 
   /**
    * @brief Build the web runtime adapter
@@ -97,16 +100,19 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
    * @param catalog - Shared catalog used to resolve items by identifier
    * @param playbackSequenceController - Shared playback sequence controller
    * @param previewSurfaceRegistry - Web-only browse-card preview hosts
+   * @param vfsController - Shared VFS controller used for startup warming
    */
   public constructor(
     catalog: Catalog,
     playbackSequenceController: PlaybackSequenceController,
     previewSurfaceRegistry: WebPreviewSurfaceRegistry,
+    vfsController: VfsController,
   ) {
     this.runtimeId = WebMediaRuntimeAdapter.RUNTIME_ID;
     this.catalog = catalog;
     this.playbackSequenceController = playbackSequenceController;
     this.previewSurfaceRegistry = previewSurfaceRegistry;
+    this.vfsController = vfsController;
     this.previewRuntimeSessions = this.createPreviewRuntimeSessions();
     this.backgroundRuntimeSession = {
       runtimeSessionHandle: {
@@ -251,6 +257,11 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     }
 
     try {
+      const startupDebugState: MediaStartupDebugState | null =
+        await this.buildStartupDebugState(
+          "preview-warm",
+          plannedSession.source,
+        );
       await this.preparePreviewSessionForReuse(
         previewRuntimeSession,
         plannedSession,
@@ -264,6 +275,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         previewRuntimeSession.runtimeSessionHandle,
         null,
         null,
+        startupDebugState,
       );
     } catch (error: unknown) {
       const failureReason: string = this.describeRuntimeError(
@@ -278,6 +290,11 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         previewRuntimeSession.runtimeSessionHandle,
         null,
         failureReason,
+        await this.buildStartupDebugState(
+          "preview-warm",
+          plannedSession.source,
+          failureReason,
+        ),
       );
     }
   }
@@ -431,9 +448,9 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
    *
    * @returns Web execution result
    */
-  private activateBackgroundSession(
+  private async activateBackgroundSession(
     command: MediaExecutionCommand,
-  ): MediaExecutionResult {
+  ): Promise<MediaExecutionResult> {
     const plannedSession: MediaExecutionCommand["session"] = command.session;
     const runtimeSessionHandle: MediaRuntimeSessionHandle =
       this.backgroundRuntimeSession.runtimeSessionHandle;
@@ -473,6 +490,10 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       runtimeSessionHandle,
       committedPlaybackDecision,
       null,
+      await this.buildStartupDebugState(
+        "committed-playback-startup",
+        plannedSession.source,
+      ),
     );
   }
 
@@ -1199,6 +1220,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     runtimeSessionHandle: MediaRuntimeSessionHandle | null,
     committedPlaybackDecision: CommittedPlaybackDecision | null,
     failureReason: string | null,
+    startupDebugState: MediaStartupDebugState | null = null,
   ): MediaExecutionResult {
     return {
       state,
@@ -1213,6 +1235,78 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
               reasonDetails: [...committedPlaybackDecision.reasonDetails],
             },
       failureReason,
+      startupDebugState:
+        startupDebugState === null
+          ? null
+          : {
+              phase: startupDebugState.phase,
+              sourceId: startupDebugState.sourceId,
+              warmResult:
+                startupDebugState.warmResult === null
+                  ? null
+                  : {
+                      manifest: startupDebugState.warmResult.manifest,
+                      initSegment: startupDebugState.warmResult.initSegment,
+                      startupWindow: startupDebugState.warmResult.startupWindow,
+                      hotRange: startupDebugState.warmResult.hotRange,
+                      notes: [...startupDebugState.warmResult.notes],
+                    },
+              directRuntimeFallbackReason:
+                startupDebugState.directRuntimeFallbackReason,
+            },
     };
+  }
+
+  /**
+   * @brief Warm high-value startup artifacts through VFS for one runtime path
+   *
+   * @param phase - Runtime phase that is consulting VFS
+   * @param sourceDescriptor - Source descriptor that owns the startup bytes
+   * @param directRuntimeFallbackReason - Optional fallback note for debug output
+   *
+   * @returns Shared startup debug state, or `null` when no source was available
+   */
+  private async buildStartupDebugState(
+    phase: MediaStartupDebugState["phase"],
+    sourceDescriptor: MediaSourceDescriptor | null,
+    directRuntimeFallbackReason: string | null = null,
+  ): Promise<MediaStartupDebugState | null> {
+    if (sourceDescriptor === null) {
+      return null;
+    }
+
+    try {
+      const warmResult: StartupWarmResult =
+        await this.vfsController.warmStartupArtifacts({
+          source: sourceDescriptor,
+          variantKey: null,
+          useCase:
+            phase === "preview-warm"
+              ? "preview-warm"
+              : "committed-playback-startup",
+          cachePolicy: this.vfsController.getDefaultCachePolicy(),
+          allowServiceWorkerLookup: true,
+          startupWindowByteLength: 131072,
+          hotRangeByteLength: 262144,
+        });
+
+      return {
+        phase,
+        sourceId: sourceDescriptor.sourceId,
+        warmResult,
+        directRuntimeFallbackReason,
+      };
+    } catch (error: unknown) {
+      return {
+        phase,
+        sourceId: sourceDescriptor.sourceId,
+        warmResult: null,
+        directRuntimeFallbackReason: this.describeRuntimeError(
+          error,
+          directRuntimeFallbackReason ??
+            "VFS startup warming fell back to the direct runtime path.",
+        ),
+      };
+    }
   }
 }

@@ -6,13 +6,16 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { CacheKey } from "../cache/CacheTypes";
+import type { CacheKey, VfsCacheLookupStep } from "../cache/CacheTypes";
 import type {
   PersistenceAdapter,
   PersistenceRecord,
 } from "../persistence/PersistenceTypes";
 import type {
+  DerivedArtifactDescriptor,
   DerivedArtifactEntry,
+  DerivedArtifactKey,
+  DerivedArtifactResult,
   DerivedArtifactWrite,
 } from "./DerivedArtifactTypes";
 
@@ -21,6 +24,10 @@ import type {
  */
 export class DerivedArtifactStore {
   private readonly persistenceAdapter: PersistenceAdapter;
+  private readonly artifactEntriesByCacheKey: Map<
+    CacheKey,
+    DerivedArtifactEntry
+  >;
   private readonly leasedObjectUrlsByKey: Map<CacheKey, string>;
 
   /**
@@ -30,6 +37,7 @@ export class DerivedArtifactStore {
    */
   public constructor(persistenceAdapter: PersistenceAdapter) {
     this.persistenceAdapter = persistenceAdapter;
+    this.artifactEntriesByCacheKey = new Map<CacheKey, DerivedArtifactEntry>();
     this.leasedObjectUrlsByKey = new Map<CacheKey, string>();
   }
 
@@ -41,16 +49,100 @@ export class DerivedArtifactStore {
    * @returns Stored artifact entry, or `null` when absent
    */
   public async getArtifact(
-    artifactKey: CacheKey,
+    artifactKey: CacheKey | DerivedArtifactKey,
   ): Promise<DerivedArtifactEntry | null> {
-    const storedRecord: PersistenceRecord | null =
-      await this.persistenceAdapter.get(artifactKey);
+    const artifactResult: DerivedArtifactResult =
+      await this.resolveArtifact(artifactKey);
 
-    if (storedRecord === null) {
-      return null;
+    return artifactResult.entry;
+  }
+
+  /**
+   * @brief Resolve one stored artifact entry with explicit lookup-order details
+   *
+   * @param artifactKey - Stable artifact key being read
+   * @param fallbackReason - Optional reason captured when lookup was attempted
+   *
+   * @returns Stored artifact entry together with lookup steps
+   */
+  public async resolveArtifact(
+    artifactKey: CacheKey | DerivedArtifactKey,
+    fallbackReason: string | null = null,
+  ): Promise<DerivedArtifactResult> {
+    const cacheKey: CacheKey = this.resolveCacheKey(artifactKey);
+    const memoryArtifactEntry: DerivedArtifactEntry | undefined =
+      this.artifactEntriesByCacheKey.get(cacheKey);
+
+    if (memoryArtifactEntry !== undefined) {
+      return {
+        entry: this.cloneArtifactEntry(memoryArtifactEntry),
+        lookupSteps: [
+          this.createLookupStep(
+            cacheKey,
+            "memory-hot",
+            "hit",
+            null,
+            "Derived artifact was already resident in the VFS memory-hot layer.",
+          ),
+        ],
+        resolvedLayer: "memory-hot",
+        fallbackReason,
+      };
     }
 
-    return this.createArtifactEntry(storedRecord);
+    const storedRecord: PersistenceRecord | null =
+      await this.persistenceAdapter.get(cacheKey);
+
+    if (storedRecord === null) {
+      return {
+        entry: null,
+        lookupSteps: [
+          this.createLookupStep(
+            cacheKey,
+            "memory-hot",
+            "miss",
+            null,
+            "Derived artifact was absent from the VFS memory-hot layer.",
+          ),
+          this.createLookupStep(
+            cacheKey,
+            "disk-persistent",
+            "miss",
+            null,
+            "Derived artifact was absent from persistent VFS storage.",
+          ),
+        ],
+        resolvedLayer: "none",
+        fallbackReason,
+      };
+    }
+
+    const artifactEntry: DerivedArtifactEntry =
+      this.createArtifactEntry(storedRecord);
+
+    this.artifactEntriesByCacheKey.set(cacheKey, artifactEntry);
+
+    return {
+      entry: this.cloneArtifactEntry(artifactEntry),
+      lookupSteps: [
+        this.createLookupStep(
+          cacheKey,
+          "memory-hot",
+          "miss",
+          null,
+          "Derived artifact was absent from the VFS memory-hot layer.",
+        ),
+        this.createLookupStep(
+          cacheKey,
+          "disk-persistent",
+          "hit",
+          null,
+          "Derived artifact was loaded from persistent VFS storage.",
+        ),
+      ],
+      resolvedLayer: "disk-persistent",
+      fallbackReason,
+    };
   }
 
   /**
@@ -64,15 +156,16 @@ export class DerivedArtifactStore {
     write: DerivedArtifactWrite,
   ): Promise<DerivedArtifactEntry> {
     const nowMs: number = Date.now();
+    const cacheKey: CacheKey = write.descriptor.artifactKey.cacheKey;
     const byteLength: number | null = this.estimateByteLength(
       write.payload,
       write.payloadKind,
     );
 
-    this.releaseArtifact(write.descriptor.artifactKey);
+    this.releaseArtifact(cacheKey);
 
     const storedRecord: PersistenceRecord = await this.persistenceAdapter.put({
-      key: write.descriptor.artifactKey,
+      key: cacheKey,
       tier: write.cachePolicy.allowPersistent ? "persistent" : "memory",
       contentType: write.contentType,
       metadata: {
@@ -80,6 +173,7 @@ export class DerivedArtifactStore {
         sourceId: write.descriptor.source.sourceId,
         sourceKind: write.descriptor.source.kind,
         sourceUrl: write.descriptor.source.url,
+        identityKey: write.descriptor.artifactKey.identityKey,
         variantKey: write.descriptor.variantKey,
         ...write.metadata,
       },
@@ -90,8 +184,14 @@ export class DerivedArtifactStore {
       lastAccessedAt: nowMs,
       byteLength,
     });
+    const artifactEntry: DerivedArtifactEntry = this.createArtifactEntry(
+      storedRecord,
+      write.descriptor,
+    );
 
-    return this.createArtifactEntry(storedRecord, write.descriptor);
+    this.artifactEntriesByCacheKey.set(cacheKey, artifactEntry);
+
+    return this.cloneArtifactEntry(artifactEntry);
   }
 
   /**
@@ -99,9 +199,14 @@ export class DerivedArtifactStore {
    *
    * @param artifactKey - Stable artifact key being deleted
    */
-  public async deleteArtifact(artifactKey: CacheKey): Promise<void> {
-    this.releaseArtifact(artifactKey);
-    await this.persistenceAdapter.delete(artifactKey);
+  public async deleteArtifact(
+    artifactKey: CacheKey | DerivedArtifactKey,
+  ): Promise<void> {
+    const cacheKey: CacheKey = this.resolveCacheKey(artifactKey);
+
+    this.releaseArtifact(cacheKey);
+    this.artifactEntriesByCacheKey.delete(cacheKey);
+    await this.persistenceAdapter.delete(cacheKey);
   }
 
   /**
@@ -109,25 +214,28 @@ export class DerivedArtifactStore {
    *
    * @param artifactKey - Stable artifact key whose URL lease should end
    */
-  public releaseArtifact(artifactKey: CacheKey): void {
+  public releaseArtifact(artifactKey: CacheKey | DerivedArtifactKey): void {
+    const cacheKey: CacheKey = this.resolveCacheKey(artifactKey);
     const leasedObjectUrl: string | undefined =
-      this.leasedObjectUrlsByKey.get(artifactKey);
+      this.leasedObjectUrlsByKey.get(cacheKey);
 
     if (leasedObjectUrl === undefined) {
       return;
     }
 
     URL.revokeObjectURL(leasedObjectUrl);
-    this.leasedObjectUrlsByKey.delete(artifactKey);
+    this.leasedObjectUrlsByKey.delete(cacheKey);
   }
 
   /**
    * @brief Release every leased object URL owned by the artifact store
    */
   public releaseAllArtifacts(): void {
-    for (const artifactKey of this.leasedObjectUrlsByKey.keys()) {
-      this.releaseArtifact(artifactKey);
+    for (const cacheKey of this.leasedObjectUrlsByKey.keys()) {
+      this.releaseArtifact(cacheKey);
     }
+
+    this.artifactEntriesByCacheKey.clear();
   }
 
   /**
@@ -140,34 +248,14 @@ export class DerivedArtifactStore {
    */
   private createArtifactEntry(
     record: PersistenceRecord,
-    descriptorOverride?: DerivedArtifactWrite["descriptor"],
+    descriptorOverride?: DerivedArtifactDescriptor,
   ): DerivedArtifactEntry {
-    const descriptor: DerivedArtifactEntry["descriptor"] =
-      descriptorOverride ??
-      ({
-        artifactKey: record.key,
-        source: {
-          sourceId: `${record.metadata.sourceId ?? "unknown-source"}`,
-          kind: (record.metadata.sourceKind ?? "unknown") as
-            | "hls"
-            | "mp4"
-            | "torrent"
-            | "unknown",
-          originType: "unknown",
-          url: `${record.metadata.sourceUrl ?? ""}`,
-          mimeType: null,
-          posterUrl: null,
-        },
-        artifactKind: `${record.metadata.artifactKind ?? "artifact"}`,
-        variantKey:
-          record.metadata.variantKey === null
-            ? null
-            : `${record.metadata.variantKey ?? ""}`,
-      } satisfies DerivedArtifactEntry["descriptor"]);
+    const descriptor: DerivedArtifactDescriptor =
+      descriptorOverride ?? this.createDescriptorFromRecord(record);
     const viewUrl: string | null = this.createViewUrl(record);
 
     return {
-      descriptor,
+      descriptor: this.cloneDescriptor(descriptor),
       tier: record.tier,
       contentType: record.contentType ?? "application/octet-stream",
       byteLength: record.byteLength,
@@ -177,6 +265,49 @@ export class DerivedArtifactStore {
         ...record.metadata,
       },
       viewUrl,
+    };
+  }
+
+  /**
+   * @brief Build one artifact descriptor from stored persistence metadata
+   *
+   * @param record - Persisted record being surfaced
+   *
+   * @returns Descriptor rebuilt from stored metadata
+   */
+  private createDescriptorFromRecord(
+    record: PersistenceRecord,
+  ): DerivedArtifactDescriptor {
+    const artifactKind: string = `${record.metadata.artifactKind ?? "artifact"}`;
+    const sourceId: string = `${record.metadata.sourceId ?? "unknown-source"}`;
+    const variantKeyValue: string | null =
+      record.metadata.variantKey === null
+        ? null
+        : `${record.metadata.variantKey ?? ""}`;
+    const identityKey: string = `${record.metadata.identityKey ?? record.key}`;
+
+    return {
+      artifactKey: {
+        cacheKey: record.key,
+        identityKey,
+        artifactKind,
+        variantKey: variantKeyValue,
+        sourceId,
+      },
+      source: {
+        sourceId,
+        kind: (record.metadata.sourceKind ?? "unknown") as
+          | "hls"
+          | "mp4"
+          | "torrent"
+          | "unknown",
+        originType: "unknown",
+        url: `${record.metadata.sourceUrl ?? ""}`,
+        mimeType: null,
+        posterUrl: null,
+      },
+      artifactKind,
+      variantKey: variantKeyValue,
     };
   }
 
@@ -249,5 +380,101 @@ export class DerivedArtifactStore {
     }
 
     return null;
+  }
+
+  /**
+   * @brief Normalize one artifact key input into its raw cache key
+   *
+   * @param artifactKey - Cache key or structured artifact key
+   *
+   * @returns Raw cache key
+   */
+  private resolveCacheKey(
+    artifactKey: CacheKey | DerivedArtifactKey,
+  ): CacheKey {
+    return typeof artifactKey === "string" ? artifactKey : artifactKey.cacheKey;
+  }
+
+  /**
+   * @brief Create one inspectable lookup step for artifact reads
+   *
+   * @param key - Stable cache key associated with the step
+   * @param layer - Cache layer that was consulted
+   * @param outcome - Outcome observed at the layer
+   * @param requestUrl - Optional request URL associated with the lookup
+   * @param detail - Human-readable debug note
+   *
+   * @returns Immutable lookup step
+   */
+  private createLookupStep(
+    key: CacheKey,
+    layer: VfsCacheLookupStep["layer"],
+    outcome: VfsCacheLookupStep["outcome"],
+    requestUrl: string | null,
+    detail: string | null,
+  ): VfsCacheLookupStep {
+    return {
+      key,
+      layer,
+      outcome,
+      requestUrl,
+      detail,
+      recordedAt: Date.now(),
+    };
+  }
+
+  /**
+   * @brief Clone one derived-artifact descriptor for immutable callers
+   *
+   * @param descriptor - Descriptor being cloned
+   *
+   * @returns Cloned descriptor
+   */
+  private cloneDescriptor(
+    descriptor: DerivedArtifactDescriptor,
+  ): DerivedArtifactDescriptor {
+    return {
+      artifactKey: {
+        cacheKey: descriptor.artifactKey.cacheKey,
+        identityKey: descriptor.artifactKey.identityKey,
+        artifactKind: descriptor.artifactKey.artifactKind,
+        variantKey: descriptor.artifactKey.variantKey,
+        sourceId: descriptor.artifactKey.sourceId,
+      },
+      source: {
+        sourceId: descriptor.source.sourceId,
+        kind: descriptor.source.kind,
+        originType: descriptor.source.originType,
+        url: descriptor.source.url,
+        mimeType: descriptor.source.mimeType,
+        posterUrl: descriptor.source.posterUrl,
+      },
+      artifactKind: descriptor.artifactKind,
+      variantKey: descriptor.variantKey,
+    };
+  }
+
+  /**
+   * @brief Clone one derived-artifact entry for immutable callers
+   *
+   * @param artifactEntry - Artifact entry being cloned
+   *
+   * @returns Cloned artifact entry
+   */
+  private cloneArtifactEntry(
+    artifactEntry: DerivedArtifactEntry,
+  ): DerivedArtifactEntry {
+    return {
+      descriptor: this.cloneDescriptor(artifactEntry.descriptor),
+      tier: artifactEntry.tier,
+      contentType: artifactEntry.contentType,
+      byteLength: artifactEntry.byteLength,
+      createdAt: artifactEntry.createdAt,
+      updatedAt: artifactEntry.updatedAt,
+      metadata: {
+        ...artifactEntry.metadata,
+      },
+      viewUrl: artifactEntry.viewUrl,
+    };
   }
 }
