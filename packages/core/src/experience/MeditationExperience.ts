@@ -13,6 +13,10 @@ import type {
   MediaKernelExperienceBridge,
   MediaThumbnailController,
 } from "@meditation-surf/media";
+import type {
+  OverlayController,
+  OverlayRevealHandoffController,
+} from "@meditation-surf/overlay";
 import type { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
 import type { BrowseFocusController } from "../browse/BrowseFocusController";
@@ -23,8 +27,6 @@ import type { AppLayout } from "../layout/AppLayout";
 import type { ForegroundLayerLayout } from "../layout/ForegroundLayerLayout";
 import type { BackgroundVideoModel } from "../playback/BackgroundVideoModel";
 import type { PlaybackSequenceController } from "../playback/PlaybackSequenceController";
-import type { OverlayController } from "../ui/OverlayController";
-import type { OverlayRevealHandoffController } from "../ui/OverlayRevealHandoffController";
 
 /**
  * @brief Runtime-agnostic app scene for meditation.surf

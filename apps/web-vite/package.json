@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@meditation-surf/core": "workspace:*",
+    "@meditation-surf/overlay": "workspace:*",
     "shaka-player": "^5.0.9"
   }
 }

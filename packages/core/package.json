@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@meditation-surf/media": "workspace:*",
+    "@meditation-surf/overlay": "workspace:*",
     "@meditation-surf/player-core": "workspace:*"
   }
 }

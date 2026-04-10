@@ -16,11 +16,10 @@ import type {
   BrowseSelectionController,
   BrowseThumbnailContent,
   MediaItem,
-  OverlayController,
-  OverlayState,
   PlaybackSequenceController,
   PlaybackSequenceState,
 } from "@meditation-surf/core";
+import type { OverlayController, OverlayState } from "@meditation-surf/overlay";
 import type {
   PlaybackVisualReadinessController,
   PlaybackVisualReadinessState,

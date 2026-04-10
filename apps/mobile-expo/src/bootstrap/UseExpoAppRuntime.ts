@@ -11,9 +11,9 @@ import type {
   BrowseScreenContent,
   CenteredOverlaySize,
   MediaItem,
-  OverlayState,
   PlaybackSequenceState,
 } from "@meditation-surf/core";
+import type { OverlayState } from "@meditation-surf/overlay";
 import type { PlaybackVisualReadinessState } from "@meditation-surf/player-core";
 import { useVideoPlayer, type VideoPlayer } from "expo-video";
 import { useEffect, useRef, useState } from "react";

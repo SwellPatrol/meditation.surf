@@ -170,15 +170,6 @@ export {
   type PlaybackSequenceListener,
   type PlaybackSequenceState,
 } from "./playback/PlaybackSequenceController";
-export {
-  OverlayController,
-  type OverlayConfig,
-  type OverlayEventType,
-  type OverlayState,
-  type OverlayStateListener,
-  type OverlayVisibility,
-} from "./ui/OverlayController";
-export { OverlayRevealHandoffController } from "./ui/OverlayRevealHandoffController";
 export { ForegroundUiElement } from "./ui/ForegroundUiElement";
 export type {
   ForegroundUiElementPlacement,

@@ -72,6 +72,9 @@ importers:
       '@meditation-surf/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@meditation-surf/overlay':
+        specifier: workspace:*
+        version: link:../../packages/overlay
       '@meditation-surf/player-core':
         specifier: workspace:*
         version: link:../../packages/player-core
@@ -118,6 +121,9 @@ importers:
       '@meditation-surf/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@meditation-surf/overlay':
+        specifier: workspace:*
+        version: link:../../packages/overlay
       '@meditation-surf/player-core':
         specifier: workspace:*
         version: link:../../packages/player-core
@@ -133,6 +139,9 @@ importers:
       '@meditation-surf/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@meditation-surf/overlay':
+        specifier: workspace:*
+        version: link:../../packages/overlay
       shaka-player:
         specifier: ^5.0.9
         version: 5.0.10
@@ -142,6 +151,9 @@ importers:
       '@meditation-surf/media':
         specifier: workspace:*
         version: link:../media
+      '@meditation-surf/overlay':
+        specifier: workspace:*
+        version: link:../overlay
       '@meditation-surf/player-core':
         specifier: workspace:*
         version: link:../player-core
@@ -151,6 +163,12 @@ importers:
       '@meditation-surf/vfs':
         specifier: workspace:*
         version: link:../vfs
+
+  packages/overlay:
+    dependencies:
+      '@meditation-surf/player-core':
+        specifier: workspace:*
+        version: link:../player-core
 
   packages/player-core: {}
 

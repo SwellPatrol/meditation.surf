@@ -15,6 +15,10 @@ import {
   MediaThumbnailController,
 } from "@meditation-surf/media";
 import {
+  OverlayController,
+  OverlayRevealHandoffController,
+} from "@meditation-surf/overlay";
+import {
   PlaybackVisualReadinessController,
   type PlaybackVisualReadinessState,
 } from "@meditation-surf/player-core";
@@ -40,8 +44,6 @@ import { ForegroundLayerLayout } from "../layout/ForegroundLayerLayout";
 import { BackgroundVideoModel } from "../playback/BackgroundVideoModel";
 import { DemoBackgroundVideo } from "../playback/DemoBackgroundVideo";
 import { PlaybackSequenceController } from "../playback/PlaybackSequenceController";
-import { OverlayController } from "../ui/OverlayController";
-import { OverlayRevealHandoffController } from "../ui/OverlayRevealHandoffController";
 
 /**
  * @brief Factory that assembles the current demo meditation experience

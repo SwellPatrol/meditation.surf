@@ -16,9 +16,9 @@ import {
   type MediaKernelController,
   type MediaThumbnailController,
   type MeditationExperience,
-  type OverlayController,
   type PlaybackSequenceController,
 } from "@meditation-surf/core";
+import type { OverlayController } from "@meditation-surf/overlay";
 import type { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
 import { ExpoBrowseInputAdapter } from "../input/ExpoBrowseInputAdapter";

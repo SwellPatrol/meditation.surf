@@ -12,9 +12,9 @@ import type {
   MediaItem,
   MediaThumbnailSnapshot,
   MeditationExperience,
-  OverlayState,
   PlaybackSequenceState,
 } from "@meditation-surf/core";
+import type { OverlayState } from "@meditation-surf/overlay";
 import type { PlaybackVisualReadinessState } from "@meditation-surf/player-core";
 
 import { WebExperienceAdapter } from "../experience/WebExperienceAdapter";
