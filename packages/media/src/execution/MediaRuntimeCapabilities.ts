@@ -6,6 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { PreviewSchedulerBudget } from "../preview/PreviewSchedulerBudget";
+
 /**
  * @brief Runtime execution features currently available in one app shell
  */
@@ -16,4 +18,5 @@ export type MediaRuntimeCapabilities = {
   canKeepHiddenWarmSession: boolean;
   canPromoteWarmSession: boolean;
   canRunMultipleWarmSessions: boolean;
+  previewSchedulerBudget: PreviewSchedulerBudget;
 };

@@ -48,13 +48,13 @@ type ManagedBackgroundRuntimeSession = {
 /**
  * @brief Thin web runtime adapter for shared media execution commands
  *
- * The web shell now owns one reusable inline preview session and one separate
- * background playback session. The preview session never promotes into the
- * committed background path, which keeps browse previews isolated from the
- * existing fullscreen playback flow.
+ * The web shell now owns a small preview pool plus one separate background
+ * playback session. Preview slots stay isolated from the committed background
+ * path so browse previews never promote into fullscreen playback.
  */
 export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
   public static readonly RUNTIME_ID: string = "web-vite";
+  private static readonly PREVIEW_POOL_SIZE: number = 3;
 
   private static readonly CAPABILITIES: MediaRuntimeCapabilities = {
     canWarmFirstFrame: true,
@@ -62,14 +62,22 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     canPreviewInline: true,
     canKeepHiddenWarmSession: true,
     canPromoteWarmSession: false,
-    canRunMultipleWarmSessions: false,
+    canRunMultipleWarmSessions: true,
+    previewSchedulerBudget: {
+      maxWarmSessions: 3,
+      maxActivePreviewSessions: 1,
+      maxHiddenSessions: 2,
+      maxPreviewReuseMs: 5000,
+      maxPreviewOverlapMs: 0,
+      keepWarmAfterBlurMs: 2500,
+    },
   };
 
   public readonly runtimeId: string;
 
   private readonly catalog: Catalog;
   private readonly playbackSequenceController: PlaybackSequenceController;
-  private readonly previewRuntimeSession: ManagedPreviewRuntimeSession;
+  private readonly previewRuntimeSessions: ManagedPreviewRuntimeSession[];
   private readonly previewSurfaceRegistry: WebPreviewSurfaceRegistry;
   private readonly backgroundRuntimeSession: ManagedBackgroundRuntimeSession;
 
@@ -89,19 +97,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     this.catalog = catalog;
     this.playbackSequenceController = playbackSequenceController;
     this.previewSurfaceRegistry = previewSurfaceRegistry;
-    this.previewRuntimeSession = {
-      runtimeSessionHandle: {
-        handleId: "preview-session",
-        runtimeId: this.runtimeId,
-      },
-      plannedSessionId: null,
-      itemId: null,
-      sourceId: null,
-      state: "inactive",
-      hostElement: null,
-      videoElement: null,
-      shakaPlayer: null,
-    };
+    this.previewRuntimeSessions = this.createPreviewRuntimeSessions();
     this.backgroundRuntimeSession = {
       runtimeSessionHandle: {
         handleId: "background-session",
@@ -112,7 +108,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       state: "inactive",
     };
     this.previewSurfaceRegistry.subscribe((): void => {
-      this.syncActivePreviewSurface();
+      this.syncActivePreviewSurfaces();
     });
   }
 
@@ -124,6 +120,26 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
   public getCapabilities(): MediaRuntimeCapabilities {
     return {
       ...WebMediaRuntimeAdapter.CAPABILITIES,
+      previewSchedulerBudget: {
+        maxWarmSessions:
+          WebMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
+            .maxWarmSessions,
+        maxActivePreviewSessions:
+          WebMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
+            .maxActivePreviewSessions,
+        maxHiddenSessions:
+          WebMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
+            .maxHiddenSessions,
+        maxPreviewReuseMs:
+          WebMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
+            .maxPreviewReuseMs,
+        maxPreviewOverlapMs:
+          WebMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
+            .maxPreviewOverlapMs,
+        keepWarmAfterBlurMs:
+          WebMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
+            .keepWarmAfterBlurMs,
+      },
     };
   }
 
@@ -170,7 +186,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     if (plannedSession === null) {
       return this.createResult(
         "unsupported",
-        this.previewRuntimeSession.runtimeSessionHandle,
+        command.runtimeSessionHandle,
         "Web runtime warm command was missing a planned session.",
       );
     }
@@ -178,7 +194,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     if (plannedSession.role !== "preview") {
       return this.createResult(
         "unsupported",
-        this.createRuntimeSessionHandle(plannedSession.role),
+        command.runtimeSessionHandle,
         "Web runtime only warms preview sessions in this phase.",
       );
     }
@@ -186,20 +202,50 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     if (plannedSession.source === null) {
       return this.createResult(
         "failed",
-        this.previewRuntimeSession.runtimeSessionHandle,
+        command.runtimeSessionHandle,
         `Web runtime could not warm preview session ${plannedSession.sessionId} without a source descriptor.`,
       );
     }
 
+    const previewRuntimeSession: ManagedPreviewRuntimeSession | null =
+      this.resolvePreviewRuntimeSession(command, plannedSession);
+
+    if (previewRuntimeSession === null) {
+      return this.createResult(
+        "failed",
+        command.runtimeSessionHandle,
+        `Web runtime could not allocate a preview slot for ${plannedSession.sessionId}.`,
+      );
+    }
+
+    if (
+      previewRuntimeSession.plannedSessionId === plannedSession.sessionId &&
+      previewRuntimeSession.sourceId === plannedSession.source.sourceId &&
+      (previewRuntimeSession.state === "ready-first-frame" ||
+        previewRuntimeSession.state === "preview-active")
+    ) {
+      return this.createResult(
+        previewRuntimeSession.state,
+        previewRuntimeSession.runtimeSessionHandle,
+        null,
+      );
+    }
+
     try {
-      await this.preparePreviewSessionForReuse(plannedSession);
-      await this.loadPreviewSource(plannedSession.source);
-      this.previewRuntimeSession.videoElement?.pause();
-      this.previewRuntimeSession.state = "ready-first-frame";
+      await this.preparePreviewSessionForReuse(
+        previewRuntimeSession,
+        plannedSession,
+      );
+      await this.loadPreviewSource(
+        previewRuntimeSession,
+        plannedSession.source,
+      );
+      previewRuntimeSession.videoElement?.pause();
+      previewRuntimeSession.state = "ready-first-frame";
 
       return this.createResult(
         "ready-first-frame",
-        this.previewRuntimeSession.runtimeSessionHandle,
+        previewRuntimeSession.runtimeSessionHandle,
         null,
       );
     } catch (error: unknown) {
@@ -208,11 +254,11 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         `Web preview warm failed for ${plannedSession.sessionId}`,
       );
 
-      this.previewRuntimeSession.state = "failed";
+      previewRuntimeSession.state = "failed";
 
       return this.createResult(
         "failed",
-        this.previewRuntimeSession.runtimeSessionHandle,
+        previewRuntimeSession.runtimeSessionHandle,
         failureReason,
       );
     }
@@ -278,7 +324,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
   }
 
   /**
-   * @brief Activate the reusable preview session inside the focused card
+   * @brief Activate one preview slot inside the focused card
    *
    * @param command - Shared activate command for a preview session
    *
@@ -292,40 +338,40 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     if (plannedSession === null || plannedSession.role !== "preview") {
       return this.createResult(
         "unsupported",
-        this.previewRuntimeSession.runtimeSessionHandle,
+        command.runtimeSessionHandle,
         "Web preview activation requires a preview session.",
       );
     }
 
-    if (
-      this.previewRuntimeSession.plannedSessionId !==
-        plannedSession.sessionId ||
-      this.previewRuntimeSession.itemId !== plannedSession.itemId
-    ) {
+    const previewRuntimeSession: ManagedPreviewRuntimeSession | null =
+      this.findPreviewRuntimeSession(plannedSession.sessionId, command);
+
+    if (previewRuntimeSession === null) {
       return this.createResult(
         "failed",
-        this.previewRuntimeSession.runtimeSessionHandle,
-        `Web preview activation was asked to use stale session ${plannedSession.sessionId}.`,
+        command.runtimeSessionHandle,
+        `Web preview activation could not resolve slot ${plannedSession.sessionId}.`,
       );
     }
 
-    if (this.previewRuntimeSession.videoElement === null) {
+    if (previewRuntimeSession.videoElement === null) {
       return this.createResult(
         "failed",
-        this.previewRuntimeSession.runtimeSessionHandle,
+        previewRuntimeSession.runtimeSessionHandle,
         `Web preview session ${plannedSession.sessionId} has no warmed video element.`,
       );
     }
 
-    this.attachPreviewSurface(plannedSession.itemId);
+    this.deactivateOtherActivePreviewSessions(plannedSession.sessionId);
+    this.attachPreviewSurface(previewRuntimeSession, plannedSession.itemId);
 
     try {
-      await this.previewRuntimeSession.videoElement.play();
-      this.previewRuntimeSession.state = "preview-active";
+      await previewRuntimeSession.videoElement.play();
+      previewRuntimeSession.state = "preview-active";
 
       return this.createResult(
         "preview-active",
-        this.previewRuntimeSession.runtimeSessionHandle,
+        previewRuntimeSession.runtimeSessionHandle,
         null,
       );
     } catch (error: unknown) {
@@ -334,12 +380,12 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         `Web preview playback failed for ${plannedSession.sessionId}`,
       );
 
-      this.detachPreviewSurface();
-      this.previewRuntimeSession.state = "failed";
+      this.detachPreviewSurface(previewRuntimeSession);
+      previewRuntimeSession.state = "failed";
 
       return this.createResult(
         "failed",
-        this.previewRuntimeSession.runtimeSessionHandle,
+        previewRuntimeSession.runtimeSessionHandle,
         failureReason,
       );
     }
@@ -389,7 +435,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
   }
 
   /**
-   * @brief Pause and hide the reusable preview session
+   * @brief Pause and hide one active preview while keeping it warm when possible
    *
    * @param command - Shared deactivate command
    *
@@ -398,23 +444,27 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
   private deactivatePreviewSession(
     command: MediaExecutionCommand,
   ): MediaExecutionResult {
-    if (
-      !this.matchesPreviewRuntimeSession(command.session?.sessionId ?? null)
-    ) {
-      return this.createResult(
-        "inactive",
-        this.previewRuntimeSession.runtimeSessionHandle,
-        null,
+    const previewRuntimeSession: ManagedPreviewRuntimeSession | null =
+      this.findPreviewRuntimeSession(
+        command.session?.sessionId ?? null,
+        command,
       );
+
+    if (previewRuntimeSession === null) {
+      return this.createResult("inactive", command.runtimeSessionHandle, null);
     }
 
-    this.previewRuntimeSession.videoElement?.pause();
-    this.detachPreviewSurface();
-    this.previewRuntimeSession.state = "inactive";
+    previewRuntimeSession.videoElement?.pause();
+    this.detachPreviewSurface(previewRuntimeSession);
+    previewRuntimeSession.state =
+      previewRuntimeSession.videoElement !== null &&
+      previewRuntimeSession.sourceId !== null
+        ? "ready-first-frame"
+        : "inactive";
 
     return this.createResult(
-      "inactive",
-      this.previewRuntimeSession.runtimeSessionHandle,
+      previewRuntimeSession.state,
+      previewRuntimeSession.runtimeSessionHandle,
       null,
     );
   }
@@ -430,7 +480,8 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     command: MediaExecutionCommand,
   ): MediaExecutionResult {
     if (
-      !this.matchesBackgroundRuntimeSession(command.session?.sessionId ?? null)
+      this.backgroundRuntimeSession.plannedSessionId !==
+      (command.session?.sessionId ?? null)
     ) {
       return this.createResult(
         "inactive",
@@ -458,28 +509,22 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
   private async disposePreviewSession(
     command: MediaExecutionCommand,
   ): Promise<MediaExecutionResult> {
-    if (
-      !this.matchesPreviewRuntimeSession(command.session?.sessionId ?? null)
-    ) {
-      return this.createResult(
-        "inactive",
-        this.previewRuntimeSession.runtimeSessionHandle,
-        null,
+    const previewRuntimeSession: ManagedPreviewRuntimeSession | null =
+      this.findPreviewRuntimeSession(
+        command.session?.sessionId ?? null,
+        command,
       );
+
+    if (previewRuntimeSession === null) {
+      return this.createResult("inactive", command.runtimeSessionHandle, null);
     }
 
-    this.previewRuntimeSession.videoElement?.pause();
-    this.detachPreviewSurface();
-    await this.destroyPreviewShakaPlayer();
-    this.clearVideoElementSource(this.ensurePreviewVideoElement());
-    this.previewRuntimeSession.plannedSessionId = null;
-    this.previewRuntimeSession.itemId = null;
-    this.previewRuntimeSession.sourceId = null;
-    this.previewRuntimeSession.state = "disposed";
+    await this.resetPreviewRuntimeSession(previewRuntimeSession);
+    previewRuntimeSession.state = "disposed";
 
     return this.createResult(
       "disposed",
-      this.previewRuntimeSession.runtimeSessionHandle,
+      previewRuntimeSession.runtimeSessionHandle,
       null,
     );
   }
@@ -495,7 +540,8 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     command: MediaExecutionCommand,
   ): MediaExecutionResult {
     if (
-      !this.matchesBackgroundRuntimeSession(command.session?.sessionId ?? null)
+      this.backgroundRuntimeSession.plannedSessionId !==
+      (command.session?.sessionId ?? null)
     ) {
       return this.createResult(
         "inactive",
@@ -516,33 +562,196 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
   }
 
   /**
-   * @brief Prepare the reusable preview slot for a new focused item
+   * @brief Create the fixed preview pool used by the web runtime
    *
-   * @param plannedSession - Preview session currently being warmed
+   * @returns Stable preview slot array
+   */
+  private createPreviewRuntimeSessions(): ManagedPreviewRuntimeSession[] {
+    const previewRuntimeSessions: ManagedPreviewRuntimeSession[] = [];
+
+    for (
+      let previewSlotIndex: number = 0;
+      previewSlotIndex < WebMediaRuntimeAdapter.PREVIEW_POOL_SIZE;
+      previewSlotIndex += 1
+    ) {
+      previewRuntimeSessions.push({
+        runtimeSessionHandle: {
+          handleId: `preview-slot-${previewSlotIndex}`,
+          runtimeId: this.runtimeId,
+        },
+        plannedSessionId: null,
+        itemId: null,
+        sourceId: null,
+        state: "inactive",
+        hostElement: null,
+        videoElement: null,
+        shakaPlayer: null,
+      });
+    }
+
+    return previewRuntimeSessions;
+  }
+
+  /**
+   * @brief Reuse or allocate one preview slot for the requested logical session
+   *
+   * @param command - Shared warm command
+   * @param plannedSession - Preview session that should own the slot
+   *
+   * @returns Matched preview slot, or `null` when no slot is available
+   */
+  private resolvePreviewRuntimeSession(
+    command: MediaExecutionCommand,
+    plannedSession: NonNullable<MediaExecutionCommand["session"]>,
+  ): ManagedPreviewRuntimeSession | null {
+    const existingPreviewRuntimeSession: ManagedPreviewRuntimeSession | null =
+      this.findPreviewRuntimeSession(plannedSession.sessionId, command);
+
+    if (existingPreviewRuntimeSession !== null) {
+      return existingPreviewRuntimeSession;
+    }
+
+    const reusablePreviewRuntimeSession:
+      | ManagedPreviewRuntimeSession
+      | undefined = this.previewRuntimeSessions.find(
+      (previewRuntimeSession: ManagedPreviewRuntimeSession): boolean =>
+        previewRuntimeSession.plannedSessionId === null ||
+        previewRuntimeSession.state === "inactive" ||
+        previewRuntimeSession.state === "disposed",
+    );
+
+    if (reusablePreviewRuntimeSession !== undefined) {
+      return reusablePreviewRuntimeSession;
+    }
+
+    const plannedPreviewSessionIds: Set<string> = new Set<string>(
+      command.plan.sessions
+        .filter((planSession): boolean => planSession.role === "preview")
+        .map((planSession): string => planSession.sessionId),
+    );
+    const stalePreviewRuntimeSession: ManagedPreviewRuntimeSession | undefined =
+      this.previewRuntimeSessions.find(
+        (previewRuntimeSession: ManagedPreviewRuntimeSession): boolean =>
+          previewRuntimeSession.plannedSessionId !== null &&
+          !plannedPreviewSessionIds.has(previewRuntimeSession.plannedSessionId),
+      );
+
+    if (stalePreviewRuntimeSession !== undefined) {
+      return stalePreviewRuntimeSession;
+    }
+
+    const hiddenPreviewRuntimeSession:
+      | ManagedPreviewRuntimeSession
+      | undefined = this.previewRuntimeSessions.find(
+      (previewRuntimeSession: ManagedPreviewRuntimeSession): boolean =>
+        previewRuntimeSession.state !== "preview-active",
+    );
+
+    return hiddenPreviewRuntimeSession ?? null;
+  }
+
+  /**
+   * @brief Resolve one preview slot by session ID or runtime handle
+   *
+   * @param sessionId - Planned preview session identifier
+   * @param command - Shared command that may carry the runtime handle
+   *
+   * @returns Matching preview slot, or `null` when none exists
+   */
+  private findPreviewRuntimeSession(
+    sessionId: string | null,
+    command: MediaExecutionCommand,
+  ): ManagedPreviewRuntimeSession | null {
+    const runtimeHandleId: string | null =
+      command.runtimeSessionHandle?.handleId ?? null;
+
+    if (runtimeHandleId !== null) {
+      const previewRuntimeSessionByHandle:
+        | ManagedPreviewRuntimeSession
+        | undefined = this.previewRuntimeSessions.find(
+        (previewRuntimeSession: ManagedPreviewRuntimeSession): boolean =>
+          previewRuntimeSession.runtimeSessionHandle.handleId ===
+          runtimeHandleId,
+      );
+
+      if (previewRuntimeSessionByHandle !== undefined) {
+        return previewRuntimeSessionByHandle;
+      }
+    }
+
+    if (sessionId === null) {
+      return null;
+    }
+
+    const previewRuntimeSessionBySessionId:
+      | ManagedPreviewRuntimeSession
+      | undefined = this.previewRuntimeSessions.find(
+      (previewRuntimeSession: ManagedPreviewRuntimeSession): boolean =>
+        previewRuntimeSession.plannedSessionId === sessionId,
+    );
+
+    return previewRuntimeSessionBySessionId ?? null;
+  }
+
+  /**
+   * @brief Prepare one preview slot for a new logical owner
+   *
+   * @param previewRuntimeSession - Preview slot being reused
+   * @param plannedSession - Preview session that should own the slot
    */
   private async preparePreviewSessionForReuse(
+    previewRuntimeSession: ManagedPreviewRuntimeSession,
     plannedSession: NonNullable<MediaExecutionCommand["session"]>,
   ): Promise<void> {
-    this.previewRuntimeSession.videoElement?.pause();
-    this.detachPreviewSurface();
-    await this.destroyPreviewShakaPlayer();
-    this.clearVideoElementSource(this.ensurePreviewVideoElement());
-    this.previewRuntimeSession.plannedSessionId = plannedSession.sessionId;
-    this.previewRuntimeSession.itemId = plannedSession.itemId;
-    this.previewRuntimeSession.sourceId =
-      plannedSession.source?.sourceId ?? null;
-    this.previewRuntimeSession.state = "warming-first-frame";
+    if (
+      previewRuntimeSession.plannedSessionId === plannedSession.sessionId &&
+      previewRuntimeSession.sourceId === plannedSession.source?.sourceId
+    ) {
+      return;
+    }
+
+    await this.resetPreviewRuntimeSession(previewRuntimeSession);
+    previewRuntimeSession.plannedSessionId = plannedSession.sessionId;
+    previewRuntimeSession.itemId = plannedSession.itemId;
+    previewRuntimeSession.sourceId = plannedSession.source?.sourceId ?? null;
+    previewRuntimeSession.state = "warming-first-frame";
+  }
+
+  /**
+   * @brief Reset one preview slot back to an unowned state
+   *
+   * @param previewRuntimeSession - Preview slot being cleared
+   */
+  private async resetPreviewRuntimeSession(
+    previewRuntimeSession: ManagedPreviewRuntimeSession,
+  ): Promise<void> {
+    previewRuntimeSession.videoElement?.pause();
+    this.detachPreviewSurface(previewRuntimeSession);
+    await this.destroyPreviewShakaPlayer(previewRuntimeSession);
+
+    if (previewRuntimeSession.videoElement !== null) {
+      this.clearVideoElementSource(previewRuntimeSession.videoElement);
+    }
+
+    previewRuntimeSession.plannedSessionId = null;
+    previewRuntimeSession.itemId = null;
+    previewRuntimeSession.sourceId = null;
+    previewRuntimeSession.state = "inactive";
   }
 
   /**
    * @brief Load the preview source and wait until the first frame is ready
    *
+   * @param previewRuntimeSession - Preview slot receiving the source
    * @param sourceDescriptor - Shared source descriptor for the focused item
    */
   private async loadPreviewSource(
+    previewRuntimeSession: ManagedPreviewRuntimeSession,
     sourceDescriptor: MediaSourceDescriptor,
   ): Promise<void> {
-    const videoElement: HTMLVideoElement = this.ensurePreviewVideoElement();
+    const videoElement: HTMLVideoElement = this.ensurePreviewVideoElement(
+      previewRuntimeSession,
+    );
     const playbackMimeType: string =
       sourceDescriptor.mimeType ?? "application/x-mpegURL";
     const canUseNativeHlsPlayback: boolean =
@@ -570,59 +779,92 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
 
     const shakaPlayer: ShakaPlayer = new shaka.Player(videoElement);
 
-    this.previewRuntimeSession.shakaPlayer = shakaPlayer;
+    previewRuntimeSession.shakaPlayer = shakaPlayer;
     await shakaPlayer.load(sourceDescriptor.url);
     await readyForFirstFramePromise;
   }
 
   /**
-   * @brief Keep the active preview attached to the latest rerendered card host
+   * @brief Keep active preview slots attached after browse rerenders
    */
-  private syncActivePreviewSurface(): void {
-    if (this.previewRuntimeSession.state !== "preview-active") {
-      return;
-    }
+  private syncActivePreviewSurfaces(): void {
+    for (const previewRuntimeSession of this.previewRuntimeSessions) {
+      if (previewRuntimeSession.state !== "preview-active") {
+        continue;
+      }
 
-    this.attachPreviewSurface(this.previewRuntimeSession.itemId);
+      this.attachPreviewSurface(
+        previewRuntimeSession,
+        previewRuntimeSession.itemId,
+      );
+    }
   }
 
   /**
-   * @brief Attach the warmed preview element to the current browse card host
+   * @brief Pause every active preview other than the requested logical session
    *
+   * @param sessionId - Preview session that should remain active
+   */
+  private deactivateOtherActivePreviewSessions(sessionId: string): void {
+    for (const previewRuntimeSession of this.previewRuntimeSessions) {
+      if (
+        previewRuntimeSession.plannedSessionId === sessionId ||
+        previewRuntimeSession.state !== "preview-active"
+      ) {
+        continue;
+      }
+
+      previewRuntimeSession.videoElement?.pause();
+      this.detachPreviewSurface(previewRuntimeSession);
+      previewRuntimeSession.state = "ready-first-frame";
+    }
+  }
+
+  /**
+   * @brief Attach one preview slot to the current browse card host
+   *
+   * @param previewRuntimeSession - Preview slot being shown
    * @param itemId - Focused item that should host the preview video
    */
-  private attachPreviewSurface(itemId: string | null): void {
+  private attachPreviewSurface(
+    previewRuntimeSession: ManagedPreviewRuntimeSession,
+    itemId: string | null,
+  ): void {
     const videoElement: HTMLVideoElement | null =
-      this.previewRuntimeSession.videoElement;
+      previewRuntimeSession.videoElement;
     const surfaceEntry: WebPreviewSurfaceEntry | null =
       this.previewSurfaceRegistry.getEntry(itemId);
 
     if (videoElement === null || surfaceEntry === null) {
-      this.detachPreviewSurface();
+      this.detachPreviewSurface(previewRuntimeSession);
       return;
     }
 
-    if (this.previewRuntimeSession.hostElement === surfaceEntry.hostElement) {
+    if (previewRuntimeSession.hostElement === surfaceEntry.hostElement) {
       surfaceEntry.hostElement.classList.add("is-active");
       this.updatePreviewCardDebugState(surfaceEntry.hostElement);
       return;
     }
 
-    this.detachPreviewSurface();
+    this.detachPreviewSurface(previewRuntimeSession);
     surfaceEntry.hostElement.replaceChildren(videoElement);
     surfaceEntry.hostElement.classList.add("is-active");
-    this.previewRuntimeSession.hostElement = surfaceEntry.hostElement;
+    previewRuntimeSession.hostElement = surfaceEntry.hostElement;
     this.updatePreviewCardDebugState(surfaceEntry.hostElement);
   }
 
   /**
-   * @brief Remove the preview element from the current browse card host
+   * @brief Remove one preview slot from its current browse card host
+   *
+   * @param previewRuntimeSession - Preview slot being detached
    */
-  private detachPreviewSurface(): void {
+  private detachPreviewSurface(
+    previewRuntimeSession: ManagedPreviewRuntimeSession,
+  ): void {
     const hostElement: HTMLDivElement | null =
-      this.previewRuntimeSession.hostElement;
+      previewRuntimeSession.hostElement;
     const videoElement: HTMLVideoElement | null =
-      this.previewRuntimeSession.videoElement;
+      previewRuntimeSession.videoElement;
 
     if (hostElement !== null) {
       hostElement.classList.remove("is-active");
@@ -633,7 +875,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       }
     }
 
-    this.previewRuntimeSession.hostElement = null;
+    previewRuntimeSession.hostElement = null;
   }
 
   /**
@@ -692,13 +934,17 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
   }
 
   /**
-   * @brief Ensure the reusable preview element exists with stable configuration
+   * @brief Ensure one preview slot owns a reusable video element
    *
-   * @returns Preview video element used across focused items
+   * @param previewRuntimeSession - Preview slot that needs a video element
+   *
+   * @returns Preview video element used by the slot
    */
-  private ensurePreviewVideoElement(): HTMLVideoElement {
-    if (this.previewRuntimeSession.videoElement !== null) {
-      return this.previewRuntimeSession.videoElement;
+  private ensurePreviewVideoElement(
+    previewRuntimeSession: ManagedPreviewRuntimeSession,
+  ): HTMLVideoElement {
+    if (previewRuntimeSession.videoElement !== null) {
+      return previewRuntimeSession.videoElement;
     }
 
     const videoElement: HTMLVideoElement = document.createElement("video");
@@ -718,22 +964,26 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     videoElement.setAttribute("muted", "");
     videoElement.setAttribute("playsinline", "");
 
-    this.previewRuntimeSession.videoElement = videoElement;
+    previewRuntimeSession.videoElement = videoElement;
 
     return videoElement;
   }
 
   /**
-   * @brief Destroy any active Shaka player owned by the preview slot
+   * @brief Destroy any active Shaka player owned by one preview slot
+   *
+   * @param previewRuntimeSession - Preview slot whose player should be destroyed
    */
-  private async destroyPreviewShakaPlayer(): Promise<void> {
-    if (this.previewRuntimeSession.shakaPlayer === null) {
+  private async destroyPreviewShakaPlayer(
+    previewRuntimeSession: ManagedPreviewRuntimeSession,
+  ): Promise<void> {
+    if (previewRuntimeSession.shakaPlayer === null) {
       return;
     }
 
-    const shakaPlayer: ShakaPlayer = this.previewRuntimeSession.shakaPlayer;
+    const shakaPlayer: ShakaPlayer = previewRuntimeSession.shakaPlayer;
 
-    this.previewRuntimeSession.shakaPlayer = null;
+    previewRuntimeSession.shakaPlayer = null;
     await shakaPlayer.destroy();
   }
 
@@ -778,55 +1028,6 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
           once: true,
         });
       },
-    );
-  }
-
-  /**
-   * @brief Resolve the runtime slot handle associated with one logical role
-   *
-   * @param role - Logical role associated with the runtime slot
-   *
-   * @returns Stable runtime slot handle
-   */
-  private createRuntimeSessionHandle(
-    role: string | null,
-  ): MediaRuntimeSessionHandle | null {
-    if (role === "preview") {
-      return this.previewRuntimeSession.runtimeSessionHandle;
-    }
-
-    if (role === "background") {
-      return this.backgroundRuntimeSession.runtimeSessionHandle;
-    }
-
-    return null;
-  }
-
-  /**
-   * @brief Determine whether one cleanup command still targets the live preview slot
-   *
-   * @param sessionId - Planned session identifier supplied by the command
-   *
-   * @returns `true` when the command still matches the reusable preview slot
-   */
-  private matchesPreviewRuntimeSession(sessionId: string | null): boolean {
-    return (
-      sessionId !== null &&
-      this.previewRuntimeSession.plannedSessionId === sessionId
-    );
-  }
-
-  /**
-   * @brief Determine whether one cleanup command still targets the live background slot
-   *
-   * @param sessionId - Planned session identifier supplied by the command
-   *
-   * @returns `true` when the command still matches the background slot
-   */
-  private matchesBackgroundRuntimeSession(sessionId: string | null): boolean {
-    return (
-      sessionId !== null &&
-      this.backgroundRuntimeSession.plannedSessionId === sessionId
     );
   }
 

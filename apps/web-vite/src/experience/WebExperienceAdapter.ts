@@ -44,6 +44,14 @@ export class WebExperienceAdapter {
     supportsWebGLFallback: false,
     supportsCustomPipeline: false,
     supportsPremiumPlayback: true,
+    previewSchedulerBudget: {
+      maxWarmSessions: 3,
+      maxActivePreviewSessions: 1,
+      maxHiddenSessions: 2,
+      maxPreviewReuseMs: 5000,
+      maxPreviewOverlapMs: 0,
+      keepWarmAfterBlurMs: 2500,
+    },
   };
 
   public readonly appLayoutController: WebAppLayoutController;

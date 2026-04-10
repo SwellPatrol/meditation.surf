@@ -6,6 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { PreviewSchedulerBudget } from "../preview/PreviewSchedulerBudget";
+
 /**
  * @brief Declarative media capabilities that an app runtime can report
  */
@@ -19,4 +21,5 @@ export type MediaCapabilityProfile = {
   supportsWebGLFallback: boolean;
   supportsCustomPipeline: boolean;
   supportsPremiumPlayback: boolean;
+  previewSchedulerBudget: PreviewSchedulerBudget;
 };

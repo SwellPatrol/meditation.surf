@@ -68,6 +68,16 @@ export {
   type MediaThumbnailSnapshot,
   type MediaThumbnailSnapshotListener,
   type MediaThumbnailState,
+  type PreviewCandidate,
+  type PreviewCandidateInput,
+  type PreviewCandidateScore,
+  type PreviewEvictionReason,
+  type PreviewFarmState,
+  type PreviewSchedulerBudget,
+  type PreviewSchedulerDecision,
+  type PreviewSchedulerDecisionReason,
+  type PreviewSessionAssignment,
+  type PreviewWarmState,
   type MediaWarmth,
 } from "@meditation-surf/media";
 export { MediaSourceDescriptorFactory } from "./catalog/MediaSourceDescriptorFactory";

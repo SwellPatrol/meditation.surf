@@ -50,6 +50,17 @@ export {
   MediaSessionPlanner,
   type MediaSessionPlannerInput,
 } from "./planning/MediaSessionPlanner";
+export type { PreviewCandidate } from "./preview/PreviewCandidate";
+export type { PreviewCandidateInput } from "./preview/PreviewCandidateInput";
+export type { PreviewCandidateScore } from "./preview/PreviewCandidateScore";
+export type { PreviewEvictionReason } from "./preview/PreviewEvictionReason";
+export type { PreviewFarmState } from "./preview/PreviewFarmState";
+export { PreviewScheduler } from "./preview/PreviewScheduler";
+export type { PreviewSchedulerBudget } from "./preview/PreviewSchedulerBudget";
+export type { PreviewSchedulerDecision } from "./preview/PreviewSchedulerDecision";
+export type { PreviewSchedulerDecisionReason } from "./preview/PreviewSchedulerDecisionReason";
+export type { PreviewSessionAssignment } from "./preview/PreviewSessionAssignment";
+export type { PreviewWarmState } from "./preview/PreviewWarmState";
 export type { MediaSessionPriority } from "./planning/MediaSessionPriority";
 export type { MediaSessionVisibility } from "./planning/MediaSessionVisibility";
 export type { MediaPlaybackLane } from "./sessions/MediaPlaybackLane";

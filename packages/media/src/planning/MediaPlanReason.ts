@@ -16,6 +16,9 @@ export type MediaPlanReason = {
   kind:
     | "focused-item"
     | "focused-delay-elapsed-item"
+    | "focus-neighbor-item"
+    | "visible-item"
+    | "recent-focus-item"
     | "selected-item"
     | "background-active-item"
     | "preserve-existing-background-session";

@@ -33,6 +33,14 @@ export class ExpoMediaRuntimeAdapter implements MediaRuntimeAdapter {
     canKeepHiddenWarmSession: false,
     canPromoteWarmSession: false,
     canRunMultipleWarmSessions: false,
+    previewSchedulerBudget: {
+      maxWarmSessions: 0,
+      maxActivePreviewSessions: 0,
+      maxHiddenSessions: 0,
+      maxPreviewReuseMs: 2000,
+      maxPreviewOverlapMs: 0,
+      keepWarmAfterBlurMs: 0,
+    },
   };
 
   public readonly runtimeId: string;
@@ -63,6 +71,26 @@ export class ExpoMediaRuntimeAdapter implements MediaRuntimeAdapter {
   public getCapabilities(): MediaRuntimeCapabilities {
     return {
       ...ExpoMediaRuntimeAdapter.CAPABILITIES,
+      previewSchedulerBudget: {
+        maxWarmSessions:
+          ExpoMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
+            .maxWarmSessions,
+        maxActivePreviewSessions:
+          ExpoMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
+            .maxActivePreviewSessions,
+        maxHiddenSessions:
+          ExpoMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
+            .maxHiddenSessions,
+        maxPreviewReuseMs:
+          ExpoMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
+            .maxPreviewReuseMs,
+        maxPreviewOverlapMs:
+          ExpoMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
+            .maxPreviewOverlapMs,
+        keepWarmAfterBlurMs:
+          ExpoMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
+            .keepWarmAfterBlurMs,
+      },
     };
   }
 

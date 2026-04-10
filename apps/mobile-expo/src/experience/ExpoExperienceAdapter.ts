@@ -44,6 +44,14 @@ export class ExpoExperienceAdapter {
     supportsWebGLFallback: false,
     supportsCustomPipeline: false,
     supportsPremiumPlayback: true,
+    previewSchedulerBudget: {
+      maxWarmSessions: 0,
+      maxActivePreviewSessions: 0,
+      maxHiddenSessions: 0,
+      maxPreviewReuseMs: 2000,
+      maxPreviewOverlapMs: 0,
+      keepWarmAfterBlurMs: 0,
+    },
   };
 
   public readonly appLayoutController: ExpoAppLayoutController;

@@ -13,6 +13,9 @@ import type { MediaPlan } from "../planning/MediaPlan";
 import type { MediaPlanReason } from "../planning/MediaPlanReason";
 import type { MediaPlanSession } from "../planning/MediaPlanSession";
 import { MediaSessionPlanner } from "../planning/MediaSessionPlanner";
+import type { PreviewCandidateInput } from "../preview/PreviewCandidateInput";
+import type { PreviewFarmState } from "../preview/PreviewFarmState";
+import { PreviewScheduler } from "../preview/PreviewScheduler";
 import type { MediaSessionDescriptor } from "../sessions/MediaSessionDescriptor";
 import type { MediaSessionSnapshot } from "../sessions/MediaSessionSnapshot";
 import type { MediaSessionState } from "../sessions/MediaSessionState";
@@ -51,6 +54,9 @@ export class MediaKernelController {
   private currentIntent: MediaIntent | null;
   private currentPlan: MediaPlan;
   private focusedItem: MediaKernelItem | null;
+  private planningNowMs: number;
+  private previewCandidateInputs: PreviewCandidateInput<MediaKernelItem>[];
+  private previewFarmTimerId: ReturnType<typeof globalThis.setTimeout> | null;
   private selectedItem: MediaKernelItem | null;
 
   /**
@@ -74,8 +80,12 @@ export class MediaKernelController {
     this.currentIntent = null;
     this.currentPlan = {
       sessions: [],
+      previewFarm: this.createEmptyPreviewFarmState(),
     };
     this.focusedItem = null;
+    this.planningNowMs = Date.now();
+    this.previewCandidateInputs = [];
+    this.previewFarmTimerId = null;
     this.selectedItem = null;
     this.sessionSnapshotsById = new Map<string, MediaSessionSnapshot>();
     this.stateListeners = new Set<MediaKernelStateListener>();
@@ -317,17 +327,23 @@ export class MediaKernelController {
    * @param selectedItem - Selected browse item when one exists
    * @param activeItem - Active playback item when one exists
    */
-  public setPlanningContext(
+  public setPlanningContext<TPreviewMediaItem extends MediaKernelItem>(
     mediaIntent: MediaIntent | null,
     focusedItem: MediaKernelItem | null,
     selectedItem: MediaKernelItem | null,
     activeItem: MediaKernelItem | null,
+    previewCandidateInputs: PreviewCandidateInput<TPreviewMediaItem>[] = [],
+    planningNowMs: number = Date.now(),
   ): void {
     if (
       this.areMediaIntentsEqual(this.currentIntent, mediaIntent) &&
       this.areMediaItemsEqual(this.focusedItem, focusedItem) &&
       this.areMediaItemsEqual(this.selectedItem, selectedItem) &&
-      this.areMediaItemsEqual(this.activeItem, activeItem)
+      this.areMediaItemsEqual(this.activeItem, activeItem) &&
+      this.arePreviewCandidateInputsEqual(
+        this.previewCandidateInputs,
+        previewCandidateInputs,
+      )
     ) {
       return;
     }
@@ -336,6 +352,10 @@ export class MediaKernelController {
     this.focusedItem = focusedItem;
     this.selectedItem = selectedItem;
     this.activeItem = activeItem;
+    this.previewCandidateInputs = this.clonePreviewCandidateInputs(
+      previewCandidateInputs as PreviewCandidateInput<MediaKernelItem>[],
+    );
+    this.planningNowMs = planningNowMs;
     this.recomputePlan();
     this.notifyStateListeners();
   }
@@ -445,6 +465,7 @@ export class MediaKernelController {
    * @brief Release every subscription owned by the media kernel controller
    */
   public destroy(): void {
+    this.clearPreviewFarmTimer();
     this.stateListeners.clear();
   }
 
@@ -470,14 +491,56 @@ export class MediaKernelController {
       focusedItem: this.focusedItem,
       selectedItem: this.selectedItem,
       activeItem: this.activeItem,
+      previewCandidateInputs: this.clonePreviewCandidateInputs(
+        this.previewCandidateInputs,
+      ),
+      planningNowMs: this.planningNowMs,
       createSourceDescriptor: this.createSourceDescriptor,
     });
+    this.syncPreviewFarmTimer(nextPlan.previewFarm);
 
     if (this.areMediaPlansEqual(this.currentPlan, nextPlan)) {
       return;
     }
 
     this.currentPlan = nextPlan;
+  }
+
+  /**
+   * @brief Keep one timer aligned with the next preview-farm TTL transition
+   *
+   * @param previewFarmState - Latest preview-farm plan state
+   */
+  private syncPreviewFarmTimer(previewFarmState: PreviewFarmState): void {
+    this.clearPreviewFarmTimer();
+
+    if (previewFarmState.nextTransitionAtMs === null) {
+      return;
+    }
+
+    const delayMs: number = Math.max(
+      0,
+      previewFarmState.nextTransitionAtMs - Date.now(),
+    );
+
+    this.previewFarmTimerId = globalThis.setTimeout((): void => {
+      this.previewFarmTimerId = null;
+      this.planningNowMs = Date.now();
+      this.recomputePlan();
+      this.notifyStateListeners();
+    }, delayMs);
+  }
+
+  /**
+   * @brief Cancel any pending preview-farm transition timer
+   */
+  private clearPreviewFarmTimer(): void {
+    if (this.previewFarmTimerId === null) {
+      return;
+    }
+
+    globalThis.clearTimeout(this.previewFarmTimerId);
+    this.previewFarmTimerId = null;
   }
 
   /**
@@ -526,6 +589,37 @@ export class MediaKernelController {
         supportsPremiumPlayback:
           mergedProfile.supportsPremiumPlayback &&
           appMediaCapabilities.profile.supportsPremiumPlayback,
+        previewSchedulerBudget: {
+          maxWarmSessions: Math.min(
+            mergedProfile.previewSchedulerBudget.maxWarmSessions,
+            appMediaCapabilities.profile.previewSchedulerBudget.maxWarmSessions,
+          ),
+          maxActivePreviewSessions: Math.min(
+            mergedProfile.previewSchedulerBudget.maxActivePreviewSessions,
+            appMediaCapabilities.profile.previewSchedulerBudget
+              .maxActivePreviewSessions,
+          ),
+          maxHiddenSessions: Math.min(
+            mergedProfile.previewSchedulerBudget.maxHiddenSessions,
+            appMediaCapabilities.profile.previewSchedulerBudget
+              .maxHiddenSessions,
+          ),
+          maxPreviewReuseMs: Math.min(
+            mergedProfile.previewSchedulerBudget.maxPreviewReuseMs,
+            appMediaCapabilities.profile.previewSchedulerBudget
+              .maxPreviewReuseMs,
+          ),
+          maxPreviewOverlapMs: Math.min(
+            mergedProfile.previewSchedulerBudget.maxPreviewOverlapMs,
+            appMediaCapabilities.profile.previewSchedulerBudget
+              .maxPreviewOverlapMs,
+          ),
+          keepWarmAfterBlurMs: Math.min(
+            mergedProfile.previewSchedulerBudget.keepWarmAfterBlurMs,
+            appMediaCapabilities.profile.previewSchedulerBudget
+              .keepWarmAfterBlurMs,
+          ),
+        },
       }),
       this.cloneMediaCapabilityProfile(appCapabilities[0].profile),
     );
@@ -567,6 +661,15 @@ export class MediaKernelController {
       supportsWebGLFallback: profile.supportsWebGLFallback,
       supportsCustomPipeline: profile.supportsCustomPipeline,
       supportsPremiumPlayback: profile.supportsPremiumPlayback,
+      previewSchedulerBudget: {
+        maxWarmSessions: profile.previewSchedulerBudget.maxWarmSessions,
+        maxActivePreviewSessions:
+          profile.previewSchedulerBudget.maxActivePreviewSessions,
+        maxHiddenSessions: profile.previewSchedulerBudget.maxHiddenSessions,
+        maxPreviewReuseMs: profile.previewSchedulerBudget.maxPreviewReuseMs,
+        maxPreviewOverlapMs: profile.previewSchedulerBudget.maxPreviewOverlapMs,
+        keepWarmAfterBlurMs: profile.previewSchedulerBudget.keepWarmAfterBlurMs,
+      },
     };
   }
 
@@ -603,6 +706,7 @@ export class MediaKernelController {
         (mediaPlanSession: MediaPlanSession): MediaPlanSession =>
           this.cloneMediaPlanSession(mediaPlanSession),
       ),
+      previewFarm: this.clonePreviewFarmState(mediaPlan.previewFarm),
     };
   }
 
@@ -746,6 +850,145 @@ export class MediaKernelController {
   }
 
   /**
+   * @brief Clone preview-farm state for safe external consumption
+   *
+   * @param previewFarmState - Preview-farm state to clone
+   *
+   * @returns Cloned preview-farm state
+   */
+  private clonePreviewFarmState(
+    previewFarmState: PreviewFarmState,
+  ): PreviewFarmState {
+    return {
+      budget: {
+        maxWarmSessions: previewFarmState.budget.maxWarmSessions,
+        maxActivePreviewSessions:
+          previewFarmState.budget.maxActivePreviewSessions,
+        maxHiddenSessions: previewFarmState.budget.maxHiddenSessions,
+        maxPreviewReuseMs: previewFarmState.budget.maxPreviewReuseMs,
+        maxPreviewOverlapMs: previewFarmState.budget.maxPreviewOverlapMs,
+        keepWarmAfterBlurMs: previewFarmState.budget.keepWarmAfterBlurMs,
+      },
+      candidates: previewFarmState.candidates.map((previewCandidate) => ({
+        candidateId: previewCandidate.candidateId,
+        sessionId: previewCandidate.sessionId,
+        itemId: previewCandidate.itemId,
+        source: {
+          sourceId: previewCandidate.source.sourceId,
+          kind: previewCandidate.source.kind,
+          url: previewCandidate.source.url,
+          mimeType: previewCandidate.source.mimeType,
+          posterUrl: previewCandidate.source.posterUrl,
+        },
+        rowIndex: previewCandidate.rowIndex,
+        itemIndex: previewCandidate.itemIndex,
+        reason: previewCandidate.reason,
+        score: {
+          reason: previewCandidate.score.reason,
+          baseValue: previewCandidate.score.baseValue,
+          reuseBonus: previewCandidate.score.reuseBonus,
+          totalValue: previewCandidate.score.totalValue,
+        },
+        currentWarmState: previewCandidate.currentWarmState,
+        focusStartedAtMs: previewCandidate.focusStartedAtMs,
+        lastFocusedAtMs: previewCandidate.lastFocusedAtMs,
+      })),
+      decisions: previewFarmState.decisions.map((previewSchedulerDecision) => ({
+        candidateId: previewSchedulerDecision.candidateId,
+        sessionId: previewSchedulerDecision.sessionId,
+        itemId: previewSchedulerDecision.itemId,
+        score: {
+          reason: previewSchedulerDecision.score.reason,
+          baseValue: previewSchedulerDecision.score.baseValue,
+          reuseBonus: previewSchedulerDecision.score.reuseBonus,
+          totalValue: previewSchedulerDecision.score.totalValue,
+        },
+        primaryReason: previewSchedulerDecision.primaryReason,
+        deferredReason: previewSchedulerDecision.deferredReason,
+        evictionReason: previewSchedulerDecision.evictionReason,
+        targetWarmState: previewSchedulerDecision.targetWarmState,
+        shouldWarm: previewSchedulerDecision.shouldWarm,
+        shouldActivate: previewSchedulerDecision.shouldActivate,
+        shouldRetain: previewSchedulerDecision.shouldRetain,
+        shouldEvict: previewSchedulerDecision.shouldEvict,
+        isDeferred: previewSchedulerDecision.isDeferred,
+        retainUntilMs: previewSchedulerDecision.retainUntilMs,
+      })),
+      sessionAssignments: previewFarmState.sessionAssignments.map(
+        (previewSessionAssignment) => ({
+          sessionId: previewSessionAssignment.sessionId,
+          itemId: previewSessionAssignment.itemId,
+          slotId: previewSessionAssignment.slotId,
+          warmState: previewSessionAssignment.warmState,
+          isActive: previewSessionAssignment.isActive,
+        }),
+      ),
+      activeSessionIds: [...previewFarmState.activeSessionIds],
+      warmedSessionIds: [...previewFarmState.warmedSessionIds],
+      retainedSessionIds: [...previewFarmState.retainedSessionIds],
+      evictedSessionIds: [...previewFarmState.evictedSessionIds],
+      deferredSessionIds: [...previewFarmState.deferredSessionIds],
+      nextTransitionAtMs: previewFarmState.nextTransitionAtMs,
+    };
+  }
+
+  /**
+   * @brief Clone preview candidate inputs captured from the browse bridge
+   *
+   * @param previewCandidateInputs - Preview inputs to clone
+   *
+   * @returns Cloned preview candidate inputs
+   */
+  private clonePreviewCandidateInputs(
+    previewCandidateInputs: PreviewCandidateInput<MediaKernelItem>[],
+  ): PreviewCandidateInput<MediaKernelItem>[] {
+    return previewCandidateInputs.map(
+      (
+        previewCandidateInput: PreviewCandidateInput<MediaKernelItem>,
+      ): PreviewCandidateInput<MediaKernelItem> => ({
+        mediaItem: previewCandidateInput.mediaItem,
+        rowIndex: previewCandidateInput.rowIndex,
+        itemIndex: previewCandidateInput.itemIndex,
+        reason: previewCandidateInput.reason,
+        focusStartedAtMs: previewCandidateInput.focusStartedAtMs,
+        lastFocusedAtMs: previewCandidateInput.lastFocusedAtMs,
+      }),
+    );
+  }
+
+  /**
+   * @brief Build an empty preview-farm state for startup and unsupported flows
+   *
+   * @returns Empty preview-farm state
+   */
+  private createEmptyPreviewFarmState(): PreviewFarmState {
+    return {
+      budget: {
+        maxWarmSessions: PreviewScheduler.UNSUPPORTED_BUDGET.maxWarmSessions,
+        maxActivePreviewSessions:
+          PreviewScheduler.UNSUPPORTED_BUDGET.maxActivePreviewSessions,
+        maxHiddenSessions:
+          PreviewScheduler.UNSUPPORTED_BUDGET.maxHiddenSessions,
+        maxPreviewReuseMs:
+          PreviewScheduler.UNSUPPORTED_BUDGET.maxPreviewReuseMs,
+        maxPreviewOverlapMs:
+          PreviewScheduler.UNSUPPORTED_BUDGET.maxPreviewOverlapMs,
+        keepWarmAfterBlurMs:
+          PreviewScheduler.UNSUPPORTED_BUDGET.keepWarmAfterBlurMs,
+      },
+      candidates: [],
+      decisions: [],
+      sessionAssignments: [],
+      activeSessionIds: [],
+      warmedSessionIds: [],
+      retainedSessionIds: [],
+      evictedSessionIds: [],
+      deferredSessionIds: [],
+      nextTransitionAtMs: null,
+    };
+  }
+
+  /**
    * @brief Compare two app capability reports for semantic equality
    *
    * @param leftAppMediaCapabilities - First app capability report
@@ -780,7 +1023,19 @@ export class MediaKernelController {
       leftProfile.supportsCustomPipeline ===
         rightProfile.supportsCustomPipeline &&
       leftProfile.supportsPremiumPlayback ===
-        rightProfile.supportsPremiumPlayback
+        rightProfile.supportsPremiumPlayback &&
+      leftProfile.previewSchedulerBudget.maxWarmSessions ===
+        rightProfile.previewSchedulerBudget.maxWarmSessions &&
+      leftProfile.previewSchedulerBudget.maxActivePreviewSessions ===
+        rightProfile.previewSchedulerBudget.maxActivePreviewSessions &&
+      leftProfile.previewSchedulerBudget.maxHiddenSessions ===
+        rightProfile.previewSchedulerBudget.maxHiddenSessions &&
+      leftProfile.previewSchedulerBudget.maxPreviewReuseMs ===
+        rightProfile.previewSchedulerBudget.maxPreviewReuseMs &&
+      leftProfile.previewSchedulerBudget.maxPreviewOverlapMs ===
+        rightProfile.previewSchedulerBudget.maxPreviewOverlapMs &&
+      leftProfile.previewSchedulerBudget.keepWarmAfterBlurMs ===
+        rightProfile.previewSchedulerBudget.keepWarmAfterBlurMs
     );
   }
 
@@ -837,7 +1092,13 @@ export class MediaKernelController {
     leftMediaPlan: MediaPlan,
     rightMediaPlan: MediaPlan,
   ): boolean {
-    if (leftMediaPlan.sessions.length !== rightMediaPlan.sessions.length) {
+    if (
+      leftMediaPlan.sessions.length !== rightMediaPlan.sessions.length ||
+      !this.arePreviewFarmsEqual(
+        leftMediaPlan.previewFarm,
+        rightMediaPlan.previewFarm,
+      )
+    ) {
       return false;
     }
 
@@ -967,6 +1228,73 @@ export class MediaKernelController {
         leftDescriptor.source,
         rightDescriptor.source,
       )
+    );
+  }
+
+  /**
+   * @brief Compare two preview-farm states for semantic equality
+   *
+   * @param leftPreviewFarmState - First preview-farm state
+   * @param rightPreviewFarmState - Second preview-farm state
+   *
+   * @returns `true` when both preview-farm states match
+   */
+  private arePreviewFarmsEqual(
+    leftPreviewFarmState: PreviewFarmState,
+    rightPreviewFarmState: PreviewFarmState,
+  ): boolean {
+    return (
+      JSON.stringify(leftPreviewFarmState) ===
+      JSON.stringify(rightPreviewFarmState)
+    );
+  }
+
+  /**
+   * @brief Compare two preview candidate input arrays for planning equality
+   *
+   * @param leftPreviewCandidateInputs - First preview candidate array
+   * @param rightPreviewCandidateInputs - Second preview candidate array
+   *
+   * @returns `true` when both arrays describe the same preview candidates
+   */
+  private arePreviewCandidateInputsEqual(
+    leftPreviewCandidateInputs: PreviewCandidateInput<MediaKernelItem>[],
+    rightPreviewCandidateInputs: PreviewCandidateInput<MediaKernelItem>[],
+  ): boolean {
+    if (
+      leftPreviewCandidateInputs.length !== rightPreviewCandidateInputs.length
+    ) {
+      return false;
+    }
+
+    return leftPreviewCandidateInputs.every(
+      (
+        leftPreviewCandidateInput: PreviewCandidateInput<MediaKernelItem>,
+        previewCandidateIndex: number,
+      ): boolean => {
+        const rightPreviewCandidateInput:
+          | PreviewCandidateInput<MediaKernelItem>
+          | undefined = rightPreviewCandidateInputs[previewCandidateIndex];
+
+        if (rightPreviewCandidateInput === undefined) {
+          return false;
+        }
+
+        return (
+          leftPreviewCandidateInput.mediaItem.id ===
+            rightPreviewCandidateInput.mediaItem.id &&
+          leftPreviewCandidateInput.rowIndex ===
+            rightPreviewCandidateInput.rowIndex &&
+          leftPreviewCandidateInput.itemIndex ===
+            rightPreviewCandidateInput.itemIndex &&
+          leftPreviewCandidateInput.reason ===
+            rightPreviewCandidateInput.reason &&
+          leftPreviewCandidateInput.focusStartedAtMs ===
+            rightPreviewCandidateInput.focusStartedAtMs &&
+          leftPreviewCandidateInput.lastFocusedAtMs ===
+            rightPreviewCandidateInput.lastFocusedAtMs
+        );
+      },
     );
   }
 }

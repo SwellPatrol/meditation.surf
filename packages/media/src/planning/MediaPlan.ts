@@ -6,6 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { PreviewFarmState } from "../preview/PreviewFarmState";
 import type { MediaPlanSession } from "./MediaPlanSession";
 
 /**
@@ -13,4 +14,5 @@ import type { MediaPlanSession } from "./MediaPlanSession";
  */
 export type MediaPlan = {
   sessions: MediaPlanSession[];
+  previewFarm: PreviewFarmState;
 };

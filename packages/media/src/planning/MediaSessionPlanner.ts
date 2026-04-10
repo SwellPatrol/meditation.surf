@@ -10,10 +10,17 @@ import type { MediaCapabilityProfile } from "../capabilities/MediaCapabilityProf
 import type { MediaIntent } from "../intent/MediaIntent";
 import type { MediaKernelItem } from "../kernel/MediaKernelItem";
 import type { MediaKernelState } from "../kernel/MediaKernelState";
+import type { PreviewCandidate } from "../preview/PreviewCandidate";
+import type { PreviewCandidateInput } from "../preview/PreviewCandidateInput";
+import type { PreviewCandidateScore } from "../preview/PreviewCandidateScore";
+import type { PreviewFarmState } from "../preview/PreviewFarmState";
+import { PreviewScheduler } from "../preview/PreviewScheduler";
+import type { PreviewSchedulerDecision } from "../preview/PreviewSchedulerDecision";
+import type { PreviewSchedulerDecisionReason } from "../preview/PreviewSchedulerDecisionReason";
+import type { PreviewWarmState } from "../preview/PreviewWarmState";
 import type { MediaPlaybackLane } from "../sessions/MediaPlaybackLane";
 import type { MediaRendererKind } from "../sessions/MediaRendererKind";
 import type { MediaSessionRole } from "../sessions/MediaSessionRole";
-import type { MediaWarmth } from "../sessions/MediaWarmth";
 import type { MediaSourceDescriptor } from "../sources/MediaSourceDescriptor";
 import type { MediaPlan } from "./MediaPlan";
 import type { MediaPlanReason } from "./MediaPlanReason";
@@ -31,6 +38,8 @@ export type MediaSessionPlannerInput<
   focusedItem: TMediaItem | null;
   selectedItem: TMediaItem | null;
   activeItem: TMediaItem | null;
+  previewCandidateInputs: PreviewCandidateInput<TMediaItem>[];
+  planningNowMs: number;
   createSourceDescriptor: (mediaItem: TMediaItem) => MediaSourceDescriptor;
 };
 
@@ -52,32 +61,12 @@ export class MediaSessionPlanner {
     input: MediaSessionPlannerInput<TMediaItem>,
   ): MediaPlan {
     const plannedSessions: MediaPlanSession[] = [];
-    const focusedItem: TMediaItem | null = input.focusedItem;
     const selectedItem: TMediaItem | null = input.selectedItem;
     const activeItem: TMediaItem | null = input.activeItem;
     const appCapabilityProfile: MediaCapabilityProfile | null =
       input.appCapabilityProfile;
     const currentIntentType: MediaIntent["type"] =
       input.mediaIntent?.type ?? "idle";
-
-    if (
-      focusedItem !== null &&
-      appCapabilityProfile?.supportsPreviewVideo === true &&
-      focusedItem.id !== selectedItem?.id &&
-      focusedItem.id !== activeItem?.id
-    ) {
-      plannedSessions.push(
-        this.createPreviewSession(
-          focusedItem,
-          currentIntentType === "focused-delay-elapsed"
-            ? "focused-delay-elapsed"
-            : "focused",
-          appCapabilityProfile,
-          input.createSourceDescriptor,
-        ),
-      );
-    }
-
     const backgroundItem: TMediaItem | null = selectedItem ?? activeItem;
 
     if (backgroundItem !== null) {
@@ -102,6 +91,30 @@ export class MediaSessionPlanner {
       );
     }
 
+    const previewCandidates: PreviewCandidate[] = this.createPreviewCandidates(
+      input,
+      backgroundItem?.id ?? null,
+    );
+    const previousPreviewFarmState: PreviewFarmState =
+      input.currentMediaKernelState.plan.previewFarm;
+    const previewFarmState: PreviewFarmState = PreviewScheduler.createState({
+      previewCandidates,
+      supportsPreviewVideo: appCapabilityProfile?.supportsPreviewVideo === true,
+      previewBudget:
+        appCapabilityProfile?.previewSchedulerBudget ??
+        PreviewScheduler.UNSUPPORTED_BUDGET,
+      currentlyPlannedWarmSessionIds: previousPreviewFarmState.warmedSessionIds,
+      currentlyPlannedActiveSessionIds:
+        previousPreviewFarmState.activeSessionIds,
+      backgroundItemId: backgroundItem?.id ?? null,
+      mediaIntentType: currentIntentType,
+      nowMs: input.planningNowMs,
+    });
+    const previewSessions: MediaPlanSession[] =
+      this.createPreviewPlanSessionsFromFarm(previewFarmState, input);
+
+    plannedSessions.push(...previewSessions);
+
     return {
       sessions: plannedSessions.sort(
         (
@@ -110,6 +123,7 @@ export class MediaSessionPlanner {
         ): number =>
           this.comparePlannedSessions(leftPlannedSession, rightPlannedSession),
       ),
+      previewFarm: this.clonePreviewFarmState(previewFarmState),
     };
   }
 
@@ -128,51 +142,6 @@ export class MediaSessionPlanner {
         sessionSnapshot.descriptor.role === "background" &&
         this.isActiveBackgroundSessionState(sessionSnapshot.state),
     );
-  }
-
-  /**
-   * @brief Create a preview-oriented session plan entry
-   *
-   * @param mediaItem - Item that currently owns browse focus
-   * @param intentType - Logical intent that led to preview planning
-   * @param appCapabilityProfile - Runtime capability profile for the current app
-   *
-   * @returns Planned preview session
-   */
-  private static createPreviewSession<TMediaItem extends MediaKernelItem>(
-    mediaItem: TMediaItem,
-    intentType: "focused" | "focused-delay-elapsed",
-    appCapabilityProfile: MediaCapabilityProfile | null,
-    createSourceDescriptor: (mediaItem: TMediaItem) => MediaSourceDescriptor,
-  ): MediaPlanSession {
-    const sourceDescriptor: MediaSourceDescriptor =
-      createSourceDescriptor(mediaItem);
-    const previewWarmth: MediaWarmth =
-      intentType === "focused-delay-elapsed" ? "preloaded" : "first-frame";
-    const reason: MediaPlanReason = {
-      intentType,
-      kind:
-        intentType === "focused-delay-elapsed"
-          ? "focused-delay-elapsed-item"
-          : "focused-item",
-      message:
-        intentType === "focused-delay-elapsed"
-          ? "Focused item stayed active long enough to justify a warmer preview session"
-          : "Focused item should warm a preview session when preview video is supported",
-    };
-
-    return {
-      sessionId: this.createSessionId("preview", sourceDescriptor),
-      itemId: mediaItem.id,
-      source: sourceDescriptor,
-      role: "preview",
-      desiredPlaybackLane: this.selectPreviewPlaybackLane(appCapabilityProfile),
-      desiredRendererKind: this.selectRendererKind(appCapabilityProfile),
-      desiredWarmth: previewWarmth,
-      priority: "high",
-      visibility: "hidden",
-      reason,
-    };
   }
 
   /**
@@ -215,6 +184,165 @@ export class MediaSessionPlanner {
             : "Current active playback item should remain the background playback target",
       },
     };
+  }
+
+  /**
+   * @brief Convert browse-derived preview inputs into scored shared candidates
+   *
+   * @param input - Planner inputs including browse-driven preview targets
+   * @param backgroundItemId - Item currently reserved for background playback
+   *
+   * @returns Runtime-agnostic preview candidates sorted later by the scheduler
+   */
+  private static createPreviewCandidates<TMediaItem extends MediaKernelItem>(
+    input: MediaSessionPlannerInput<TMediaItem>,
+    backgroundItemId: string | null,
+  ): PreviewCandidate[] {
+    const previewCandidates: PreviewCandidate[] = [];
+    const seenSessionIds: Set<string> = new Set<string>();
+
+    for (const previewCandidateInput of input.previewCandidateInputs) {
+      if (previewCandidateInput.mediaItem.id === backgroundItemId) {
+        continue;
+      }
+
+      const sourceDescriptor: MediaSourceDescriptor =
+        input.createSourceDescriptor(previewCandidateInput.mediaItem);
+      const sessionId: string = this.createSessionId(
+        "preview",
+        sourceDescriptor,
+      );
+
+      if (seenSessionIds.has(sessionId)) {
+        continue;
+      }
+
+      const previewCandidateScore: PreviewCandidateScore =
+        this.createPreviewCandidateScore(
+          previewCandidateInput.reason,
+          sourceDescriptor.sourceId,
+          input.currentMediaKernelState,
+        );
+
+      seenSessionIds.add(sessionId);
+      previewCandidates.push({
+        candidateId: sessionId,
+        sessionId,
+        itemId: previewCandidateInput.mediaItem.id,
+        source: sourceDescriptor,
+        rowIndex: previewCandidateInput.rowIndex,
+        itemIndex: previewCandidateInput.itemIndex,
+        reason: previewCandidateInput.reason,
+        score: previewCandidateScore,
+        currentWarmState: this.resolveCurrentPreviewWarmState(
+          input.currentMediaKernelState,
+          sessionId,
+        ),
+        focusStartedAtMs: previewCandidateInput.focusStartedAtMs,
+        lastFocusedAtMs: previewCandidateInput.lastFocusedAtMs,
+      });
+    }
+
+    return previewCandidates;
+  }
+
+  /**
+   * @brief Create a stable score for one preview candidate reason
+   *
+   * @param reason - Candidate reason emitted by the browse bridge
+   * @param sourceId - Source identifier used for light reuse heuristics
+   * @param currentMediaKernelState - Current immutable kernel snapshot
+   *
+   * @returns Deterministic candidate score metadata
+   */
+  private static createPreviewCandidateScore(
+    reason: PreviewSchedulerDecisionReason,
+    sourceId: string,
+    currentMediaKernelState: MediaKernelState,
+  ): PreviewCandidateScore {
+    const baseValue: number = this.getPreviewReasonScore(reason);
+    const reuseBonus: number = currentMediaKernelState.sessions.some(
+      (sessionSnapshot: MediaKernelState["sessions"][number]): boolean =>
+        sessionSnapshot.descriptor.role === "preview" &&
+        sessionSnapshot.descriptor.source?.sourceId === sourceId &&
+        sessionSnapshot.warmth !== "cold",
+    )
+      ? 25
+      : 0;
+
+    return {
+      reason,
+      baseValue,
+      reuseBonus,
+      totalValue: baseValue + reuseBonus,
+    };
+  }
+
+  /**
+   * @brief Convert preview-farm decisions back into executable logical sessions
+   *
+   * @param previewFarmState - Full scheduler result for the current plan
+   * @param input - Current planner inputs
+   *
+   * @returns Materialized preview sessions that execution should own
+   */
+  private static createPreviewPlanSessionsFromFarm<
+    TMediaItem extends MediaKernelItem,
+  >(
+    previewFarmState: PreviewFarmState,
+    input: MediaSessionPlannerInput<TMediaItem>,
+  ): MediaPlanSession[] {
+    const plannedPreviewSessions: MediaPlanSession[] = [];
+    const appCapabilityProfile: MediaCapabilityProfile | null =
+      input.appCapabilityProfile;
+
+    for (const previewSchedulerDecision of previewFarmState.decisions) {
+      if (
+        !previewSchedulerDecision.shouldWarm &&
+        !previewSchedulerDecision.shouldActivate
+      ) {
+        continue;
+      }
+
+      const previewCandidate: PreviewCandidate | undefined =
+        previewFarmState.candidates.find(
+          (candidate: PreviewCandidate): boolean =>
+            candidate.sessionId === previewSchedulerDecision.sessionId,
+        );
+
+      if (previewCandidate === undefined) {
+        continue;
+      }
+
+      plannedPreviewSessions.push({
+        sessionId: previewCandidate.sessionId,
+        itemId: previewCandidate.itemId,
+        source: {
+          sourceId: previewCandidate.source.sourceId,
+          kind: previewCandidate.source.kind,
+          url: previewCandidate.source.url,
+          mimeType: previewCandidate.source.mimeType,
+          posterUrl: previewCandidate.source.posterUrl,
+        },
+        role: "preview",
+        desiredPlaybackLane:
+          this.selectPreviewPlaybackLane(appCapabilityProfile),
+        desiredRendererKind: this.selectRendererKind(appCapabilityProfile),
+        desiredWarmth: previewSchedulerDecision.shouldActivate
+          ? "preloaded"
+          : "first-frame",
+        priority: this.resolvePreviewPriority(previewCandidate.reason),
+        visibility: previewSchedulerDecision.shouldActivate
+          ? "visible"
+          : "hidden",
+        reason: this.createPreviewPlanReason(
+          previewCandidate.reason,
+          previewSchedulerDecision.shouldActivate,
+        ),
+      });
+    }
+
+    return plannedPreviewSessions;
   }
 
   /**
@@ -292,6 +420,48 @@ export class MediaSessionPlanner {
   }
 
   /**
+   * @brief Translate current kernel session state into preview-specific warmth
+   *
+   * @param currentMediaKernelState - Current immutable kernel snapshot
+   * @param sessionId - Preview session identifier being inspected
+   *
+   * @returns Preview warmth state visible to the scheduler
+   */
+  private static resolveCurrentPreviewWarmState(
+    currentMediaKernelState: MediaKernelState,
+    sessionId: string,
+  ): PreviewWarmState {
+    const previewSessionSnapshot:
+      | MediaKernelState["sessions"][number]
+      | undefined = currentMediaKernelState.sessions.find(
+      (sessionSnapshot: MediaKernelState["sessions"][number]): boolean =>
+        sessionSnapshot.descriptor.sessionId === sessionId &&
+        sessionSnapshot.descriptor.role === "preview",
+    );
+
+    if (previewSessionSnapshot === undefined) {
+      return "cold";
+    }
+
+    switch (previewSessionSnapshot.state) {
+      case "loading":
+      case "probing":
+        return "warming";
+      case "first-frame-ready":
+        return "ready-first-frame";
+      case "previewing":
+        return "preview-active";
+      case "idle":
+      case "failed":
+      case "paused":
+      case "playing":
+        return previewSessionSnapshot.warmth === "cold"
+          ? "cold"
+          : "ready-first-frame";
+    }
+  }
+
+  /**
    * @brief Determine whether a session state should count as an active background owner
    *
    * @param mediaSessionState - Shared lifecycle state recorded for a session
@@ -335,6 +505,118 @@ export class MediaSessionPlanner {
     }
 
     return null;
+  }
+
+  /**
+   * @brief Convert one preview reason into a stable planning priority
+   *
+   * @param reason - Preview scheduler reason emitted by the browse bridge
+   *
+   * @returns Shared plan priority for the preview session
+   */
+  private static resolvePreviewPriority(
+    reason: PreviewSchedulerDecisionReason,
+  ): MediaPlanSession["priority"] {
+    switch (reason) {
+      case "focused-item":
+        return "high";
+      case "focus-neighbor":
+        return "normal";
+      case "visible-item":
+        return "normal";
+      case "recent-focus":
+        return "low";
+      case "over-budget":
+      case "lower-priority":
+      case "runtime-unsupported":
+      case "background-priority":
+        return "low";
+    }
+  }
+
+  /**
+   * @brief Build a human-readable plan reason for one preview session
+   *
+   * @param reason - Preview scheduler reason that selected the session
+   * @param shouldActivate - Whether the session should actively preview now
+   *
+   * @returns Shared plan reason stored beside the executable session
+   */
+  private static createPreviewPlanReason(
+    reason: PreviewSchedulerDecisionReason,
+    shouldActivate: boolean,
+  ): MediaPlanReason {
+    switch (reason) {
+      case "focused-item":
+        return {
+          intentType: shouldActivate ? "focused-delay-elapsed" : "focused",
+          kind: shouldActivate ? "focused-delay-elapsed-item" : "focused-item",
+          message: shouldActivate
+            ? "Focused item stayed active long enough to own the active preview session"
+            : "Focused item should warm the primary preview session",
+        };
+      case "focus-neighbor":
+        return {
+          intentType: "focused",
+          kind: "focus-neighbor-item",
+          message:
+            "Immediate row neighbor should stay warm when preview budget allows",
+        };
+      case "visible-item":
+        return {
+          intentType: "focused",
+          kind: "visible-item",
+          message:
+            "Visible browse item should be eligible for preview warming when budget allows",
+        };
+      case "recent-focus":
+        return {
+          intentType: "focused",
+          kind: "recent-focus-item",
+          message:
+            "Recently focused item should remain warm briefly for preview reuse",
+        };
+      case "over-budget":
+      case "lower-priority":
+      case "runtime-unsupported":
+      case "background-priority":
+        return {
+          intentType: "focused",
+          kind: "recent-focus-item",
+          message:
+            "Preview scheduler retained a lower-priority candidate for short-term reuse",
+        };
+    }
+  }
+
+  /**
+   * @brief Convert one scheduler reason into a stable base score
+   *
+   * @param reason - Preview candidate reason emitted by the browse bridge
+   *
+   * @returns Deterministic numeric base score
+   */
+  private static getPreviewReasonScore(
+    reason: PreviewSchedulerDecisionReason,
+  ): number {
+    switch (reason) {
+      case "focused-item":
+        return 400;
+      case "focus-neighbor":
+        return 240;
+      case "visible-item":
+        return 180;
+      case "recent-focus":
+        return 140;
+      case "background-priority":
+        return 80;
+      case "lower-priority":
+        return 60;
+      case "over-budget":
+        return 40;
+      case "runtime-unsupported":
+        return 20;
+    }
   }
 
   /**
@@ -449,5 +731,96 @@ export class MediaSessionPlanner {
       case "low":
         return 1;
     }
+  }
+
+  /**
+   * @brief Clone preview-farm state for safe inclusion in the shared plan
+   *
+   * @param previewFarmState - Preview-farm state to clone
+   *
+   * @returns Cloned preview-farm state
+   */
+  private static clonePreviewFarmState(
+    previewFarmState: PreviewFarmState,
+  ): PreviewFarmState {
+    return {
+      budget: {
+        maxWarmSessions: previewFarmState.budget.maxWarmSessions,
+        maxActivePreviewSessions:
+          previewFarmState.budget.maxActivePreviewSessions,
+        maxHiddenSessions: previewFarmState.budget.maxHiddenSessions,
+        maxPreviewReuseMs: previewFarmState.budget.maxPreviewReuseMs,
+        maxPreviewOverlapMs: previewFarmState.budget.maxPreviewOverlapMs,
+        keepWarmAfterBlurMs: previewFarmState.budget.keepWarmAfterBlurMs,
+      },
+      candidates: previewFarmState.candidates.map(
+        (previewCandidate: PreviewCandidate): PreviewCandidate => ({
+          candidateId: previewCandidate.candidateId,
+          sessionId: previewCandidate.sessionId,
+          itemId: previewCandidate.itemId,
+          source: {
+            sourceId: previewCandidate.source.sourceId,
+            kind: previewCandidate.source.kind,
+            url: previewCandidate.source.url,
+            mimeType: previewCandidate.source.mimeType,
+            posterUrl: previewCandidate.source.posterUrl,
+          },
+          rowIndex: previewCandidate.rowIndex,
+          itemIndex: previewCandidate.itemIndex,
+          reason: previewCandidate.reason,
+          score: {
+            reason: previewCandidate.score.reason,
+            baseValue: previewCandidate.score.baseValue,
+            reuseBonus: previewCandidate.score.reuseBonus,
+            totalValue: previewCandidate.score.totalValue,
+          },
+          currentWarmState: previewCandidate.currentWarmState,
+          focusStartedAtMs: previewCandidate.focusStartedAtMs,
+          lastFocusedAtMs: previewCandidate.lastFocusedAtMs,
+        }),
+      ),
+      decisions: previewFarmState.decisions.map(
+        (
+          previewSchedulerDecision: PreviewSchedulerDecision,
+        ): PreviewSchedulerDecision => ({
+          candidateId: previewSchedulerDecision.candidateId,
+          sessionId: previewSchedulerDecision.sessionId,
+          itemId: previewSchedulerDecision.itemId,
+          score: {
+            reason: previewSchedulerDecision.score.reason,
+            baseValue: previewSchedulerDecision.score.baseValue,
+            reuseBonus: previewSchedulerDecision.score.reuseBonus,
+            totalValue: previewSchedulerDecision.score.totalValue,
+          },
+          primaryReason: previewSchedulerDecision.primaryReason,
+          deferredReason: previewSchedulerDecision.deferredReason,
+          evictionReason: previewSchedulerDecision.evictionReason,
+          targetWarmState: previewSchedulerDecision.targetWarmState,
+          shouldWarm: previewSchedulerDecision.shouldWarm,
+          shouldActivate: previewSchedulerDecision.shouldActivate,
+          shouldRetain: previewSchedulerDecision.shouldRetain,
+          shouldEvict: previewSchedulerDecision.shouldEvict,
+          isDeferred: previewSchedulerDecision.isDeferred,
+          retainUntilMs: previewSchedulerDecision.retainUntilMs,
+        }),
+      ),
+      sessionAssignments: previewFarmState.sessionAssignments.map(
+        (
+          previewSessionAssignment,
+        ): (typeof previewFarmState.sessionAssignments)[number] => ({
+          sessionId: previewSessionAssignment.sessionId,
+          itemId: previewSessionAssignment.itemId,
+          slotId: previewSessionAssignment.slotId,
+          warmState: previewSessionAssignment.warmState,
+          isActive: previewSessionAssignment.isActive,
+        }),
+      ),
+      activeSessionIds: [...previewFarmState.activeSessionIds],
+      warmedSessionIds: [...previewFarmState.warmedSessionIds],
+      retainedSessionIds: [...previewFarmState.retainedSessionIds],
+      evictedSessionIds: [...previewFarmState.evictedSessionIds],
+      deferredSessionIds: [...previewFarmState.deferredSessionIds],
+      nextTransitionAtMs: previewFarmState.nextTransitionAtMs,
+    };
   }
 }

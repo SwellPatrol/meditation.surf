@@ -10,6 +10,7 @@ import type { MediaKernelController } from "../kernel/MediaKernelController";
 import type { MediaKernelState } from "../kernel/MediaKernelState";
 import type { MediaPlan } from "../planning/MediaPlan";
 import type { MediaPlanSession } from "../planning/MediaPlanSession";
+import type { PreviewSessionAssignment } from "../preview/PreviewSessionAssignment";
 import type { MediaSessionDescriptor } from "../sessions/MediaSessionDescriptor";
 import type { MediaSourceDescriptor } from "../sources/MediaSourceDescriptor";
 import type { MediaExecutionCommand } from "./MediaExecutionCommand";
@@ -211,12 +212,34 @@ export class MediaExecutionController {
           this.executionSnapshotsBySessionId.get(plannedSession.sessionId)
             ?.state ?? "inactive",
           this.executionSnapshotsBySessionId.get(plannedSession.sessionId)
+            ?.previewSessionAssignment ?? null,
+          this.executionSnapshotsBySessionId.get(plannedSession.sessionId)
             ?.lastCommandType ?? null,
           this.executionSnapshotsBySessionId.get(plannedSession.sessionId)
             ?.failureReason ?? null,
         ),
       );
+    }
 
+    for (const sessionId of [...this.executionSnapshotsBySessionId.keys()]) {
+      if (plannedSessionIds.has(sessionId)) {
+        continue;
+      }
+
+      await this.executeObsoleteSessionCommands(sessionId, runtimeAdapter);
+    }
+
+    for (const plannedSession of currentPlan.sessions) {
+      if (this.shouldDeactivateSession(plannedSession)) {
+        await this.executeSessionCommand(
+          "deactivate-session",
+          plannedSession,
+          runtimeAdapter,
+        );
+      }
+    }
+
+    for (const plannedSession of currentPlan.sessions) {
       if (this.shouldWarmSession(plannedSession)) {
         await this.executeSessionCommand(
           "warm-session",
@@ -232,14 +255,6 @@ export class MediaExecutionController {
           runtimeAdapter,
         );
       }
-    }
-
-    for (const sessionId of [...this.executionSnapshotsBySessionId.keys()]) {
-      if (plannedSessionIds.has(sessionId)) {
-        continue;
-      }
-
-      await this.executeObsoleteSessionCommands(sessionId, runtimeAdapter);
     }
   }
 
@@ -300,6 +315,27 @@ export class MediaExecutionController {
       executionSnapshot.state === "warming-first-frame" ||
       executionSnapshot.state === "ready-first-frame" ||
       executionSnapshot.state === "preview-active"
+    );
+  }
+
+  /**
+   * @brief Determine whether one preview session should pause back to warm-hidden
+   *
+   * @param plannedSession - Planned session being considered
+   *
+   * @returns `true` when a deactivate command should be issued
+   */
+  private shouldDeactivateSession(plannedSession: MediaPlanSession): boolean {
+    if (plannedSession.role !== "preview") {
+      return false;
+    }
+
+    const executionSnapshot: MediaExecutionSnapshot | undefined =
+      this.executionSnapshotsBySessionId.get(plannedSession.sessionId);
+
+    return (
+      plannedSession.desiredWarmth !== "preloaded" &&
+      executionSnapshot?.state === "preview-active"
     );
   }
 
@@ -382,6 +418,7 @@ export class MediaExecutionController {
         plannedSession,
         null,
         "inactive",
+        null,
         null,
         null,
       );
@@ -505,6 +542,11 @@ export class MediaExecutionController {
         plannedSession,
         commandResult.runtimeSessionHandle,
         commandResult.state,
+        this.createPreviewSessionAssignment(
+          plannedSession,
+          commandResult.runtimeSessionHandle,
+          commandResult.state,
+        ),
         commandType,
         commandResult.failureReason,
       );
@@ -742,6 +784,7 @@ export class MediaExecutionController {
     plannedSession: MediaPlanSession | null,
     runtimeSessionHandle: MediaRuntimeSessionHandle | null,
     state: MediaExecutionState,
+    previewSessionAssignment: PreviewSessionAssignment | null,
     lastCommandType: MediaExecutionCommandType | null,
     failureReason: string | null,
   ): MediaExecutionSnapshot {
@@ -751,6 +794,9 @@ export class MediaExecutionController {
       state,
       runtimeSessionHandle:
         this.cloneRuntimeSessionHandle(runtimeSessionHandle),
+      previewSessionAssignment: this.clonePreviewSessionAssignment(
+        previewSessionAssignment,
+      ),
       lastCommandType,
       failureReason,
     };
@@ -794,8 +840,34 @@ export class MediaExecutionController {
       runtimeSessionHandle: this.cloneRuntimeSessionHandle(
         executionSnapshot.runtimeSessionHandle,
       ),
+      previewSessionAssignment: this.clonePreviewSessionAssignment(
+        executionSnapshot.previewSessionAssignment,
+      ),
       lastCommandType: executionSnapshot.lastCommandType,
       failureReason: executionSnapshot.failureReason,
+    };
+  }
+
+  /**
+   * @brief Clone one preview session assignment for read-only state output
+   *
+   * @param previewSessionAssignment - Preview assignment to clone
+   *
+   * @returns Cloned preview assignment, or `null` when absent
+   */
+  private clonePreviewSessionAssignment(
+    previewSessionAssignment: PreviewSessionAssignment | null,
+  ): PreviewSessionAssignment | null {
+    if (previewSessionAssignment === null) {
+      return null;
+    }
+
+    return {
+      sessionId: previewSessionAssignment.sessionId,
+      itemId: previewSessionAssignment.itemId,
+      slotId: previewSessionAssignment.slotId,
+      warmState: previewSessionAssignment.warmState,
+      isActive: previewSessionAssignment.isActive,
     };
   }
 
@@ -898,6 +970,47 @@ export class MediaExecutionController {
           plannedSession.reason.kind,
         ].join("|"),
       )
-      .join("||");
+      .join("||")
+      .concat(":::", JSON.stringify(mediaPlan.previewFarm));
+  }
+
+  /**
+   * @brief Build a preview slot assignment from one runtime command result
+   *
+   * @param plannedSession - Planned preview session receiving runtime work
+   * @param runtimeSessionHandle - Runtime handle returned by the adapter
+   * @param state - Latest execution state reported by the runtime
+   *
+   * @returns Preview session assignment, or `null` when the session is not preview-backed
+   */
+  private createPreviewSessionAssignment(
+    plannedSession: MediaPlanSession,
+    runtimeSessionHandle: MediaRuntimeSessionHandle | null,
+    state: MediaExecutionState,
+  ): PreviewSessionAssignment | null {
+    if (
+      plannedSession.role !== "preview" ||
+      plannedSession.itemId === null ||
+      runtimeSessionHandle === null
+    ) {
+      return null;
+    }
+
+    return {
+      sessionId: plannedSession.sessionId,
+      itemId: plannedSession.itemId,
+      slotId: runtimeSessionHandle.handleId,
+      warmState:
+        state === "preview-active"
+          ? "preview-active"
+          : state === "warming-metadata" || state === "warming-first-frame"
+            ? "warming"
+            : state === "ready-first-frame"
+              ? "ready-first-frame"
+              : state === "disposed"
+                ? "evicted"
+                : "cold",
+      isActive: state === "preview-active",
+    };
   }
 }

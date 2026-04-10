@@ -44,6 +44,14 @@ export class TvExperienceAdapter {
     supportsWebGLFallback: false,
     supportsCustomPipeline: true,
     supportsPremiumPlayback: true,
+    previewSchedulerBudget: {
+      maxWarmSessions: 0,
+      maxActivePreviewSessions: 0,
+      maxHiddenSessions: 0,
+      maxPreviewReuseMs: 1500,
+      maxPreviewOverlapMs: 0,
+      keepWarmAfterBlurMs: 0,
+    },
   };
 
   public readonly appLayoutController: TvAppLayoutController;

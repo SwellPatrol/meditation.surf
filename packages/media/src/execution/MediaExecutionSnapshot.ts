@@ -7,6 +7,7 @@
  */
 
 import type { MediaPlanSession } from "../planning/MediaPlanSession";
+import type { PreviewSessionAssignment } from "../preview/PreviewSessionAssignment";
 import type { MediaExecutionCommandType } from "./MediaExecutionCommandType";
 import type { MediaExecutionState } from "./MediaExecutionState";
 import type { MediaRuntimeSessionHandle } from "./MediaRuntimeSessionHandle";
@@ -19,6 +20,7 @@ export type MediaExecutionSnapshot = {
   planSession: MediaPlanSession | null;
   state: MediaExecutionState;
   runtimeSessionHandle: MediaRuntimeSessionHandle | null;
+  previewSessionAssignment: PreviewSessionAssignment | null;
   lastCommandType: MediaExecutionCommandType | null;
   failureReason: string | null;
 };

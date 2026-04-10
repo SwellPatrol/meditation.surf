@@ -13,6 +13,7 @@ import {
 import type { MediaIntent } from "../intent/MediaIntent";
 import type { MediaKernelController } from "../kernel/MediaKernelController";
 import type { MediaKernelItem } from "../kernel/MediaKernelItem";
+import type { PreviewCandidateInput } from "../preview/PreviewCandidateInput";
 import type { MediaSourceDescriptor } from "../sources/MediaSourceDescriptor";
 import type { MediaThumbnailController } from "../thumbnails/MediaThumbnailController";
 import type {
@@ -104,6 +105,8 @@ export class MediaKernelExperienceBridge<
 > {
   private static readonly FOCUSED_ITEM_RADIUS: number = 2;
   private static readonly FOCUSED_ROW_RADIUS: number = 1;
+  private static readonly MAX_RECENT_FOCUSED_ITEMS: number = 4;
+  private static readonly RECENT_FOCUS_SHELF_MS: number = 30000;
   private static readonly UNFOCUSED_MAX_ITEMS_PER_ROW: number = 4;
   private static readonly UNFOCUSED_MAX_ROWS: number = 2;
 
@@ -113,11 +116,17 @@ export class MediaKernelExperienceBridge<
   private readonly focusDelayController: FocusDelayController;
   private readonly mediaKernelController: MediaKernelController;
   private readonly mediaThumbnailController: MediaThumbnailController | null;
+  private readonly now: () => number;
   private readonly playbackSequenceController: MediaPlaybackSequenceController<TMediaItem>;
+  private readonly recentFocusedPreviewCandidatesByItemId: Map<
+    string,
+    PreviewCandidateInput<TMediaItem>
+  >;
   private readonly unsubscribeCallbacks: Array<() => void>;
 
   private browseFocusState: MediaBrowseFocusState;
   private browseSelectionState: MediaBrowseSelectionState;
+  private currentFocusedPreviewCandidate: PreviewCandidateInput<TMediaItem> | null;
   private focusDelayState: FocusDelayState;
   private playbackSequenceState: MediaPlaybackSequenceState<TMediaItem>;
 
@@ -144,10 +153,16 @@ export class MediaKernelExperienceBridge<
     this.focusDelayController = new FocusDelayController();
     this.mediaKernelController = mediaKernelController;
     this.mediaThumbnailController = mediaThumbnailController;
+    this.now = (): number => Date.now();
     this.playbackSequenceController = playbackSequenceController;
+    this.recentFocusedPreviewCandidatesByItemId = new Map<
+      string,
+      PreviewCandidateInput<TMediaItem>
+    >();
     this.unsubscribeCallbacks = [];
     this.browseFocusState = this.browseFocusController.getState();
     this.browseSelectionState = this.browseSelectionController.getState();
+    this.currentFocusedPreviewCandidate = null;
     this.focusDelayState = this.focusDelayController.getState();
     this.playbackSequenceState = this.playbackSequenceController.getState();
 
@@ -216,6 +231,8 @@ export class MediaKernelExperienceBridge<
     const focusedItem: TMediaItem | null = this.resolveFocusedItem();
     const selectedItem: TMediaItem | null = this.resolveSelectedItem();
     const activeItem: TMediaItem | null = this.playbackSequenceState.activeItem;
+    const previewCandidateInputs: PreviewCandidateInput<TMediaItem>[] =
+      this.resolvePreviewCandidateInputs(focusedItem, selectedItem, activeItem);
     const mediaIntent: MediaIntent = this.createMediaIntent(
       focusedItem,
       selectedItem,
@@ -227,6 +244,8 @@ export class MediaKernelExperienceBridge<
       focusedItem,
       selectedItem,
       activeItem,
+      previewCandidateInputs,
+      this.now(),
     );
     this.syncThumbnailRequests(focusedItem);
   }
@@ -235,9 +254,27 @@ export class MediaKernelExperienceBridge<
    * @brief Sync the currently focused item identifier into the timed-focus controller
    */
   private syncFocusedItemDelayState(): void {
-    const focusedItemId: string | null = this.resolveFocusedItem()?.id ?? null;
+    const nextFocusedPreviewCandidate: PreviewCandidateInput<TMediaItem> | null =
+      this.resolveFocusedPreviewCandidate();
+    const focusedItemId: string | null =
+      nextFocusedPreviewCandidate?.mediaItem.id ?? null;
 
+    this.rememberRecentFocusCandidate(nextFocusedPreviewCandidate);
     this.focusDelayController.setFocusedItemId(focusedItemId);
+    this.focusDelayState = this.focusDelayController.getState();
+    this.currentFocusedPreviewCandidate =
+      nextFocusedPreviewCandidate === null
+        ? null
+        : {
+            mediaItem: nextFocusedPreviewCandidate.mediaItem,
+            rowIndex: nextFocusedPreviewCandidate.rowIndex,
+            itemIndex: nextFocusedPreviewCandidate.itemIndex,
+            reason: "focused-item",
+            focusStartedAtMs: this.focusDelayState.focusStartedAtMs,
+            lastFocusedAtMs:
+              this.focusDelayState.focusStartedAtMs ?? this.now(),
+          };
+    this.pruneRecentFocusedPreviewCandidates();
     this.syncMediaKernelPlanningContext();
   }
 
@@ -467,6 +504,288 @@ export class MediaKernelExperienceBridge<
         targetHeight: null,
       },
     };
+  }
+
+  /**
+   * @brief Resolve browse-driven preview candidates for the shared scheduler
+   *
+   * @param focusedItem - Focused media item when one exists
+   * @param selectedItem - Selected media item when one exists
+   * @param activeItem - Active playback item when one exists
+   *
+   * @returns Ordered preview candidates for focus, neighbors, and recent focus
+   */
+  private resolvePreviewCandidateInputs(
+    focusedItem: TMediaItem | null,
+    selectedItem: TMediaItem | null,
+    activeItem: TMediaItem | null,
+  ): PreviewCandidateInput<TMediaItem>[] {
+    const previewCandidateInputs: PreviewCandidateInput<TMediaItem>[] = [];
+    const seenItemIds: Set<string> = new Set<string>();
+
+    if (
+      focusedItem !== null &&
+      focusedItem.id !== selectedItem?.id &&
+      focusedItem.id !== activeItem?.id
+    ) {
+      this.appendPreviewCandidateInput(previewCandidateInputs, seenItemIds, {
+        mediaItem: focusedItem,
+        rowIndex: this.browseFocusState.activeRowIndex,
+        itemIndex:
+          this.browseFocusState.activeItemIndexByRow[
+            this.browseFocusState.activeRowIndex
+          ] ?? 0,
+        reason: "focused-item",
+        focusStartedAtMs: this.focusDelayState.focusStartedAtMs,
+        lastFocusedAtMs: this.focusDelayState.focusStartedAtMs ?? this.now(),
+      });
+      this.appendFocusedNeighborPreviewCandidates(
+        previewCandidateInputs,
+        seenItemIds,
+      );
+    }
+
+    const recentPreviewCandidates: PreviewCandidateInput<TMediaItem>[] = [
+      ...this.recentFocusedPreviewCandidatesByItemId.values(),
+    ].sort(
+      (
+        leftPreviewCandidateInput: PreviewCandidateInput<TMediaItem>,
+        rightPreviewCandidateInput: PreviewCandidateInput<TMediaItem>,
+      ): number =>
+        (rightPreviewCandidateInput.lastFocusedAtMs ?? 0) -
+        (leftPreviewCandidateInput.lastFocusedAtMs ?? 0),
+    );
+
+    for (const recentPreviewCandidate of recentPreviewCandidates) {
+      if (
+        recentPreviewCandidate.mediaItem.id === selectedItem?.id ||
+        recentPreviewCandidate.mediaItem.id === activeItem?.id
+      ) {
+        continue;
+      }
+
+      this.appendPreviewCandidateInput(
+        previewCandidateInputs,
+        seenItemIds,
+        recentPreviewCandidate,
+      );
+    }
+
+    return previewCandidateInputs;
+  }
+
+  /**
+   * @brief Add immediate row neighbors beside the focused item as warm candidates
+   *
+   * @param previewCandidateInputs - Ordered preview candidate list being built
+   * @param seenItemIds - Dedupe set keyed by media item identifier
+   */
+  private appendFocusedNeighborPreviewCandidates(
+    previewCandidateInputs: PreviewCandidateInput<TMediaItem>[],
+    seenItemIds: Set<string>,
+  ): void {
+    if (!this.browseFocusState.hasFocusedItem) {
+      return;
+    }
+
+    const rowIndex: number = this.browseFocusState.activeRowIndex;
+    const focusedItemIndex: number =
+      this.browseFocusState.activeItemIndexByRow[rowIndex] ?? 0;
+
+    this.appendPreviewCandidateFromBrowsePosition(
+      previewCandidateInputs,
+      seenItemIds,
+      rowIndex,
+      focusedItemIndex - 1,
+      "focus-neighbor",
+    );
+    this.appendPreviewCandidateFromBrowsePosition(
+      previewCandidateInputs,
+      seenItemIds,
+      rowIndex,
+      focusedItemIndex + 1,
+      "focus-neighbor",
+    );
+  }
+
+  /**
+   * @brief Append one preview candidate resolved from a concrete browse position
+   *
+   * @param previewCandidateInputs - Ordered preview candidate list being built
+   * @param seenItemIds - Dedupe set keyed by media item identifier
+   * @param rowIndex - Browse row containing the candidate
+   * @param itemIndex - Browse item position inside the row
+   * @param reason - Scheduler reason assigned to the candidate
+   */
+  private appendPreviewCandidateFromBrowsePosition(
+    previewCandidateInputs: PreviewCandidateInput<TMediaItem>[],
+    seenItemIds: Set<string>,
+    rowIndex: number,
+    itemIndex: number,
+    reason: Extract<
+      PreviewCandidateInput<TMediaItem>["reason"],
+      "focus-neighbor" | "visible-item"
+    >,
+  ): void {
+    if (
+      itemIndex < 0 ||
+      itemIndex >= this.browseContentAdapter.getItemCountAtRow(rowIndex)
+    ) {
+      return;
+    }
+
+    const mediaItem: TMediaItem | null =
+      this.browseContentAdapter.getMediaItemAt(rowIndex, itemIndex);
+
+    if (mediaItem === null) {
+      return;
+    }
+
+    this.appendPreviewCandidateInput(previewCandidateInputs, seenItemIds, {
+      mediaItem,
+      rowIndex,
+      itemIndex,
+      reason,
+      focusStartedAtMs: null,
+      lastFocusedAtMs: this.now(),
+    });
+  }
+
+  /**
+   * @brief Append one preview candidate when it has not already been emitted
+   *
+   * @param previewCandidateInputs - Ordered preview candidate list being built
+   * @param seenItemIds - Dedupe set keyed by media item identifier
+   * @param previewCandidateInput - Candidate to append
+   */
+  private appendPreviewCandidateInput(
+    previewCandidateInputs: PreviewCandidateInput<TMediaItem>[],
+    seenItemIds: Set<string>,
+    previewCandidateInput: PreviewCandidateInput<TMediaItem>,
+  ): void {
+    if (seenItemIds.has(previewCandidateInput.mediaItem.id)) {
+      return;
+    }
+
+    seenItemIds.add(previewCandidateInput.mediaItem.id);
+    previewCandidateInputs.push({
+      mediaItem: previewCandidateInput.mediaItem,
+      rowIndex: previewCandidateInput.rowIndex,
+      itemIndex: previewCandidateInput.itemIndex,
+      reason: previewCandidateInput.reason,
+      focusStartedAtMs: previewCandidateInput.focusStartedAtMs,
+      lastFocusedAtMs: previewCandidateInput.lastFocusedAtMs,
+    });
+  }
+
+  /**
+   * @brief Resolve the focused browse item into a preview candidate seed
+   *
+   * @returns Focused preview candidate, or `null` when browse focus is absent
+   */
+  private resolveFocusedPreviewCandidate(): PreviewCandidateInput<TMediaItem> | null {
+    if (!this.browseFocusState.hasFocusedItem) {
+      return null;
+    }
+
+    const rowIndex: number = this.browseFocusState.activeRowIndex;
+    const itemIndex: number =
+      this.browseFocusState.activeItemIndexByRow[rowIndex] ?? 0;
+    const mediaItem: TMediaItem | null =
+      this.browseContentAdapter.getMediaItemAt(rowIndex, itemIndex);
+
+    if (mediaItem === null) {
+      return null;
+    }
+
+    return {
+      mediaItem,
+      rowIndex,
+      itemIndex,
+      reason: "focused-item",
+      focusStartedAtMs: this.focusDelayState.focusStartedAtMs,
+      lastFocusedAtMs: this.focusDelayState.focusStartedAtMs,
+    };
+  }
+
+  /**
+   * @brief Preserve the previously focused item as a short-lived reuse candidate
+   *
+   * @param nextFocusedPreviewCandidate - Next currently focused preview candidate
+   */
+  private rememberRecentFocusCandidate(
+    nextFocusedPreviewCandidate: PreviewCandidateInput<TMediaItem> | null,
+  ): void {
+    const previousFocusedPreviewCandidate: PreviewCandidateInput<TMediaItem> | null =
+      this.currentFocusedPreviewCandidate;
+    const nowMs: number = this.now();
+
+    if (
+      previousFocusedPreviewCandidate !== null &&
+      previousFocusedPreviewCandidate.mediaItem.id !==
+        nextFocusedPreviewCandidate?.mediaItem.id
+    ) {
+      this.recentFocusedPreviewCandidatesByItemId.set(
+        previousFocusedPreviewCandidate.mediaItem.id,
+        {
+          mediaItem: previousFocusedPreviewCandidate.mediaItem,
+          rowIndex: previousFocusedPreviewCandidate.rowIndex,
+          itemIndex: previousFocusedPreviewCandidate.itemIndex,
+          reason: "recent-focus",
+          focusStartedAtMs: previousFocusedPreviewCandidate.focusStartedAtMs,
+          lastFocusedAtMs: nowMs,
+        },
+      );
+    }
+
+    if (nextFocusedPreviewCandidate !== null) {
+      this.recentFocusedPreviewCandidatesByItemId.delete(
+        nextFocusedPreviewCandidate.mediaItem.id,
+      );
+    }
+  }
+
+  /**
+   * @brief Bound the retained recent-focus list so the bridge stays lightweight
+   */
+  private pruneRecentFocusedPreviewCandidates(): void {
+    const nowMs: number = this.now();
+    const sortedRecentPreviewCandidates: PreviewCandidateInput<TMediaItem>[] = [
+      ...this.recentFocusedPreviewCandidatesByItemId.values(),
+    ].sort(
+      (
+        leftPreviewCandidateInput: PreviewCandidateInput<TMediaItem>,
+        rightPreviewCandidateInput: PreviewCandidateInput<TMediaItem>,
+      ): number =>
+        (rightPreviewCandidateInput.lastFocusedAtMs ?? 0) -
+        (leftPreviewCandidateInput.lastFocusedAtMs ?? 0),
+    );
+
+    this.recentFocusedPreviewCandidatesByItemId.clear();
+
+    for (
+      let previewCandidateIndex: number = 0;
+      previewCandidateIndex < sortedRecentPreviewCandidates.length;
+      previewCandidateIndex += 1
+    ) {
+      const previewCandidateInput: PreviewCandidateInput<TMediaItem> =
+        sortedRecentPreviewCandidates[previewCandidateIndex];
+      const lastFocusedAgeMs: number =
+        nowMs - (previewCandidateInput.lastFocusedAtMs ?? nowMs);
+
+      if (
+        previewCandidateIndex >=
+          MediaKernelExperienceBridge.MAX_RECENT_FOCUSED_ITEMS ||
+        lastFocusedAgeMs > MediaKernelExperienceBridge.RECENT_FOCUS_SHELF_MS
+      ) {
+        continue;
+      }
+
+      this.recentFocusedPreviewCandidatesByItemId.set(
+        previewCandidateInput.mediaItem.id,
+        previewCandidateInput,
+      );
+    }
   }
 
   /**
