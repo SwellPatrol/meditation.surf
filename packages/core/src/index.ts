@@ -9,6 +9,7 @@
 export { DemoExperienceFactory } from "./bootstrap/DemoExperienceFactory";
 export { MeditationExperience } from "./experience/MeditationExperience";
 export {
+  CapabilityOracle,
   CommittedPlaybackChooser,
   FocusDelayController,
   MediaExecutionController,
@@ -16,8 +17,12 @@ export {
   MediaKernelExperienceBridge,
   MediaThumbnailController,
   MediaSessionPlanner,
+  VariantPolicy,
   type AudioActivationMode,
   type AppMediaCapabilities,
+  type CapabilityDecision,
+  type CapabilityDecisionReason,
+  type CapabilityProbeResult,
   type CommittedPlaybackChooserInput,
   type CommittedPlaybackDecision,
   type CommittedPlaybackDecisionReason,
@@ -51,9 +56,12 @@ export {
   type MediaPlaybackLane,
   type MediaPlaybackSequenceController,
   type MediaPlaybackSequenceState,
+  type MediaRoleCapabilityRequest,
+  type MediaRoleCapabilitySnapshot,
   type MediaRendererKind,
   type MediaRuntimeAdapter,
   type MediaRuntimeCapabilities,
+  type MediaRuntimeSupportLevel,
   type MediaRuntimeSessionHandle,
   type MediaSessionDescriptor,
   type MediaSessionPlannerInput,
@@ -88,6 +96,11 @@ export {
   type PreviewSchedulerDecisionReason,
   type PreviewSessionAssignment,
   type PreviewWarmState,
+  type VariantQualityTier,
+  type VariantRolePolicy,
+  type VariantSelectionDecision,
+  type VariantSelectionReason,
+  type VariantSelectionRequest,
   type MediaWarmth,
 } from "@meditation-surf/media";
 export { MediaSourceDescriptorFactory } from "./catalog/MediaSourceDescriptorFactory";

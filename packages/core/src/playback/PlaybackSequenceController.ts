@@ -186,10 +186,14 @@ export class PlaybackSequenceController {
 
     return {
       mode: committedPlaybackDecision.mode,
+      capabilitySnapshot: committedPlaybackDecision.capabilitySnapshot,
+      qualitySelection: committedPlaybackDecision.qualitySelection,
+      preferredLaneOrder: [...committedPlaybackDecision.preferredLaneOrder],
       preferredLane: committedPlaybackDecision.preferredLane,
       chosenLane: committedPlaybackDecision.chosenLane,
       preferredRendererKind: committedPlaybackDecision.preferredRendererKind,
       fallbackOrder: [...committedPlaybackDecision.fallbackOrder],
+      premiumPlaybackViable: committedPlaybackDecision.premiumPlaybackViable,
       reasons: [...committedPlaybackDecision.reasons],
       reasonDetails: [...committedPlaybackDecision.reasonDetails],
       audioActivationMode: committedPlaybackDecision.audioActivationMode,
@@ -222,6 +226,12 @@ export class PlaybackSequenceController {
     return (
       leftCommittedPlaybackDecision.mode ===
         rightCommittedPlaybackDecision.mode &&
+      JSON.stringify(leftCommittedPlaybackDecision.capabilitySnapshot) ===
+        JSON.stringify(rightCommittedPlaybackDecision.capabilitySnapshot) &&
+      JSON.stringify(leftCommittedPlaybackDecision.qualitySelection) ===
+        JSON.stringify(rightCommittedPlaybackDecision.qualitySelection) &&
+      JSON.stringify(leftCommittedPlaybackDecision.preferredLaneOrder) ===
+        JSON.stringify(rightCommittedPlaybackDecision.preferredLaneOrder) &&
       leftCommittedPlaybackDecision.preferredLane ===
         rightCommittedPlaybackDecision.preferredLane &&
       leftCommittedPlaybackDecision.chosenLane ===
@@ -234,6 +244,8 @@ export class PlaybackSequenceController {
         rightCommittedPlaybackDecision.usedPreferredLane &&
       leftCommittedPlaybackDecision.usedFallbackLane ===
         rightCommittedPlaybackDecision.usedFallbackLane &&
+      leftCommittedPlaybackDecision.premiumPlaybackViable ===
+        rightCommittedPlaybackDecision.premiumPlaybackViable &&
       leftCommittedPlaybackDecision.lanePreference ===
         rightCommittedPlaybackDecision.lanePreference &&
       leftCommittedPlaybackDecision.startPositionSeconds ===

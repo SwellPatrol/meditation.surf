@@ -12,6 +12,7 @@ import type {
   MediaExecutionCommand,
   MediaExecutionResult,
   MediaItem,
+  MediaPlaybackLane,
   MediaRuntimeAdapter,
   MediaRuntimeCapabilities,
   MediaRuntimeSessionHandle,
@@ -254,10 +255,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         previewRuntimeSession,
         plannedSession,
       );
-      await this.loadPreviewSource(
-        previewRuntimeSession,
-        plannedSession.source,
-      );
+      await this.loadPreviewSource(previewRuntimeSession, plannedSession);
       previewRuntimeSession.videoElement?.pause();
       previewRuntimeSession.state = "ready-first-frame";
 
@@ -860,25 +858,40 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
    * @brief Load the preview source and wait until the first frame is ready
    *
    * @param previewRuntimeSession - Preview slot receiving the source
-   * @param sourceDescriptor - Shared source descriptor for the focused item
+   * @param plannedSession - Planned preview session carrying lane hints
    */
   private async loadPreviewSource(
     previewRuntimeSession: ManagedPreviewRuntimeSession,
-    sourceDescriptor: MediaSourceDescriptor,
+    plannedSession: NonNullable<MediaExecutionCommand["session"]>,
   ): Promise<void> {
+    const sourceDescriptor: MediaSourceDescriptor | null =
+      plannedSession.source;
     const videoElement: HTMLVideoElement = this.ensurePreviewVideoElement(
       previewRuntimeSession,
     );
+    const orderedLaneHints: MediaPlaybackLane[] = [
+      plannedSession.desiredPlaybackLane,
+      ...plannedSession.fallbackPlaybackLaneOrder,
+    ].filter(
+      (lane: MediaPlaybackLane | null): lane is MediaPlaybackLane =>
+        lane !== null,
+    );
+
+    if (sourceDescriptor === null) {
+      throw new Error("Web preview warm requires a source descriptor.");
+    }
+
     const playbackMimeType: string =
       sourceDescriptor.mimeType ?? "application/x-mpegURL";
     const canUseNativeHlsPlayback: boolean =
       videoElement.canPlayType(playbackMimeType) !== "";
+    const prefersShaka: boolean = orderedLaneHints[0] === "shaka";
     const readyForFirstFramePromise: Promise<void> =
       this.waitForLoadedData(videoElement);
 
     videoElement.poster = sourceDescriptor.posterUrl ?? "";
 
-    if (canUseNativeHlsPlayback) {
+    if (canUseNativeHlsPlayback && !prefersShaka) {
       videoElement.src = sourceDescriptor.url;
       videoElement.load();
       await readyForFirstFramePromise;
@@ -891,6 +904,13 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
 
     shaka.polyfill.installAll();
     if (!shaka.Player.isBrowserSupported()) {
+      if (canUseNativeHlsPlayback) {
+        videoElement.src = sourceDescriptor.url;
+        videoElement.load();
+        await readyForFirstFramePromise;
+        return;
+      }
+
       throw new Error("Shaka Player is not supported in this browser.");
     }
 

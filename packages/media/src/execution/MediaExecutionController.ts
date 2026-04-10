@@ -997,10 +997,239 @@ export class MediaExecutionController {
       },
       decision: {
         mode: committedPlayback.decision.mode,
+        capabilitySnapshot: {
+          cacheKey: committedPlayback.decision.capabilitySnapshot.cacheKey,
+          request: {
+            role: committedPlayback.decision.capabilitySnapshot.request.role,
+            appCapabilityProfile:
+              committedPlayback.decision.capabilitySnapshot.request
+                .appCapabilityProfile === null
+                ? null
+                : {
+                    supportsNativePlayback:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .appCapabilityProfile.supportsNativePlayback,
+                    supportsShakaPlayback:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .appCapabilityProfile.supportsShakaPlayback,
+                    supportsPreviewVideo:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .appCapabilityProfile.supportsPreviewVideo,
+                    supportsThumbnailExtraction:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .appCapabilityProfile.supportsThumbnailExtraction,
+                    supportsWorkerOffload:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .appCapabilityProfile.supportsWorkerOffload,
+                    supportsWebGPUPreferred:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .appCapabilityProfile.supportsWebGPUPreferred,
+                    supportsWebGLFallback:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .appCapabilityProfile.supportsWebGLFallback,
+                    supportsCustomPipeline:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .appCapabilityProfile.supportsCustomPipeline,
+                    supportsPremiumPlayback:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .appCapabilityProfile.supportsPremiumPlayback,
+                    previewSchedulerBudget: {
+                      maxWarmSessions:
+                        committedPlayback.decision.capabilitySnapshot.request
+                          .appCapabilityProfile.previewSchedulerBudget
+                          .maxWarmSessions,
+                      maxActivePreviewSessions:
+                        committedPlayback.decision.capabilitySnapshot.request
+                          .appCapabilityProfile.previewSchedulerBudget
+                          .maxActivePreviewSessions,
+                      maxHiddenSessions:
+                        committedPlayback.decision.capabilitySnapshot.request
+                          .appCapabilityProfile.previewSchedulerBudget
+                          .maxHiddenSessions,
+                      maxPreviewReuseMs:
+                        committedPlayback.decision.capabilitySnapshot.request
+                          .appCapabilityProfile.previewSchedulerBudget
+                          .maxPreviewReuseMs,
+                      maxPreviewOverlapMs:
+                        committedPlayback.decision.capabilitySnapshot.request
+                          .appCapabilityProfile.previewSchedulerBudget
+                          .maxPreviewOverlapMs,
+                      keepWarmAfterBlurMs:
+                        committedPlayback.decision.capabilitySnapshot.request
+                          .appCapabilityProfile.previewSchedulerBudget
+                          .keepWarmAfterBlurMs,
+                    },
+                  },
+            runtimeCapabilities:
+              committedPlayback.decision.capabilitySnapshot.request
+                .runtimeCapabilities === null
+                ? null
+                : {
+                    canWarmFirstFrame:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .runtimeCapabilities.canWarmFirstFrame,
+                    canActivateBackground:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .runtimeCapabilities.canActivateBackground,
+                    canPreviewInline:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .runtimeCapabilities.canPreviewInline,
+                    canKeepHiddenWarmSession:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .runtimeCapabilities.canKeepHiddenWarmSession,
+                    canPromoteWarmSession:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .runtimeCapabilities.canPromoteWarmSession,
+                    canRunMultipleWarmSessions:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .runtimeCapabilities.canRunMultipleWarmSessions,
+                    supportsCommittedPlayback:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .runtimeCapabilities.supportsCommittedPlayback,
+                    supportsCommittedPlaybackAudio:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .runtimeCapabilities.supportsCommittedPlaybackAudio,
+                    supportsFallbackStereoAudio:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .runtimeCapabilities.supportsFallbackStereoAudio,
+                    supportsPremiumCommittedPlayback:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .runtimeCapabilities.supportsPremiumCommittedPlayback,
+                    supportsPremiumAudioActivation:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .runtimeCapabilities.supportsPremiumAudioActivation,
+                    committedPlaybackLanePreference:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .runtimeCapabilities.committedPlaybackLanePreference,
+                    committedPlaybackLanes: [
+                      ...committedPlayback.decision.capabilitySnapshot.request
+                        .runtimeCapabilities.committedPlaybackLanes,
+                    ],
+                    existingBackgroundPlaybackLane:
+                      committedPlayback.decision.capabilitySnapshot.request
+                        .runtimeCapabilities.existingBackgroundPlaybackLane,
+                    previewSchedulerBudget: {
+                      maxWarmSessions:
+                        committedPlayback.decision.capabilitySnapshot.request
+                          .runtimeCapabilities.previewSchedulerBudget
+                          .maxWarmSessions,
+                      maxActivePreviewSessions:
+                        committedPlayback.decision.capabilitySnapshot.request
+                          .runtimeCapabilities.previewSchedulerBudget
+                          .maxActivePreviewSessions,
+                      maxHiddenSessions:
+                        committedPlayback.decision.capabilitySnapshot.request
+                          .runtimeCapabilities.previewSchedulerBudget
+                          .maxHiddenSessions,
+                      maxPreviewReuseMs:
+                        committedPlayback.decision.capabilitySnapshot.request
+                          .runtimeCapabilities.previewSchedulerBudget
+                          .maxPreviewReuseMs,
+                      maxPreviewOverlapMs:
+                        committedPlayback.decision.capabilitySnapshot.request
+                          .runtimeCapabilities.previewSchedulerBudget
+                          .maxPreviewOverlapMs,
+                      keepWarmAfterBlurMs:
+                        committedPlayback.decision.capabilitySnapshot.request
+                          .runtimeCapabilities.previewSchedulerBudget
+                          .keepWarmAfterBlurMs,
+                    },
+                  },
+            preferredLaneHint:
+              committedPlayback.decision.capabilitySnapshot.request
+                .preferredLaneHint,
+            preferredRendererKindHint:
+              committedPlayback.decision.capabilitySnapshot.request
+                .preferredRendererKindHint,
+            existingChosenLane:
+              committedPlayback.decision.capabilitySnapshot.request
+                .existingChosenLane,
+            runtimeLanePreference:
+              committedPlayback.decision.capabilitySnapshot.request
+                .runtimeLanePreference,
+          },
+          probeResult: {
+            overallSupportLevel:
+              committedPlayback.decision.capabilitySnapshot.probeResult
+                .overallSupportLevel,
+            nativeLaneSupportLevel:
+              committedPlayback.decision.capabilitySnapshot.probeResult
+                .nativeLaneSupportLevel,
+            shakaLaneSupportLevel:
+              committedPlayback.decision.capabilitySnapshot.probeResult
+                .shakaLaneSupportLevel,
+            customLaneSupportLevel:
+              committedPlayback.decision.capabilitySnapshot.probeResult
+                .customLaneSupportLevel,
+            nativeRendererSupportLevel:
+              committedPlayback.decision.capabilitySnapshot.probeResult
+                .nativeRendererSupportLevel,
+            webgpuRendererSupportLevel:
+              committedPlayback.decision.capabilitySnapshot.probeResult
+                .webgpuRendererSupportLevel,
+            webglRendererSupportLevel:
+              committedPlayback.decision.capabilitySnapshot.probeResult
+                .webglRendererSupportLevel,
+            premiumPlaybackSupportLevel:
+              committedPlayback.decision.capabilitySnapshot.probeResult
+                .premiumPlaybackSupportLevel,
+            workerOffloadSupportLevel:
+              committedPlayback.decision.capabilitySnapshot.probeResult
+                .workerOffloadSupportLevel,
+          },
+          decision: {
+            supportLevel:
+              committedPlayback.decision.capabilitySnapshot.decision
+                .supportLevel,
+            preferredLaneOrder: [
+              ...committedPlayback.decision.capabilitySnapshot.decision
+                .preferredLaneOrder,
+            ],
+            preferredFallbackLaneOrder: [
+              ...committedPlayback.decision.capabilitySnapshot.decision
+                .preferredFallbackLaneOrder,
+            ],
+            preferredRendererOrder: [
+              ...committedPlayback.decision.capabilitySnapshot.decision
+                .preferredRendererOrder,
+            ],
+            premiumPlaybackViable:
+              committedPlayback.decision.capabilitySnapshot.decision
+                .premiumPlaybackViable,
+            workerOffloadViable:
+              committedPlayback.decision.capabilitySnapshot.decision
+                .workerOffloadViable,
+            reasons: [
+              ...committedPlayback.decision.capabilitySnapshot.decision.reasons,
+            ],
+            notes: [
+              ...committedPlayback.decision.capabilitySnapshot.decision.notes,
+            ],
+          },
+        },
+        qualitySelection: {
+          role: committedPlayback.decision.qualitySelection.role,
+          desiredQualityTier:
+            committedPlayback.decision.qualitySelection.desiredQualityTier,
+          preferStartupLatency:
+            committedPlayback.decision.qualitySelection.preferStartupLatency,
+          preferImageQuality:
+            committedPlayback.decision.qualitySelection.preferImageQuality,
+          preferPremiumPlayback:
+            committedPlayback.decision.qualitySelection.preferPremiumPlayback,
+          maxWidth: committedPlayback.decision.qualitySelection.maxWidth,
+          maxHeight: committedPlayback.decision.qualitySelection.maxHeight,
+          maxBandwidth:
+            committedPlayback.decision.qualitySelection.maxBandwidth,
+          reasons: [...committedPlayback.decision.qualitySelection.reasons],
+          notes: [...committedPlayback.decision.qualitySelection.notes],
+        },
+        preferredLaneOrder: [...committedPlayback.decision.preferredLaneOrder],
         preferredLane: committedPlayback.decision.preferredLane,
         chosenLane: committedPlayback.decision.chosenLane,
         preferredRendererKind: committedPlayback.decision.preferredRendererKind,
         fallbackOrder: [...committedPlayback.decision.fallbackOrder],
+        premiumPlaybackViable: committedPlayback.decision.premiumPlaybackViable,
         reasons: [...committedPlayback.decision.reasons],
         reasonDetails: [...committedPlayback.decision.reasonDetails],
         audioActivationMode: committedPlayback.decision.audioActivationMode,
@@ -1051,7 +1280,10 @@ export class MediaExecutionController {
       itemId: plannedSession.itemId,
       source: this.cloneSourceDescriptor(plannedSession.source),
       role: plannedSession.role,
+      capabilitySnapshot: plannedSession.capabilitySnapshot,
+      fallbackPlaybackLaneOrder: [...plannedSession.fallbackPlaybackLaneOrder],
       desiredPlaybackLane: plannedSession.desiredPlaybackLane,
+      variantSelection: plannedSession.variantSelection,
       desiredRendererKind: plannedSession.desiredRendererKind,
       desiredWarmth: plannedSession.desiredWarmth,
       priority: plannedSession.priority,
@@ -1322,6 +1554,12 @@ export class MediaExecutionController {
     return (
       leftCommittedPlaybackDecision.mode ===
         rightCommittedPlaybackDecision.mode &&
+      JSON.stringify(leftCommittedPlaybackDecision.capabilitySnapshot) ===
+        JSON.stringify(rightCommittedPlaybackDecision.capabilitySnapshot) &&
+      JSON.stringify(leftCommittedPlaybackDecision.qualitySelection) ===
+        JSON.stringify(rightCommittedPlaybackDecision.qualitySelection) &&
+      JSON.stringify(leftCommittedPlaybackDecision.preferredLaneOrder) ===
+        JSON.stringify(rightCommittedPlaybackDecision.preferredLaneOrder) &&
       leftCommittedPlaybackDecision.preferredLane ===
         rightCommittedPlaybackDecision.preferredLane &&
       leftCommittedPlaybackDecision.chosenLane ===
@@ -1334,6 +1572,8 @@ export class MediaExecutionController {
         rightCommittedPlaybackDecision.usedPreferredLane &&
       leftCommittedPlaybackDecision.usedFallbackLane ===
         rightCommittedPlaybackDecision.usedFallbackLane &&
+      leftCommittedPlaybackDecision.premiumPlaybackViable ===
+        rightCommittedPlaybackDecision.premiumPlaybackViable &&
       leftCommittedPlaybackDecision.lanePreference ===
         rightCommittedPlaybackDecision.lanePreference &&
       leftCommittedPlaybackDecision.startPositionSeconds ===
@@ -1362,7 +1602,10 @@ export class MediaExecutionController {
           plannedSession.itemId ?? "null",
           plannedSession.source?.sourceId ?? "null",
           plannedSession.role,
+          JSON.stringify(plannedSession.capabilitySnapshot),
+          JSON.stringify(plannedSession.fallbackPlaybackLaneOrder),
           plannedSession.desiredPlaybackLane ?? "null",
+          JSON.stringify(plannedSession.variantSelection),
           plannedSession.desiredRendererKind,
           plannedSession.desiredWarmth,
           plannedSession.priority,

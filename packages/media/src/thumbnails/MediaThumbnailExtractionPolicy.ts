@@ -6,10 +6,12 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { VariantQualityTier } from "../variant-policy/VariantQualityTier";
+
 /**
  * @brief Shared thumbnail quality intent carried from browse orchestration to runtimes
  */
-export type MediaThumbnailQuality = "low" | "medium" | "high";
+export type MediaThumbnailQuality = VariantQualityTier;
 
 /**
  * @brief Shared thumbnail priority intent used to order pending extraction work

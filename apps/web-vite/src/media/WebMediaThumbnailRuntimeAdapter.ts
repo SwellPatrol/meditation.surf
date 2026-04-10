@@ -407,6 +407,8 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
     qualityHint: MediaThumbnailRequest["qualityHint"],
   ): number {
     switch (qualityHint) {
+      case "premium-attempt":
+        return 0.92;
       case "high":
         return 0.86;
       case "medium":

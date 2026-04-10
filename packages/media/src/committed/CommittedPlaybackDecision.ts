@@ -6,8 +6,10 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { MediaRoleCapabilitySnapshot } from "../capability-oracle/MediaRoleCapabilitySnapshot";
 import type { MediaPlaybackLane } from "../sessions/MediaPlaybackLane";
 import type { MediaRendererKind } from "../sessions/MediaRendererKind";
+import type { VariantSelectionDecision } from "../variant-policy/VariantSelectionDecision";
 import type { AudioActivationMode } from "./AudioActivationMode";
 import type { CommittedPlaybackDecisionReason } from "./CommittedPlaybackDecisionReason";
 import type { CommittedPlaybackLanePreference } from "./CommittedPlaybackLanePreference";
@@ -18,10 +20,14 @@ import type { CommittedPlaybackMode } from "./CommittedPlaybackMode";
  */
 export type CommittedPlaybackDecision = {
   mode: CommittedPlaybackMode;
+  capabilitySnapshot: MediaRoleCapabilitySnapshot;
+  qualitySelection: VariantSelectionDecision;
+  preferredLaneOrder: MediaPlaybackLane[];
   preferredLane: MediaPlaybackLane | null;
   chosenLane: MediaPlaybackLane | null;
   preferredRendererKind: MediaRendererKind | null;
   fallbackOrder: MediaPlaybackLane[];
+  premiumPlaybackViable: boolean;
   reasons: CommittedPlaybackDecisionReason[];
   reasonDetails: string[];
   audioActivationMode: AudioActivationMode;

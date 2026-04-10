@@ -570,6 +570,8 @@ export class MediaThumbnailController {
    */
   private getQualityRank(qualityHint: MediaThumbnailQuality): number {
     switch (qualityHint) {
+      case "premium-attempt":
+        return 4;
       case "high":
         return 3;
       case "medium":
@@ -779,6 +781,18 @@ export class MediaThumbnailController {
       targetWidth: request.targetWidth,
       targetHeight: request.targetHeight,
       timeHintMs: request.timeHintMs,
+      variantSelection: {
+        role: request.variantSelection.role,
+        desiredQualityTier: request.variantSelection.desiredQualityTier,
+        preferStartupLatency: request.variantSelection.preferStartupLatency,
+        preferImageQuality: request.variantSelection.preferImageQuality,
+        preferPremiumPlayback: request.variantSelection.preferPremiumPlayback,
+        maxWidth: request.variantSelection.maxWidth,
+        maxHeight: request.variantSelection.maxHeight,
+        maxBandwidth: request.variantSelection.maxBandwidth,
+        reasons: [...request.variantSelection.reasons],
+        notes: [...request.variantSelection.notes],
+      },
       extractionPolicy: {
         strategy: request.extractionPolicy.strategy,
         quality: request.extractionPolicy.quality,

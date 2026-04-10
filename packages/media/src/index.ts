@@ -8,6 +8,13 @@
 
 export type { AppMediaCapabilities } from "./capabilities/AppMediaCapabilities";
 export type { MediaCapabilityProfile } from "./capabilities/MediaCapabilityProfile";
+export { CapabilityOracle } from "./capability-oracle/CapabilityOracle";
+export type { CapabilityDecision } from "./capability-oracle/CapabilityDecision";
+export type { CapabilityDecisionReason } from "./capability-oracle/CapabilityDecisionReason";
+export type { CapabilityProbeResult } from "./capability-oracle/CapabilityProbeResult";
+export type { MediaRoleCapabilityRequest } from "./capability-oracle/MediaRoleCapabilityRequest";
+export type { MediaRoleCapabilitySnapshot } from "./capability-oracle/MediaRoleCapabilitySnapshot";
+export type { MediaRuntimeSupportLevel } from "./capability-oracle/MediaRuntimeSupportLevel";
 export type { AudioActivationMode } from "./committed/AudioActivationMode";
 export { CommittedPlaybackChooser } from "./committed/CommittedPlaybackChooser";
 export type { CommittedPlaybackChooserInput } from "./committed/CommittedPlaybackChooser";
@@ -102,3 +109,9 @@ export type { MediaThumbnailRuntimeAdapter } from "./thumbnails/MediaThumbnailRu
 export type { MediaThumbnailRuntimeCapabilities } from "./thumbnails/MediaThumbnailRuntimeCapabilities";
 export type { MediaThumbnailSnapshot } from "./thumbnails/MediaThumbnailSnapshot";
 export type { MediaThumbnailState } from "./thumbnails/MediaThumbnailState";
+export { VariantPolicy } from "./variant-policy/VariantPolicy";
+export type { VariantQualityTier } from "./variant-policy/VariantQualityTier";
+export type { VariantRolePolicy } from "./variant-policy/VariantRolePolicy";
+export type { VariantSelectionDecision } from "./variant-policy/VariantSelectionDecision";
+export type { VariantSelectionReason } from "./variant-policy/VariantSelectionReason";
+export type { VariantSelectionRequest } from "./variant-policy/VariantSelectionRequest";

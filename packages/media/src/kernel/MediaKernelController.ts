@@ -725,7 +725,240 @@ export class MediaKernelController {
       itemId: mediaPlanSession.itemId,
       source: this.cloneMediaSourceDescriptor(mediaPlanSession.source),
       role: mediaPlanSession.role,
+      capabilitySnapshot:
+        mediaPlanSession.capabilitySnapshot === null
+          ? null
+          : {
+              cacheKey: mediaPlanSession.capabilitySnapshot.cacheKey,
+              request: {
+                role: mediaPlanSession.capabilitySnapshot.request.role,
+                appCapabilityProfile:
+                  mediaPlanSession.capabilitySnapshot.request
+                    .appCapabilityProfile === null
+                    ? null
+                    : {
+                        supportsNativePlayback:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .appCapabilityProfile.supportsNativePlayback,
+                        supportsShakaPlayback:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .appCapabilityProfile.supportsShakaPlayback,
+                        supportsPreviewVideo:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .appCapabilityProfile.supportsPreviewVideo,
+                        supportsThumbnailExtraction:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .appCapabilityProfile.supportsThumbnailExtraction,
+                        supportsWorkerOffload:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .appCapabilityProfile.supportsWorkerOffload,
+                        supportsWebGPUPreferred:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .appCapabilityProfile.supportsWebGPUPreferred,
+                        supportsWebGLFallback:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .appCapabilityProfile.supportsWebGLFallback,
+                        supportsCustomPipeline:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .appCapabilityProfile.supportsCustomPipeline,
+                        supportsPremiumPlayback:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .appCapabilityProfile.supportsPremiumPlayback,
+                        previewSchedulerBudget: {
+                          maxWarmSessions:
+                            mediaPlanSession.capabilitySnapshot.request
+                              .appCapabilityProfile.previewSchedulerBudget
+                              .maxWarmSessions,
+                          maxActivePreviewSessions:
+                            mediaPlanSession.capabilitySnapshot.request
+                              .appCapabilityProfile.previewSchedulerBudget
+                              .maxActivePreviewSessions,
+                          maxHiddenSessions:
+                            mediaPlanSession.capabilitySnapshot.request
+                              .appCapabilityProfile.previewSchedulerBudget
+                              .maxHiddenSessions,
+                          maxPreviewReuseMs:
+                            mediaPlanSession.capabilitySnapshot.request
+                              .appCapabilityProfile.previewSchedulerBudget
+                              .maxPreviewReuseMs,
+                          maxPreviewOverlapMs:
+                            mediaPlanSession.capabilitySnapshot.request
+                              .appCapabilityProfile.previewSchedulerBudget
+                              .maxPreviewOverlapMs,
+                          keepWarmAfterBlurMs:
+                            mediaPlanSession.capabilitySnapshot.request
+                              .appCapabilityProfile.previewSchedulerBudget
+                              .keepWarmAfterBlurMs,
+                        },
+                      },
+                runtimeCapabilities:
+                  mediaPlanSession.capabilitySnapshot.request
+                    .runtimeCapabilities === null
+                    ? null
+                    : {
+                        canWarmFirstFrame:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities.canWarmFirstFrame,
+                        canActivateBackground:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities.canActivateBackground,
+                        canPreviewInline:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities.canPreviewInline,
+                        canKeepHiddenWarmSession:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities.canKeepHiddenWarmSession,
+                        canPromoteWarmSession:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities.canPromoteWarmSession,
+                        canRunMultipleWarmSessions:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities.canRunMultipleWarmSessions,
+                        supportsCommittedPlayback:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities.supportsCommittedPlayback,
+                        supportsCommittedPlaybackAudio:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities.supportsCommittedPlaybackAudio,
+                        supportsFallbackStereoAudio:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities.supportsFallbackStereoAudio,
+                        supportsPremiumCommittedPlayback:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities
+                            .supportsPremiumCommittedPlayback,
+                        supportsPremiumAudioActivation:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities.supportsPremiumAudioActivation,
+                        committedPlaybackLanePreference:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities
+                            .committedPlaybackLanePreference,
+                        committedPlaybackLanes: [
+                          ...mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities.committedPlaybackLanes,
+                        ],
+                        existingBackgroundPlaybackLane:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities.existingBackgroundPlaybackLane,
+                        previewSchedulerBudget: {
+                          maxWarmSessions:
+                            mediaPlanSession.capabilitySnapshot.request
+                              .runtimeCapabilities.previewSchedulerBudget
+                              .maxWarmSessions,
+                          maxActivePreviewSessions:
+                            mediaPlanSession.capabilitySnapshot.request
+                              .runtimeCapabilities.previewSchedulerBudget
+                              .maxActivePreviewSessions,
+                          maxHiddenSessions:
+                            mediaPlanSession.capabilitySnapshot.request
+                              .runtimeCapabilities.previewSchedulerBudget
+                              .maxHiddenSessions,
+                          maxPreviewReuseMs:
+                            mediaPlanSession.capabilitySnapshot.request
+                              .runtimeCapabilities.previewSchedulerBudget
+                              .maxPreviewReuseMs,
+                          maxPreviewOverlapMs:
+                            mediaPlanSession.capabilitySnapshot.request
+                              .runtimeCapabilities.previewSchedulerBudget
+                              .maxPreviewOverlapMs,
+                          keepWarmAfterBlurMs:
+                            mediaPlanSession.capabilitySnapshot.request
+                              .runtimeCapabilities.previewSchedulerBudget
+                              .keepWarmAfterBlurMs,
+                        },
+                      },
+                preferredLaneHint:
+                  mediaPlanSession.capabilitySnapshot.request.preferredLaneHint,
+                preferredRendererKindHint:
+                  mediaPlanSession.capabilitySnapshot.request
+                    .preferredRendererKindHint,
+                existingChosenLane:
+                  mediaPlanSession.capabilitySnapshot.request
+                    .existingChosenLane,
+                runtimeLanePreference:
+                  mediaPlanSession.capabilitySnapshot.request
+                    .runtimeLanePreference,
+              },
+              probeResult: {
+                overallSupportLevel:
+                  mediaPlanSession.capabilitySnapshot.probeResult
+                    .overallSupportLevel,
+                nativeLaneSupportLevel:
+                  mediaPlanSession.capabilitySnapshot.probeResult
+                    .nativeLaneSupportLevel,
+                shakaLaneSupportLevel:
+                  mediaPlanSession.capabilitySnapshot.probeResult
+                    .shakaLaneSupportLevel,
+                customLaneSupportLevel:
+                  mediaPlanSession.capabilitySnapshot.probeResult
+                    .customLaneSupportLevel,
+                nativeRendererSupportLevel:
+                  mediaPlanSession.capabilitySnapshot.probeResult
+                    .nativeRendererSupportLevel,
+                webgpuRendererSupportLevel:
+                  mediaPlanSession.capabilitySnapshot.probeResult
+                    .webgpuRendererSupportLevel,
+                webglRendererSupportLevel:
+                  mediaPlanSession.capabilitySnapshot.probeResult
+                    .webglRendererSupportLevel,
+                premiumPlaybackSupportLevel:
+                  mediaPlanSession.capabilitySnapshot.probeResult
+                    .premiumPlaybackSupportLevel,
+                workerOffloadSupportLevel:
+                  mediaPlanSession.capabilitySnapshot.probeResult
+                    .workerOffloadSupportLevel,
+              },
+              decision: {
+                supportLevel:
+                  mediaPlanSession.capabilitySnapshot.decision.supportLevel,
+                preferredLaneOrder: [
+                  ...mediaPlanSession.capabilitySnapshot.decision
+                    .preferredLaneOrder,
+                ],
+                preferredFallbackLaneOrder: [
+                  ...mediaPlanSession.capabilitySnapshot.decision
+                    .preferredFallbackLaneOrder,
+                ],
+                preferredRendererOrder: [
+                  ...mediaPlanSession.capabilitySnapshot.decision
+                    .preferredRendererOrder,
+                ],
+                premiumPlaybackViable:
+                  mediaPlanSession.capabilitySnapshot.decision
+                    .premiumPlaybackViable,
+                workerOffloadViable:
+                  mediaPlanSession.capabilitySnapshot.decision
+                    .workerOffloadViable,
+                reasons: [
+                  ...mediaPlanSession.capabilitySnapshot.decision.reasons,
+                ],
+                notes: [...mediaPlanSession.capabilitySnapshot.decision.notes],
+              },
+            },
+      fallbackPlaybackLaneOrder: [
+        ...mediaPlanSession.fallbackPlaybackLaneOrder,
+      ],
       desiredPlaybackLane: mediaPlanSession.desiredPlaybackLane,
+      variantSelection:
+        mediaPlanSession.variantSelection === null
+          ? null
+          : {
+              role: mediaPlanSession.variantSelection.role,
+              desiredQualityTier:
+                mediaPlanSession.variantSelection.desiredQualityTier,
+              preferStartupLatency:
+                mediaPlanSession.variantSelection.preferStartupLatency,
+              preferImageQuality:
+                mediaPlanSession.variantSelection.preferImageQuality,
+              preferPremiumPlayback:
+                mediaPlanSession.variantSelection.preferPremiumPlayback,
+              maxWidth: mediaPlanSession.variantSelection.maxWidth,
+              maxHeight: mediaPlanSession.variantSelection.maxHeight,
+              maxBandwidth: mediaPlanSession.variantSelection.maxBandwidth,
+              reasons: [...mediaPlanSession.variantSelection.reasons],
+              notes: [...mediaPlanSession.variantSelection.notes],
+            },
       desiredRendererKind: mediaPlanSession.desiredRendererKind,
       desiredWarmth: mediaPlanSession.desiredWarmth,
       priority: mediaPlanSession.priority,
@@ -1131,8 +1364,14 @@ export class MediaKernelController {
       leftPlannedSession.sessionId === rightPlannedSession.sessionId &&
       leftPlannedSession.itemId === rightPlannedSession.itemId &&
       leftPlannedSession.role === rightPlannedSession.role &&
+      JSON.stringify(leftPlannedSession.capabilitySnapshot) ===
+        JSON.stringify(rightPlannedSession.capabilitySnapshot) &&
+      JSON.stringify(leftPlannedSession.fallbackPlaybackLaneOrder) ===
+        JSON.stringify(rightPlannedSession.fallbackPlaybackLaneOrder) &&
       leftPlannedSession.desiredPlaybackLane ===
         rightPlannedSession.desiredPlaybackLane &&
+      JSON.stringify(leftPlannedSession.variantSelection) ===
+        JSON.stringify(rightPlannedSession.variantSelection) &&
       leftPlannedSession.desiredRendererKind ===
         rightPlannedSession.desiredRendererKind &&
       leftPlannedSession.desiredWarmth === rightPlannedSession.desiredWarmth &&

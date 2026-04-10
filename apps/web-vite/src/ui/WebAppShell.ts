@@ -270,6 +270,30 @@ export class WebAppShell {
                   targetWidth: thumbnailEntry.request.targetWidth,
                   targetHeight: thumbnailEntry.request.targetHeight,
                   timeHintMs: thumbnailEntry.request.timeHintMs,
+                  variantSelection: {
+                    role: thumbnailEntry.request.variantSelection.role,
+                    desiredQualityTier:
+                      thumbnailEntry.request.variantSelection
+                        .desiredQualityTier,
+                    preferStartupLatency:
+                      thumbnailEntry.request.variantSelection
+                        .preferStartupLatency,
+                    preferImageQuality:
+                      thumbnailEntry.request.variantSelection
+                        .preferImageQuality,
+                    preferPremiumPlayback:
+                      thumbnailEntry.request.variantSelection
+                        .preferPremiumPlayback,
+                    maxWidth: thumbnailEntry.request.variantSelection.maxWidth,
+                    maxHeight:
+                      thumbnailEntry.request.variantSelection.maxHeight,
+                    maxBandwidth:
+                      thumbnailEntry.request.variantSelection.maxBandwidth,
+                    reasons: [
+                      ...thumbnailEntry.request.variantSelection.reasons,
+                    ],
+                    notes: [...thumbnailEntry.request.variantSelection.notes],
+                  },
                   extractionPolicy: {
                     strategy: thumbnailEntry.request.extractionPolicy.strategy,
                     quality: thumbnailEntry.request.extractionPolicy.quality,

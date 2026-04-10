@@ -10,6 +10,7 @@
  * @brief Stable reason codes emitted by the committed playback chooser
  */
 export type CommittedPlaybackDecisionReason =
+  | "capability-oracle"
   | "runtime-prefers-native"
   | "runtime-prefers-shaka"
   | "premium-supported"

@@ -7,6 +7,8 @@
  */
 
 import type { MediaCapabilityProfile } from "../capabilities/MediaCapabilityProfile";
+import { CapabilityOracle } from "../capability-oracle/CapabilityOracle";
+import type { MediaRoleCapabilitySnapshot } from "../capability-oracle/MediaRoleCapabilitySnapshot";
 import type { MediaIntent } from "../intent/MediaIntent";
 import type { MediaKernelItem } from "../kernel/MediaKernelItem";
 import type { MediaKernelState } from "../kernel/MediaKernelState";
@@ -22,9 +24,20 @@ import type { MediaPlaybackLane } from "../sessions/MediaPlaybackLane";
 import type { MediaRendererKind } from "../sessions/MediaRendererKind";
 import type { MediaSessionRole } from "../sessions/MediaSessionRole";
 import type { MediaSourceDescriptor } from "../sources/MediaSourceDescriptor";
+import { VariantPolicy } from "../variant-policy/VariantPolicy";
+import type { VariantRolePolicy } from "../variant-policy/VariantRolePolicy";
+import type { VariantSelectionDecision } from "../variant-policy/VariantSelectionDecision";
 import type { MediaPlan } from "./MediaPlan";
 import type { MediaPlanReason } from "./MediaPlanReason";
 import type { MediaPlanSession } from "./MediaPlanSession";
+
+type PlannedRoleDecision = {
+  capabilitySnapshot: MediaRoleCapabilitySnapshot;
+  fallbackPlaybackLaneOrder: MediaPlaybackLane[];
+  desiredPlaybackLane: MediaPlaybackLane | null;
+  desiredRendererKind: MediaRendererKind;
+  variantSelection: VariantSelectionDecision;
+};
 
 /**
  * @brief Deterministic inputs used to build one shared media session plan
@@ -163,15 +176,24 @@ export class MediaSessionPlanner {
   ): MediaPlanSession {
     const sourceDescriptor: MediaSourceDescriptor =
       createSourceDescriptor(mediaItem);
+    const plannedRoleDecision: PlannedRoleDecision =
+      this.createPlannedRoleDecision(
+        "background-playback",
+        appCapabilityProfile,
+        this.selectBackgroundPlaybackLane(appCapabilityProfile),
+        this.selectRendererKind(appCapabilityProfile),
+      );
 
     return {
       sessionId: this.createSessionId("background", sourceDescriptor),
       itemId: mediaItem.id,
       source: sourceDescriptor,
       role: "background",
-      desiredPlaybackLane:
-        this.selectBackgroundPlaybackLane(appCapabilityProfile),
-      desiredRendererKind: this.selectRendererKind(appCapabilityProfile),
+      capabilitySnapshot: plannedRoleDecision.capabilitySnapshot,
+      fallbackPlaybackLaneOrder: plannedRoleDecision.fallbackPlaybackLaneOrder,
+      desiredPlaybackLane: plannedRoleDecision.desiredPlaybackLane,
+      variantSelection: plannedRoleDecision.variantSelection,
+      desiredRendererKind: plannedRoleDecision.desiredRendererKind,
       desiredWarmth: "active",
       priority: "critical",
       visibility: "visible",
@@ -314,6 +336,18 @@ export class MediaSessionPlanner {
         continue;
       }
 
+      const previewRole: VariantRolePolicy =
+        previewSchedulerDecision.shouldActivate
+          ? "preview-active"
+          : "preview-warm";
+      const plannedRoleDecision: PlannedRoleDecision =
+        this.createPlannedRoleDecision(
+          previewRole,
+          appCapabilityProfile,
+          this.selectPreviewPlaybackLane(appCapabilityProfile),
+          this.selectRendererKind(appCapabilityProfile),
+        );
+
       plannedPreviewSessions.push({
         sessionId: previewCandidate.sessionId,
         itemId: previewCandidate.itemId,
@@ -325,9 +359,12 @@ export class MediaSessionPlanner {
           posterUrl: previewCandidate.source.posterUrl,
         },
         role: "preview",
-        desiredPlaybackLane:
-          this.selectPreviewPlaybackLane(appCapabilityProfile),
-        desiredRendererKind: this.selectRendererKind(appCapabilityProfile),
+        capabilitySnapshot: plannedRoleDecision.capabilitySnapshot,
+        fallbackPlaybackLaneOrder:
+          plannedRoleDecision.fallbackPlaybackLaneOrder,
+        desiredPlaybackLane: plannedRoleDecision.desiredPlaybackLane,
+        variantSelection: plannedRoleDecision.variantSelection,
+        desiredRendererKind: plannedRoleDecision.desiredRendererKind,
         desiredWarmth: previewSchedulerDecision.shouldActivate
           ? "preloaded"
           : "first-frame",
@@ -366,6 +403,13 @@ export class MediaSessionPlanner {
     );
     const sourceDescriptor: MediaSourceDescriptor | null =
       activeBackgroundSession?.descriptor.source ?? null;
+    const plannedRoleDecision: PlannedRoleDecision =
+      this.createPlannedRoleDecision(
+        "background-playback",
+        appCapabilityProfile,
+        this.selectBackgroundPlaybackLane(appCapabilityProfile),
+        this.selectRendererKind(appCapabilityProfile),
+      );
 
     return {
       sessionId:
@@ -374,9 +418,11 @@ export class MediaSessionPlanner {
       itemId: activeBackgroundSession?.descriptor.itemId ?? null,
       source: sourceDescriptor,
       role: "background",
-      desiredPlaybackLane:
-        this.selectBackgroundPlaybackLane(appCapabilityProfile),
-      desiredRendererKind: this.selectRendererKind(appCapabilityProfile),
+      capabilitySnapshot: plannedRoleDecision.capabilitySnapshot,
+      fallbackPlaybackLaneOrder: plannedRoleDecision.fallbackPlaybackLaneOrder,
+      desiredPlaybackLane: plannedRoleDecision.desiredPlaybackLane,
+      variantSelection: plannedRoleDecision.variantSelection,
+      desiredRendererKind: plannedRoleDecision.desiredRendererKind,
       desiredWarmth: "active",
       priority: "high",
       visibility: "visible",
@@ -476,6 +522,54 @@ export class MediaSessionPlanner {
       mediaSessionState === "playing" ||
       mediaSessionState === "paused"
     );
+  }
+
+  /**
+   * @brief Resolve lane, renderer, and quality intent for one planned role
+   *
+   * @param role - Shared media role being planned
+   * @param appCapabilityProfile - Runtime capability profile for the current app
+   * @param preferredLaneHint - Conservative lane hint derived from prior planning rules
+   * @param preferredRendererKindHint - Conservative renderer hint derived from app capabilities
+   *
+   * @returns Stable role decision used by the plan snapshot
+   */
+  private static createPlannedRoleDecision(
+    role: VariantRolePolicy,
+    appCapabilityProfile: MediaCapabilityProfile | null,
+    preferredLaneHint: MediaPlaybackLane | null,
+    preferredRendererKindHint: MediaRendererKind,
+  ): PlannedRoleDecision {
+    const capabilitySnapshot: MediaRoleCapabilitySnapshot =
+      CapabilityOracle.decide({
+        role,
+        appCapabilityProfile,
+        runtimeCapabilities: null,
+        preferredLaneHint,
+        preferredRendererKindHint,
+        existingChosenLane: null,
+        runtimeLanePreference: null,
+      });
+    const variantSelection: VariantSelectionDecision = VariantPolicy.select({
+      role,
+      capabilitySnapshot,
+      maxWidth: null,
+      maxHeight: null,
+      maxBandwidth: null,
+    });
+
+    return {
+      capabilitySnapshot,
+      fallbackPlaybackLaneOrder: [
+        ...capabilitySnapshot.decision.preferredFallbackLaneOrder,
+      ],
+      desiredPlaybackLane:
+        capabilitySnapshot.decision.preferredLaneOrder[0] ?? preferredLaneHint,
+      variantSelection,
+      desiredRendererKind:
+        capabilitySnapshot.decision.preferredRendererOrder[0] ??
+        preferredRendererKindHint,
+    };
   }
 
   /**

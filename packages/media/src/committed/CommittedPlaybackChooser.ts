@@ -7,11 +7,15 @@
  */
 
 import type { MediaCapabilityProfile } from "../capabilities/MediaCapabilityProfile";
+import { CapabilityOracle } from "../capability-oracle/CapabilityOracle";
+import type { MediaRoleCapabilitySnapshot } from "../capability-oracle/MediaRoleCapabilitySnapshot";
 import type { MediaExecutionSnapshot } from "../execution/MediaExecutionSnapshot";
 import type { MediaRuntimeCapabilities } from "../execution/MediaRuntimeCapabilities";
 import type { MediaPlaybackLane } from "../sessions/MediaPlaybackLane";
 import type { MediaRendererKind } from "../sessions/MediaRendererKind";
 import type { MediaSourceDescriptor } from "../sources/MediaSourceDescriptor";
+import { VariantPolicy } from "../variant-policy/VariantPolicy";
+import type { VariantSelectionDecision } from "../variant-policy/VariantSelectionDecision";
 import type { AudioActivationMode } from "./AudioActivationMode";
 import type { CommittedPlaybackDecision } from "./CommittedPlaybackDecision";
 import type { CommittedPlaybackDecisionReason } from "./CommittedPlaybackDecisionReason";
@@ -55,32 +59,54 @@ export class CommittedPlaybackChooser {
     const existingChosenLane: MediaPlaybackLane | null =
       input.currentExecutionSnapshot?.committedPlayback?.decision.chosenLane ??
       null;
-    const supportedLanes: MediaPlaybackLane[] =
-      runtimeCapabilities?.committedPlaybackLanes.filter(
-        (lane: MediaPlaybackLane): boolean =>
-          this.isLaneSupportedByProfile(lane, appCapabilityProfile),
-      ) ?? [];
+    const capabilitySnapshot: MediaRoleCapabilitySnapshot =
+      CapabilityOracle.decide({
+        role: "background-playback",
+        appCapabilityProfile,
+        runtimeCapabilities,
+        preferredLaneHint: input.preferredLaneHint,
+        preferredRendererKindHint: input.preferredRendererKindHint,
+        existingChosenLane,
+        runtimeLanePreference: lanePreference,
+      });
+    const qualitySelection: VariantSelectionDecision = VariantPolicy.select({
+      role: "background-playback",
+      capabilitySnapshot,
+      maxWidth: null,
+      maxHeight: null,
+      maxBandwidth: null,
+    });
+    const supportedLanes: MediaPlaybackLane[] = this.createSupportedLaneOrder(
+      capabilitySnapshot,
+      runtimeCapabilities,
+      appCapabilityProfile,
+    );
+    const preferredLaneOrder: MediaPlaybackLane[] =
+      capabilitySnapshot.decision.preferredLaneOrder.length > 0
+        ? [...capabilitySnapshot.decision.preferredLaneOrder]
+        : [...supportedLanes];
     const fallbackOrder: MediaPlaybackLane[] = this.createFallbackOrder(
-      lanePreference,
+      capabilitySnapshot,
       input.preferredLaneHint,
       runtimeCapabilities?.existingBackgroundPlaybackLane ?? null,
       existingChosenLane,
-      supportedLanes,
     );
-    const preferredLane: MediaPlaybackLane | null = fallbackOrder[0] ?? null;
+    const preferredLane: MediaPlaybackLane | null =
+      preferredLaneOrder[0] ?? null;
     const chosenLane: MediaPlaybackLane | null =
-      fallbackOrder.find((lane: MediaPlaybackLane): boolean =>
-        supportedLanes.includes(lane),
+      [...preferredLaneOrder, ...fallbackOrder].find(
+        (lane: MediaPlaybackLane): boolean => supportedLanes.includes(lane),
       ) ?? null;
     const usedFallbackLane: boolean =
       chosenLane !== null &&
       preferredLane !== null &&
       chosenLane !== preferredLane;
-    const reasons: CommittedPlaybackDecisionReason[] = [];
-    const reasonDetails: string[] = [];
+    const reasons: CommittedPlaybackDecisionReason[] = ["capability-oracle"];
+    const reasonDetails: string[] = [...capabilitySnapshot.decision.notes];
     const mode: CommittedPlaybackMode = this.selectMode(
       input,
       chosenLane,
+      capabilitySnapshot,
       runtimeCapabilities,
       reasons,
       reasonDetails,
@@ -148,15 +174,20 @@ export class CommittedPlaybackChooser {
 
     return {
       mode,
+      capabilitySnapshot,
+      qualitySelection,
+      preferredLaneOrder,
       preferredLane,
       chosenLane,
       preferredRendererKind:
-        chosenLane === "native" || chosenLane === "shaka"
+        capabilitySnapshot.decision.preferredRendererOrder[0] ??
+        (chosenLane === "native" || chosenLane === "shaka"
           ? "native-plane"
           : chosenLane === "custom"
             ? (input.preferredRendererKindHint ?? "none")
-            : input.preferredRendererKindHint,
+            : input.preferredRendererKindHint),
       fallbackOrder,
+      premiumPlaybackViable: capabilitySnapshot.decision.premiumPlaybackViable,
       reasons,
       reasonDetails,
       audioActivationMode,
@@ -194,61 +225,61 @@ export class CommittedPlaybackChooser {
   }
 
   /**
+   * @brief Build the runtime-supported lane list that can satisfy committed playback
+   *
+   * @param capabilitySnapshot - Capability-oracle decision for committed playback
+   * @param runtimeCapabilities - Runtime execution capabilities
+   * @param appCapabilityProfile - App profile used to filter impossible lanes
+   *
+   * @returns Lane order that remains viable after runtime filtering
+   */
+  private static createSupportedLaneOrder(
+    capabilitySnapshot: MediaRoleCapabilitySnapshot,
+    runtimeCapabilities: MediaRuntimeCapabilities | null,
+    appCapabilityProfile: MediaCapabilityProfile | null,
+  ): MediaPlaybackLane[] {
+    const runtimeSupportedLanes: MediaPlaybackLane[] =
+      runtimeCapabilities?.committedPlaybackLanes.filter(
+        (lane: MediaPlaybackLane): boolean =>
+          this.isLaneSupportedByProfile(lane, appCapabilityProfile),
+      ) ??
+      capabilitySnapshot.decision.preferredLaneOrder.filter(
+        (lane: MediaPlaybackLane): boolean =>
+          this.isLaneSupportedByProfile(lane, appCapabilityProfile),
+      );
+
+    if (runtimeSupportedLanes.length > 0) {
+      return runtimeSupportedLanes;
+    }
+
+    return capabilitySnapshot.decision.preferredLaneOrder.filter(
+      (lane: MediaPlaybackLane): boolean =>
+        this.isLaneSupportedByProfile(lane, appCapabilityProfile),
+    );
+  }
+
+  /**
    * @brief Build a stable fallback order for lane selection
    *
-   * @param lanePreference - Runtime lane preference
+   * @param capabilitySnapshot - Capability-oracle decision for committed playback
    * @param preferredLaneHint - Planner-provided lane hint
    * @param existingBackgroundPlaybackLane - Safe existing background lane
-   * @param supportedLanes - Runtime lanes that remain viable after filtering
+   * @param existingChosenLane - Previously chosen committed lane
    *
-   * @returns Deduplicated lane order used for selection and debug output
+   * @returns Deduplicated lane order used for fallback and debug output
    */
   private static createFallbackOrder(
-    lanePreference: CommittedPlaybackLanePreference | null,
+    capabilitySnapshot: MediaRoleCapabilitySnapshot,
     preferredLaneHint: MediaPlaybackLane | null,
     existingBackgroundPlaybackLane: MediaPlaybackLane | null,
     existingChosenLane: MediaPlaybackLane | null,
-    supportedLanes: MediaPlaybackLane[],
   ): MediaPlaybackLane[] {
-    const orderedLanes: Array<MediaPlaybackLane | null> = [];
-
-    if (lanePreference === "prefer-native") {
-      orderedLanes.push(
-        "native",
-        preferredLaneHint,
-        existingChosenLane,
-        "shaka",
-      );
-    } else if (lanePreference === "prefer-shaka") {
-      orderedLanes.push(
-        "shaka",
-        preferredLaneHint,
-        existingChosenLane,
-        "native",
-      );
-    } else if (lanePreference === "prefer-existing-runtime") {
-      orderedLanes.push(
-        existingBackgroundPlaybackLane,
-        preferredLaneHint,
-        existingChosenLane,
-        "native",
-        "shaka",
-        "custom",
-      );
-    } else {
-      orderedLanes.push(
-        preferredLaneHint,
-        existingChosenLane,
-        existingBackgroundPlaybackLane,
-        "native",
-        "shaka",
-        "custom",
-      );
-    }
-
-    for (const supportedLane of supportedLanes) {
-      orderedLanes.push(supportedLane);
-    }
+    const orderedLanes: Array<MediaPlaybackLane | null> = [
+      ...capabilitySnapshot.decision.preferredFallbackLaneOrder,
+      preferredLaneHint,
+      existingChosenLane,
+      existingBackgroundPlaybackLane,
+    ];
 
     const deduplicatedLanes: MediaPlaybackLane[] = [];
 
@@ -268,6 +299,7 @@ export class CommittedPlaybackChooser {
    *
    * @param input - Immutable chooser inputs
    * @param chosenLane - Lane selected for committed playback
+   * @param capabilitySnapshot - Capability-oracle snapshot for committed playback
    * @param runtimeCapabilities - Runtime execution capabilities
    * @param reasons - Mutable reason collection
    * @param reasonDetails - Mutable human-readable detail collection
@@ -277,6 +309,7 @@ export class CommittedPlaybackChooser {
   private static selectMode(
     input: CommittedPlaybackChooserInput,
     chosenLane: MediaPlaybackLane | null,
+    capabilitySnapshot: MediaRoleCapabilitySnapshot,
     runtimeCapabilities: MediaRuntimeCapabilities | null,
     reasons: CommittedPlaybackDecisionReason[],
     reasonDetails: string[],
@@ -287,8 +320,7 @@ export class CommittedPlaybackChooser {
 
     if (
       input.intent.intentType === "selected" &&
-      input.appCapabilityProfile?.supportsPremiumPlayback === true &&
-      runtimeCapabilities?.supportsPremiumCommittedPlayback === true
+      capabilitySnapshot.decision.premiumPlaybackViable
     ) {
       reasons.push("premium-supported");
       reasonDetails.push(
@@ -297,15 +329,10 @@ export class CommittedPlaybackChooser {
       return "premium-attempt";
     }
 
-    if (input.appCapabilityProfile?.supportsPremiumPlayback !== true) {
+    if (!capabilitySnapshot.decision.premiumPlaybackViable) {
       reasons.push("premium-unsupported");
       reasonDetails.push(
-        "The current app profile does not report premium committed playback support.",
-      );
-    } else if (runtimeCapabilities?.supportsPremiumCommittedPlayback !== true) {
-      reasons.push("premium-unsupported");
-      reasonDetails.push(
-        "The current runtime adapter does not expose a premium committed playback lane yet.",
+        "The capability oracle did not treat premium committed playback as viable for this runtime path.",
       );
     }
 

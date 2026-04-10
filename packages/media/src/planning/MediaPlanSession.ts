@@ -6,11 +6,13 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { MediaRoleCapabilitySnapshot } from "../capability-oracle/MediaRoleCapabilitySnapshot";
 import type { MediaPlaybackLane } from "../sessions/MediaPlaybackLane";
 import type { MediaRendererKind } from "../sessions/MediaRendererKind";
 import type { MediaSessionRole } from "../sessions/MediaSessionRole";
 import type { MediaWarmth } from "../sessions/MediaWarmth";
 import type { MediaSourceDescriptor } from "../sources/MediaSourceDescriptor";
+import type { VariantSelectionDecision } from "../variant-policy/VariantSelectionDecision";
 import type { MediaPlanReason } from "./MediaPlanReason";
 import type { MediaSessionPriority } from "./MediaSessionPriority";
 import type { MediaSessionVisibility } from "./MediaSessionVisibility";
@@ -23,7 +25,10 @@ export type MediaPlanSession = {
   itemId: string | null;
   source: MediaSourceDescriptor | null;
   role: MediaSessionRole;
+  capabilitySnapshot: MediaRoleCapabilitySnapshot | null;
+  fallbackPlaybackLaneOrder: MediaPlaybackLane[];
   desiredPlaybackLane: MediaPlaybackLane | null;
+  variantSelection: VariantSelectionDecision | null;
   desiredRendererKind: MediaRendererKind;
   desiredWarmth: MediaWarmth;
   priority: MediaSessionPriority;

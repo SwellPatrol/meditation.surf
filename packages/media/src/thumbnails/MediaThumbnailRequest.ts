@@ -7,6 +7,7 @@
  */
 
 import type { MediaSourceDescriptor } from "../sources/MediaSourceDescriptor";
+import type { VariantSelectionDecision } from "../variant-policy/VariantSelectionDecision";
 import type { MediaThumbnailDescriptor } from "./MediaThumbnailDescriptor";
 import type {
   MediaThumbnailExtractionPolicy,
@@ -29,5 +30,6 @@ export type MediaThumbnailRequest = {
   targetWidth: number | null;
   targetHeight: number | null;
   timeHintMs: number | null;
+  variantSelection: VariantSelectionDecision;
   extractionPolicy: MediaThumbnailExtractionPolicy;
 };

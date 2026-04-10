@@ -6,6 +6,9 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { MediaCapabilityProfile } from "../capabilities/MediaCapabilityProfile";
+import { CapabilityOracle } from "../capability-oracle/CapabilityOracle";
+import type { MediaRoleCapabilitySnapshot } from "../capability-oracle/MediaRoleCapabilitySnapshot";
 import {
   FocusDelayController,
   type FocusDelayState,
@@ -21,6 +24,8 @@ import type {
   MediaThumbnailQuality,
 } from "../thumbnails/MediaThumbnailExtractionPolicy";
 import type { MediaThumbnailRequest } from "../thumbnails/MediaThumbnailRequest";
+import { VariantPolicy } from "../variant-policy/VariantPolicy";
+import type { VariantSelectionDecision } from "../variant-policy/VariantSelectionDecision";
 
 type MediaThumbnailCandidate<TMediaItem extends MediaKernelItem> = {
   mediaItem: TMediaItem;
@@ -467,16 +472,41 @@ export class MediaKernelExperienceBridge<
       : isFocusedRowCandidate
         ? "medium"
         : "low";
-    const qualityHint: MediaThumbnailQuality = isFocusedCandidate
-      ? "high"
-      : isFocusedRowCandidate
-        ? "medium"
-        : "low";
     const targetWidth: number = isFocusedCandidate
       ? 480
       : isFocusedRowCandidate
         ? 360
         : 320;
+    const planningCapabilityProfile: MediaCapabilityProfile | null =
+      this.resolvePlanningCapabilityProfile();
+    const capabilitySnapshot: MediaRoleCapabilitySnapshot =
+      CapabilityOracle.decide({
+        role: "thumbnail-extract",
+        appCapabilityProfile: planningCapabilityProfile,
+        runtimeCapabilities: null,
+        preferredLaneHint: planningCapabilityProfile?.supportsNativePlayback
+          ? "native"
+          : planningCapabilityProfile?.supportsShakaPlayback
+            ? "shaka"
+            : planningCapabilityProfile?.supportsCustomPipeline
+              ? "custom"
+              : null,
+        preferredRendererKindHint:
+          planningCapabilityProfile?.supportsNativePlayback
+            ? "native-plane"
+            : "none",
+        existingChosenLane: null,
+        runtimeLanePreference: null,
+      });
+    const variantSelection: VariantSelectionDecision = VariantPolicy.select({
+      role: "thumbnail-extract",
+      capabilitySnapshot,
+      maxWidth: targetWidth,
+      maxHeight: null,
+      maxBandwidth: null,
+    });
+    const qualityHint: MediaThumbnailQuality =
+      variantSelection.desiredQualityTier;
     const timeoutMs: number = isFocusedCandidate
       ? 3200
       : isFocusedRowCandidate
@@ -496,6 +526,7 @@ export class MediaKernelExperienceBridge<
       targetWidth,
       targetHeight: null,
       timeHintMs: 0,
+      variantSelection,
       extractionPolicy: {
         strategy: "first-frame",
         quality: qualityHint,
@@ -504,6 +535,87 @@ export class MediaKernelExperienceBridge<
         targetHeight: null,
       },
     };
+  }
+
+  /**
+   * @brief Merge current app capability reports into one conservative planning profile
+   *
+   * @returns Merged profile, or `null` when no app has reported capabilities yet
+   */
+  private resolvePlanningCapabilityProfile(): MediaCapabilityProfile | null {
+    const appCapabilityProfiles: MediaCapabilityProfile[] =
+      this.mediaKernelController
+        .getState()
+        .appCapabilities.map(
+          (appMediaCapabilities): MediaCapabilityProfile =>
+            appMediaCapabilities.profile,
+        );
+
+    if (appCapabilityProfiles.length === 0) {
+      return null;
+    }
+
+    return appCapabilityProfiles.reduce(
+      (
+        mergedProfile: MediaCapabilityProfile,
+        appCapabilityProfile: MediaCapabilityProfile,
+      ): MediaCapabilityProfile => ({
+        supportsNativePlayback:
+          mergedProfile.supportsNativePlayback &&
+          appCapabilityProfile.supportsNativePlayback,
+        supportsShakaPlayback:
+          mergedProfile.supportsShakaPlayback &&
+          appCapabilityProfile.supportsShakaPlayback,
+        supportsPreviewVideo:
+          mergedProfile.supportsPreviewVideo &&
+          appCapabilityProfile.supportsPreviewVideo,
+        supportsThumbnailExtraction:
+          mergedProfile.supportsThumbnailExtraction &&
+          appCapabilityProfile.supportsThumbnailExtraction,
+        supportsWorkerOffload:
+          mergedProfile.supportsWorkerOffload &&
+          appCapabilityProfile.supportsWorkerOffload,
+        supportsWebGPUPreferred:
+          mergedProfile.supportsWebGPUPreferred &&
+          appCapabilityProfile.supportsWebGPUPreferred,
+        supportsWebGLFallback:
+          mergedProfile.supportsWebGLFallback &&
+          appCapabilityProfile.supportsWebGLFallback,
+        supportsCustomPipeline:
+          mergedProfile.supportsCustomPipeline &&
+          appCapabilityProfile.supportsCustomPipeline,
+        supportsPremiumPlayback:
+          mergedProfile.supportsPremiumPlayback &&
+          appCapabilityProfile.supportsPremiumPlayback,
+        previewSchedulerBudget: {
+          maxWarmSessions: Math.min(
+            mergedProfile.previewSchedulerBudget.maxWarmSessions,
+            appCapabilityProfile.previewSchedulerBudget.maxWarmSessions,
+          ),
+          maxActivePreviewSessions: Math.min(
+            mergedProfile.previewSchedulerBudget.maxActivePreviewSessions,
+            appCapabilityProfile.previewSchedulerBudget
+              .maxActivePreviewSessions,
+          ),
+          maxHiddenSessions: Math.min(
+            mergedProfile.previewSchedulerBudget.maxHiddenSessions,
+            appCapabilityProfile.previewSchedulerBudget.maxHiddenSessions,
+          ),
+          maxPreviewReuseMs: Math.min(
+            mergedProfile.previewSchedulerBudget.maxPreviewReuseMs,
+            appCapabilityProfile.previewSchedulerBudget.maxPreviewReuseMs,
+          ),
+          maxPreviewOverlapMs: Math.min(
+            mergedProfile.previewSchedulerBudget.maxPreviewOverlapMs,
+            appCapabilityProfile.previewSchedulerBudget.maxPreviewOverlapMs,
+          ),
+          keepWarmAfterBlurMs: Math.min(
+            mergedProfile.previewSchedulerBudget.keepWarmAfterBlurMs,
+            appCapabilityProfile.previewSchedulerBudget.keepWarmAfterBlurMs,
+          ),
+        },
+      }),
+    );
   }
 
   /**
