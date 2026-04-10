@@ -15,7 +15,9 @@ import {
 } from "@meditation-surf/vfs";
 
 import type { AudioPolicyDecision } from "../audio/AudioPolicyDecision";
+import type { CustomDecodeSnapshot } from "../custom-decode/CustomDecodeSnapshot";
 import { MediaInventoryCloner } from "../inventory/MediaInventoryCloner";
+import { RendererRouter } from "../rendering/RendererRouter";
 import type { MediaThumbnailCacheEntry } from "./MediaThumbnailCacheEntry";
 import type { MediaThumbnailDescriptor } from "./MediaThumbnailDescriptor";
 import type { MediaThumbnailExtractionAttempt } from "./MediaThumbnailExtractionAttempt";
@@ -698,11 +700,11 @@ export class MediaThumbnailController {
     strategy: MediaThumbnailRequest["extractionPolicy"]["strategy"],
   ): number {
     switch (strategy) {
-      case "first-non-black":
+      case "representative-search-on-rejection":
         return 3;
       case "time-hint":
         return 2;
-      case "first-frame":
+      case "first-frame-fast-path":
         return 1;
     }
   }
@@ -806,10 +808,10 @@ export class MediaThumbnailController {
     }
 
     switch (request.extractionPolicy.strategy) {
-      case "first-frame":
+      case "first-frame-fast-path":
       case "time-hint":
         return runtimeCapabilities.canExtractFirstFrame;
-      case "first-non-black":
+      case "representative-search-on-rejection":
         return runtimeCapabilities.canExtractNonBlackFrame;
     }
   }
@@ -829,8 +831,10 @@ export class MediaThumbnailController {
       return "No thumbnail runtime adapter is registered.";
     }
 
-    if (request.extractionPolicy.strategy === "first-non-black") {
-      return `${runtimeAdapter.runtimeId} cannot extract first-non-black thumbnails in this phase.`;
+    if (
+      request.extractionPolicy.strategy === "representative-search-on-rejection"
+    ) {
+      return `${runtimeAdapter.runtimeId} cannot extract representative-search thumbnails in this phase.`;
     }
 
     return `${runtimeAdapter.runtimeId} cannot extract thumbnails for this request in this phase.`;
@@ -1025,10 +1029,18 @@ export class MediaThumbnailController {
       },
       extractionPolicy: {
         strategy: request.extractionPolicy.strategy,
+        fallbackBehavior: request.extractionPolicy.fallbackBehavior,
+        firstFrameFastPath: request.extractionPolicy.firstFrameFastPath,
+        representativeSearchOnRejection:
+          request.extractionPolicy.representativeSearchOnRejection,
         qualityIntent: request.extractionPolicy.qualityIntent,
         timeoutMs: request.extractionPolicy.timeoutMs,
         targetWidth: request.extractionPolicy.targetWidth,
         targetHeight: request.extractionPolicy.targetHeight,
+        targetTimeSeconds: request.extractionPolicy.targetTimeSeconds,
+        searchWindowStartSeconds:
+          request.extractionPolicy.searchWindowStartSeconds,
+        searchWindowEndSeconds: request.extractionPolicy.searchWindowEndSeconds,
         candidateWindowMs: request.extractionPolicy.candidateWindowMs,
         candidateFrameStepMs: request.extractionPolicy.candidateFrameStepMs,
         maxCandidateFrames: request.extractionPolicy.maxCandidateFrames,
@@ -1041,6 +1053,28 @@ export class MediaThumbnailController {
       audioPolicyDecision: this.cloneAudioPolicyDecision(
         request.audioPolicyDecision,
       ),
+      customDecodeCapability: {
+        lane: request.customDecodeCapability.lane,
+        allowedByRole: request.customDecodeCapability.allowedByRole,
+        supportLevel: request.customDecodeCapability.supportLevel,
+        webCodecsSupportLevel:
+          request.customDecodeCapability.webCodecsSupportLevel,
+        reasons: [...request.customDecodeCapability.reasons],
+        notes: [...request.customDecodeCapability.notes],
+      },
+      customDecodeDecision: {
+        lane: request.customDecodeDecision.lane,
+        shouldAttempt: request.customDecodeDecision.shouldAttempt,
+        preferred: request.customDecodeDecision.preferred,
+        fallbackRequired: request.customDecodeDecision.fallbackRequired,
+        fallbackReason: request.customDecodeDecision.fallbackReason,
+        reasons: [...request.customDecodeDecision.reasons],
+        notes: [...request.customDecodeDecision.notes],
+      },
+      rendererCapability: RendererRouter.cloneCapability(
+        request.rendererCapability,
+      )!,
+      rendererDecision: RendererRouter.cloneDecision(request.rendererDecision)!,
     };
   }
 
@@ -1085,6 +1119,8 @@ export class MediaThumbnailController {
         selectionDecision: this.cloneSelectionDecision(
           result.debug.selectionDecision,
         ),
+        customDecode: this.cloneCustomDecodeSnapshot(result.debug.customDecode),
+        renderer: RendererRouter.cloneSnapshot(result.debug.renderer),
       },
     };
   }
@@ -1151,6 +1187,37 @@ export class MediaThumbnailController {
           cachedArtifactReused: true,
           resolvedReason: "cached-artifact-reused",
         },
+        customDecode: this.cloneCustomDecodeSnapshot(
+          restoredExtractionAttempt.customDecode,
+        ),
+        renderer: RendererRouter.createSnapshot({
+          capability: request.rendererCapability,
+          decision: request.rendererDecision,
+          sessionId: `thumbnail:${request.sourceId}`,
+          sessionRole: "thumbnail",
+          variantRole: "thumbnail-extract",
+          target: "thumbnail-surface",
+          selectedBackend: null,
+          activeBackend: null,
+          usedLegacyPath: true,
+          bypassedRendererRouter: false,
+          fallbackReason:
+            "VFS restored the existing thumbnail image, so this request stayed on the legacy image presentation path.",
+          failureReason: null,
+          frameHandle: {
+            representation: "image-url",
+            origin: "thumbnail-result",
+            width: Number(storedArtifact.metadata.width ?? 0),
+            height: Number(storedArtifact.metadata.height ?? 0),
+            frameTimeMs:
+              storedArtifact.metadata.frameTimeMs === null
+                ? null
+                : Number(storedArtifact.metadata.frameTimeMs ?? 0),
+          },
+          notes: [
+            "Cached thumbnail restore bypassed live renderer routing and reused the legacy still-image path.",
+          ],
+        }),
       },
     };
   }
@@ -1232,6 +1299,10 @@ export class MediaThumbnailController {
         selectionDecision: this.cloneSelectionDecision(
           extractionResult.selectionDecision,
         ),
+        customDecode: this.cloneCustomDecodeSnapshot(
+          extractionResult.customDecode,
+        ),
+        renderer: RendererRouter.cloneSnapshot(extractionResult.renderer),
       },
     };
   }
@@ -1249,8 +1320,17 @@ export class MediaThumbnailController {
     return {
       requestedStrategy: extractionAttempt.requestedStrategy,
       strategyUsed: extractionAttempt.strategyUsed,
+      fallbackBehavior:
+        extractionAttempt.fallbackBehavior ??
+        "representative-search-then-first-decodable",
       qualityIntent: extractionAttempt.qualityIntent,
       timeoutMs: extractionAttempt.timeoutMs,
+      firstFrameFastPath: extractionAttempt.firstFrameFastPath ?? true,
+      representativeSearchOnRejection:
+        extractionAttempt.representativeSearchOnRejection ?? true,
+      targetTimeSeconds: extractionAttempt.targetTimeSeconds,
+      searchWindowStartSeconds: extractionAttempt.searchWindowStartSeconds,
+      searchWindowEndSeconds: extractionAttempt.searchWindowEndSeconds,
       candidateWindowMs: extractionAttempt.candidateWindowMs,
       candidateFrameStepMs: extractionAttempt.candidateFrameStepMs,
       maxCandidateFrames: extractionAttempt.maxCandidateFrames,
@@ -1259,6 +1339,9 @@ export class MediaThumbnailController {
       completedFrameCount: extractionAttempt.completedFrameCount,
       timedOut: extractionAttempt.timedOut,
       unsupported: extractionAttempt.unsupported,
+      customDecode: this.cloneCustomDecodeSnapshot(
+        extractionAttempt.customDecode,
+      ),
       startedAt: extractionAttempt.startedAt,
       finishedAt: extractionAttempt.finishedAt,
     };
@@ -1277,9 +1360,22 @@ export class MediaThumbnailController {
     return {
       requestedStrategy: selectionDecision.requestedStrategy,
       strategyUsed: selectionDecision.strategyUsed,
+      fallbackBehavior:
+        selectionDecision.fallbackBehavior ??
+        "representative-search-then-first-decodable",
       qualityIntent: selectionDecision.qualityIntent,
       selectionReason: selectionDecision.selectionReason,
       resolvedReason: selectionDecision.resolvedReason,
+      firstFrameAccepted: selectionDecision.firstFrameAccepted ?? false,
+      firstFrameRejected: selectionDecision.firstFrameRejected ?? false,
+      firstFrameRejectionReason:
+        selectionDecision.firstFrameRejectionReason ?? null,
+      representativeSearchUsed:
+        selectionDecision.representativeSearchUsed ?? false,
+      representativeTargetTimeMs: selectionDecision.representativeTargetTimeMs,
+      representativeWindowStartMs:
+        selectionDecision.representativeWindowStartMs,
+      representativeWindowEndMs: selectionDecision.representativeWindowEndMs,
       selectedFrameTimeMs: selectionDecision.selectedFrameTimeMs,
       selectedCandidateIndex: selectionDecision.selectedCandidateIndex,
       attemptedFrameCount: selectionDecision.attemptedFrameCount,
@@ -1292,6 +1388,8 @@ export class MediaThumbnailController {
           candidateFrame: (typeof selectionDecision.candidateFrames)[number],
         ): (typeof selectionDecision.candidateFrames)[number] => ({
           attemptIndex: candidateFrame.attemptIndex,
+          stage: candidateFrame.stage ?? "first-frame",
+          requestedFrameTimeMs: candidateFrame.requestedFrameTimeMs ?? 0,
           frameTimeMs: candidateFrame.frameTimeMs,
           averageLuma: candidateFrame.averageLuma,
           darkestSampleLuma: candidateFrame.darkestSampleLuma,
@@ -1387,8 +1485,16 @@ export class MediaThumbnailController {
     return {
       requestedStrategy: request.extractionPolicy.strategy,
       strategyUsed: request.extractionPolicy.strategy,
+      fallbackBehavior: request.extractionPolicy.fallbackBehavior,
       qualityIntent: request.extractionPolicy.qualityIntent,
       timeoutMs: request.extractionPolicy.timeoutMs,
+      firstFrameFastPath: request.extractionPolicy.firstFrameFastPath,
+      representativeSearchOnRejection:
+        request.extractionPolicy.representativeSearchOnRejection,
+      targetTimeSeconds: request.extractionPolicy.targetTimeSeconds,
+      searchWindowStartSeconds:
+        request.extractionPolicy.searchWindowStartSeconds,
+      searchWindowEndSeconds: request.extractionPolicy.searchWindowEndSeconds,
       candidateWindowMs: request.extractionPolicy.candidateWindowMs,
       candidateFrameStepMs: request.extractionPolicy.candidateFrameStepMs,
       maxCandidateFrames: request.extractionPolicy.maxCandidateFrames,
@@ -1397,6 +1503,7 @@ export class MediaThumbnailController {
       completedFrameCount: 1,
       timedOut: false,
       unsupported: false,
+      customDecode: null,
       startedAt: Number(
         storedArtifact.metadata.extractedAt ?? storedArtifact.createdAt,
       ),
@@ -1426,9 +1533,28 @@ export class MediaThumbnailController {
     return {
       requestedStrategy: request.extractionPolicy.strategy,
       strategyUsed: request.extractionPolicy.strategy,
+      fallbackBehavior: request.extractionPolicy.fallbackBehavior,
       qualityIntent: request.extractionPolicy.qualityIntent,
       selectionReason: "first-frame-accepted",
       resolvedReason: "first-frame-accepted",
+      firstFrameAccepted: true,
+      firstFrameRejected: false,
+      firstFrameRejectionReason: null,
+      representativeSearchUsed: false,
+      representativeTargetTimeMs:
+        request.extractionPolicy.targetTimeSeconds === null
+          ? null
+          : Math.round(request.extractionPolicy.targetTimeSeconds * 1000),
+      representativeWindowStartMs:
+        request.extractionPolicy.searchWindowStartSeconds === null
+          ? null
+          : Math.round(
+              request.extractionPolicy.searchWindowStartSeconds * 1000,
+            ),
+      representativeWindowEndMs:
+        request.extractionPolicy.searchWindowEndSeconds === null
+          ? null
+          : Math.round(request.extractionPolicy.searchWindowEndSeconds * 1000),
       selectedFrameTimeMs: restoredFrameTimeMs,
       selectedCandidateIndex: 0,
       attemptedFrameCount: 1,
@@ -1439,6 +1565,8 @@ export class MediaThumbnailController {
       candidateFrames: [
         {
           attemptIndex: 0,
+          stage: "first-frame",
+          requestedFrameTimeMs: 0,
           frameTimeMs: restoredFrameTimeMs,
           averageLuma: null,
           darkestSampleLuma: null,
@@ -1448,6 +1576,65 @@ export class MediaThumbnailController {
           rejectionReason: null,
         },
       ],
+    };
+  }
+
+  /**
+   * @brief Clone one custom decode snapshot used by thumbnail debug state
+   *
+   * @param customDecode - Custom decode snapshot being cloned
+   *
+   * @returns Cloned custom decode snapshot, or `null` when absent
+   */
+  private cloneCustomDecodeSnapshot(
+    customDecode: CustomDecodeSnapshot | null,
+  ): CustomDecodeSnapshot | null {
+    if (customDecode === null) {
+      return null;
+    }
+
+    return {
+      lane: customDecode.lane,
+      state: customDecode.state,
+      usedCustomDecode: customDecode.usedCustomDecode,
+      usedFallback: customDecode.usedFallback,
+      fallbackReason: customDecode.fallbackReason,
+      failureReason: customDecode.failureReason,
+      selectedFrame:
+        customDecode.selectedFrame === null
+          ? null
+          : {
+              representation: customDecode.selectedFrame.representation,
+              width: customDecode.selectedFrame.width,
+              height: customDecode.selectedFrame.height,
+              frameTimeMs: customDecode.selectedFrame.frameTimeMs,
+            },
+      renderer: RendererRouter.cloneSnapshot(customDecode.renderer),
+      capability:
+        customDecode.capability === null
+          ? null
+          : {
+              lane: customDecode.capability.lane,
+              allowedByRole: customDecode.capability.allowedByRole,
+              supportLevel: customDecode.capability.supportLevel,
+              webCodecsSupportLevel:
+                customDecode.capability.webCodecsSupportLevel,
+              reasons: [...customDecode.capability.reasons],
+              notes: [...customDecode.capability.notes],
+            },
+      decision:
+        customDecode.decision === null
+          ? null
+          : {
+              lane: customDecode.decision.lane,
+              shouldAttempt: customDecode.decision.shouldAttempt,
+              preferred: customDecode.decision.preferred,
+              fallbackRequired: customDecode.decision.fallbackRequired,
+              fallbackReason: customDecode.decision.fallbackReason,
+              reasons: [...customDecode.decision.reasons],
+              notes: [...customDecode.decision.notes],
+            },
+      notes: [...customDecode.notes],
     };
   }
 

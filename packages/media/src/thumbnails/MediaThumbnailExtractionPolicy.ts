@@ -23,19 +23,33 @@ export type MediaThumbnailPriority = "none" | "low" | "medium" | "high";
  * @brief Conservative extraction strategies supported by the shared thumbnail system
  */
 export type MediaThumbnailExtractionStrategy =
-  | "first-frame"
-  | "first-non-black"
+  | "first-frame-fast-path"
+  | "representative-search-on-rejection"
   | "time-hint";
+
+/**
+ * @brief Stable fallback modes supported by the shared thumbnail selector
+ */
+export type MediaThumbnailFallbackBehavior =
+  | "none"
+  | "representative-search-then-first-decodable"
+  | "first-decodable-only";
 
 /**
  * @brief Runtime-agnostic thumbnail extraction policy
  */
 export type MediaThumbnailExtractionPolicy = {
   strategy: MediaThumbnailExtractionStrategy;
+  fallbackBehavior: MediaThumbnailFallbackBehavior;
+  firstFrameFastPath: boolean;
+  representativeSearchOnRejection: boolean;
   qualityIntent: MediaThumbnailQualityIntent;
   timeoutMs: number | null;
   targetWidth: number | null;
   targetHeight: number | null;
+  targetTimeSeconds: number | null;
+  searchWindowStartSeconds: number | null;
+  searchWindowEndSeconds: number | null;
   candidateWindowMs: number;
   candidateFrameStepMs: number;
   maxCandidateFrames: number;

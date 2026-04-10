@@ -7,7 +7,14 @@
  */
 
 import type { MediaCapabilityProfile } from "../capabilities/MediaCapabilityProfile";
+import type { CustomDecodeCapability } from "../custom-decode/CustomDecodeCapability";
+import type { CustomDecodeDecision } from "../custom-decode/CustomDecodeDecision";
+import type { CustomDecodeDecisionReason } from "../custom-decode/CustomDecodeDecisionReason";
+import type { CustomDecodeLane } from "../custom-decode/CustomDecodeLane";
 import type { MediaRuntimeCapabilities } from "../execution/MediaRuntimeCapabilities";
+import type { RendererCapability } from "../rendering/RendererCapability";
+import type { RendererDecision } from "../rendering/RendererDecision";
+import { RendererRouter } from "../rendering/RendererRouter";
 import type { MediaPlaybackLane } from "../sessions/MediaPlaybackLane";
 import type { MediaRendererKind } from "../sessions/MediaRendererKind";
 import type { VariantRolePolicy } from "../variant-policy/VariantRolePolicy";
@@ -48,15 +55,46 @@ export class CapabilityOracle {
     }
 
     const probeResult: CapabilityProbeResult = this.createProbeResult(request);
+    const rendererResolution: {
+      capability: RendererCapability;
+      decision: RendererDecision;
+    } = RendererRouter.decide({
+      role: request.role,
+      preferredRendererKindHint: request.preferredRendererKindHint,
+      webgpuSupportLevel: probeResult.webgpuRendererSupportLevel,
+      webglSupportLevel: probeResult.webglRendererSupportLevel,
+      previewRendererRoutingSupportLevel:
+        probeResult.previewRendererRoutingSupportLevel,
+      extractionRendererRoutingSupportLevel:
+        probeResult.extractionRendererRoutingSupportLevel,
+      committedPlaybackBypassesRendererRouter:
+        probeResult.committedPlaybackBypassesRendererRouter,
+    });
     const decision: CapabilityDecision = this.createDecision(
       request,
       probeResult,
+      rendererResolution.decision,
     );
+    const customDecodeCapability: CustomDecodeCapability =
+      this.createCustomDecodeCapability(request, probeResult);
+    const customDecodeDecision: CustomDecodeDecision =
+      this.createCustomDecodeDecision(request, customDecodeCapability);
     const capabilitySnapshot: MediaRoleCapabilitySnapshot = {
       cacheKey,
       request: this.cloneRequest(request),
       probeResult: this.cloneProbeResult(probeResult),
       decision: this.cloneDecision(decision),
+      rendererCapability: RendererRouter.cloneCapability(
+        rendererResolution.capability,
+      )!,
+      rendererDecision: RendererRouter.cloneDecision(
+        rendererResolution.decision,
+      )!,
+      customDecodeCapability: this.cloneCustomDecodeCapability(
+        customDecodeCapability,
+      ),
+      customDecodeDecision:
+        this.cloneCustomDecodeDecision(customDecodeDecision),
     };
 
     this.cacheByKey.set(cacheKey, this.cloneSnapshot(capabilitySnapshot));
@@ -132,6 +170,8 @@ export class CapabilityOracle {
       this.resolveLaneSupportLevel(request.role, "shaka", request);
     const customLaneSupportLevel: MediaRuntimeSupportLevel =
       this.resolveLaneSupportLevel(request.role, "custom", request);
+    const webCodecsSupportLevel: MediaRuntimeSupportLevel =
+      this.resolveWebCodecsSupportLevel(request);
     const premiumPlaybackSupportLevel: MediaRuntimeSupportLevel =
       this.resolvePremiumSupportLevel(request.role, request);
     const workerOffloadSupportLevel: MediaRuntimeSupportLevel =
@@ -148,17 +188,25 @@ export class CapabilityOracle {
           ? "supported"
           : "unsupported";
     const webgpuRendererSupportLevel: MediaRuntimeSupportLevel =
-      appCapabilityProfile === null
-        ? "unknown"
-        : appCapabilityProfile.supportsWebGPUPreferred
-          ? "supported"
-          : "unsupported";
+      this.resolveRendererBackendSupportLevel(
+        appCapabilityProfile?.supportsWebGPUPreferred ?? null,
+        runtimeCapabilities?.supportsWebGpuRenderer ?? null,
+      );
     const webglRendererSupportLevel: MediaRuntimeSupportLevel =
-      appCapabilityProfile === null
-        ? "unknown"
-        : appCapabilityProfile.supportsWebGLFallback
-          ? "supported"
-          : "unsupported";
+      this.resolveRendererBackendSupportLevel(
+        appCapabilityProfile?.supportsWebGLFallback ?? null,
+        runtimeCapabilities?.supportsWebGlRenderer ?? null,
+      );
+    const previewRendererRoutingSupportLevel: MediaRuntimeSupportLevel =
+      this.resolveRendererRoutingSupportLevel(
+        appCapabilityProfile?.supportsPreviewVideo ?? null,
+        runtimeCapabilities?.supportsRendererPreviewRouting ?? null,
+      );
+    const extractionRendererRoutingSupportLevel: MediaRuntimeSupportLevel =
+      this.resolveRendererRoutingSupportLevel(
+        appCapabilityProfile?.supportsThumbnailExtraction ?? null,
+        runtimeCapabilities?.supportsRendererExtractionRouting ?? null,
+      );
     const overallSupportLevel: MediaRuntimeSupportLevel =
       this.resolveOverallSupportLevel(
         request.role,
@@ -175,9 +223,14 @@ export class CapabilityOracle {
       nativeLaneSupportLevel,
       shakaLaneSupportLevel,
       customLaneSupportLevel,
+      webCodecsSupportLevel,
       nativeRendererSupportLevel,
       webgpuRendererSupportLevel,
       webglRendererSupportLevel,
+      previewRendererRoutingSupportLevel,
+      extractionRendererRoutingSupportLevel,
+      committedPlaybackBypassesRendererRouter:
+        runtimeCapabilities?.committedPlaybackBypassesRendererRouter ?? true,
       premiumPlaybackSupportLevel,
       workerOffloadSupportLevel,
     };
@@ -194,6 +247,7 @@ export class CapabilityOracle {
   private static createDecision(
     request: MediaRoleCapabilityRequest,
     probeResult: CapabilityProbeResult,
+    rendererDecision: RendererDecision,
   ): CapabilityDecision {
     const reasons: CapabilityDecisionReason[] = ["runtime-capability"];
     const notes: string[] = [
@@ -208,6 +262,7 @@ export class CapabilityOracle {
         request,
         probeResult,
         preferredLaneOrder,
+        rendererDecision,
       );
     const premiumPlaybackViable: boolean =
       probeResult.premiumPlaybackSupportLevel === "supported" &&
@@ -407,6 +462,92 @@ export class CapabilityOracle {
     return runtimeCapabilities.supportsPremiumCommittedPlayback
       ? "supported"
       : "unsupported";
+  }
+
+  /**
+   * @brief Resolve one renderer backend support level from app and runtime state
+   *
+   * @param appSupportsRenderer - Whether the app profile reports backend support
+   * @param runtimeSupportsRenderer - Whether the runtime adapter reports backend support
+   *
+   * @returns Support level for the renderer backend
+   */
+  private static resolveRendererBackendSupportLevel(
+    appSupportsRenderer: boolean | null,
+    runtimeSupportsRenderer: boolean | null,
+  ): MediaRuntimeSupportLevel {
+    if (appSupportsRenderer === null && runtimeSupportsRenderer === null) {
+      return "unknown";
+    }
+
+    if (appSupportsRenderer === false || runtimeSupportsRenderer === false) {
+      return "unsupported";
+    }
+
+    if (appSupportsRenderer === true || runtimeSupportsRenderer === true) {
+      return "supported";
+    }
+
+    return "unknown";
+  }
+
+  /**
+   * @brief Resolve generic preview or extraction routing support from app and runtime state
+   *
+   * @param appSupportsRouting - Whether the app profile reports routing support
+   * @param runtimeSupportsRouting - Whether the runtime adapter reports routing support
+   *
+   * @returns Support level for renderer-router usage
+   */
+  private static resolveRendererRoutingSupportLevel(
+    appSupportsRouting: boolean | null,
+    runtimeSupportsRouting: boolean | null,
+  ): MediaRuntimeSupportLevel {
+    if (appSupportsRouting === null && runtimeSupportsRouting === null) {
+      return "unknown";
+    }
+
+    if (appSupportsRouting === false || runtimeSupportsRouting === false) {
+      return "unsupported";
+    }
+
+    if (appSupportsRouting === true || runtimeSupportsRouting === true) {
+      return "supported";
+    }
+
+    return "unknown";
+  }
+
+  /**
+   * @brief Resolve whether the current app and runtime expose WebCodecs support
+   *
+   * @param request - Immutable capability request
+   *
+   * @returns Support level for WebCodecs-backed work
+   */
+  private static resolveWebCodecsSupportLevel(
+    request: MediaRoleCapabilityRequest,
+  ): MediaRuntimeSupportLevel {
+    const appCapabilityProfile: MediaCapabilityProfile | null =
+      request.appCapabilityProfile;
+    const runtimeCapabilities: MediaRuntimeCapabilities | null =
+      request.runtimeCapabilities;
+
+    if (appCapabilityProfile === null && runtimeCapabilities === null) {
+      return "unknown";
+    }
+
+    if (appCapabilityProfile?.supportsWebCodecs === false) {
+      return "unsupported";
+    }
+
+    if (runtimeCapabilities === null) {
+      return appCapabilityProfile?.supportsWebCodecs === true
+        ? "supported"
+        : "unknown";
+    }
+
+    return runtimeCapabilities.supportsWebCodecs ? "supported" : "unsupported";
   }
 
   /**
@@ -612,28 +753,30 @@ export class CapabilityOracle {
     request: MediaRoleCapabilityRequest,
     probeResult: CapabilityProbeResult,
     preferredLaneOrder: MediaPlaybackLane[],
+    rendererDecision: RendererDecision,
   ): MediaRendererKind[] {
     const rendererOrder: Array<MediaRendererKind | null> = [];
     const primaryLane: MediaPlaybackLane | null = preferredLaneOrder[0] ?? null;
 
     rendererOrder.push(request.preferredRendererKindHint);
 
-    if (primaryLane === "native" || primaryLane === "shaka") {
+    if (
+      rendererDecision.shouldRouteThroughRenderer &&
+      rendererDecision.selectedBackend !== null
+    ) {
+      rendererOrder.push(
+        ...rendererDecision.preferredBackendOrder.map(
+          (
+            backendKind: RendererDecision["preferredBackendOrder"][number],
+          ): MediaRendererKind | null =>
+            this.mapBackendKindToRendererKind(backendKind),
+        ),
+      );
+    } else if (
+      rendererDecision.bypassesRendererRouter &&
+      (primaryLane === "native" || primaryLane === "shaka")
+    ) {
       rendererOrder.push("native-plane");
-    }
-
-    if (
-      primaryLane === "custom" &&
-      probeResult.webgpuRendererSupportLevel !== "unsupported"
-    ) {
-      rendererOrder.push("webgpu");
-    }
-
-    if (
-      primaryLane === "custom" &&
-      probeResult.webglRendererSupportLevel !== "unsupported"
-    ) {
-      rendererOrder.push("webgl");
     }
 
     rendererOrder.push("none");
@@ -645,6 +788,26 @@ export class CapabilityOracle {
         rendererKind !== null &&
         this.isRendererViableForProbe(rendererKind, probeResult),
     );
+  }
+
+  /**
+   * @brief Convert one concrete backend kind into the shared renderer family
+   *
+   * @param backendKind - Concrete backend being mapped
+   *
+   * @returns Shared renderer family, or `null` when the backend is not routed
+   */
+  private static mapBackendKindToRendererKind(
+    backendKind: RendererDecision["preferredBackendOrder"][number],
+  ): MediaRendererKind | null {
+    switch (backendKind) {
+      case "webgpu":
+        return "webgpu";
+      case "webgl":
+        return "webgl";
+      case "none":
+        return "none";
+    }
   }
 
   /**
@@ -781,6 +944,187 @@ export class CapabilityOracle {
   }
 
   /**
+   * @brief Resolve the custom decode lane associated with one shared role
+   *
+   * @param role - Shared media role under evaluation
+   *
+   * @returns Matching custom decode lane, or `null` when the role is excluded
+   */
+  private static resolveCustomDecodeLane(
+    role: VariantRolePolicy,
+  ): CustomDecodeLane | null {
+    switch (role) {
+      case "thumbnail-extract":
+        return "thumbnail-extraction";
+      case "preview-warm":
+        return "preview-warm";
+      case "preview-active":
+        return "preview-active";
+      case "thumbnail-preview":
+      case "background-warm":
+      case "background-playback":
+        return null;
+    }
+  }
+
+  /**
+   * @brief Build the role-scoped custom decode capability summary
+   *
+   * @param request - Immutable capability request
+   * @param probeResult - Shared probe summary already computed for the role
+   *
+   * @returns Inspectable custom decode capability snapshot
+   */
+  private static createCustomDecodeCapability(
+    request: MediaRoleCapabilityRequest,
+    probeResult: CapabilityProbeResult,
+  ): CustomDecodeCapability {
+    const lane: CustomDecodeLane | null = this.resolveCustomDecodeLane(
+      request.role,
+    );
+    const reasons: CustomDecodeDecisionReason[] = [];
+    const notes: string[] = [];
+    const runtimeCapabilities: MediaRuntimeCapabilities | null =
+      request.runtimeCapabilities;
+    const appCapabilityProfile: MediaCapabilityProfile | null =
+      request.appCapabilityProfile;
+
+    if (lane === null) {
+      reasons.push("role-disallows-custom-decode");
+      notes.push(
+        `The ${request.role} role keeps committed or non-extraction work on existing playback lanes in this phase.`,
+      );
+
+      return {
+        lane: null,
+        allowedByRole: false,
+        supportLevel: "unsupported",
+        webCodecsSupportLevel: probeResult.webCodecsSupportLevel,
+        reasons,
+        notes,
+      };
+    }
+
+    reasons.push("role-allows-custom-decode");
+
+    if (lane === "thumbnail-extraction") {
+      reasons.push("preferred-for-extraction");
+      notes.push(
+        "Representative still extraction may attempt custom decode before falling back to the existing thumbnail runtime path.",
+      );
+    } else {
+      reasons.push("preferred-for-preview");
+      notes.push(
+        "Preview-first-frame work may attempt custom decode before the runtime falls back to the existing preview lane.",
+      );
+    }
+
+    if (probeResult.webCodecsSupportLevel === "supported") {
+      reasons.push("webcodecs-supported");
+    } else if (probeResult.webCodecsSupportLevel === "unsupported") {
+      reasons.push("webcodecs-unsupported");
+    }
+
+    const appAllowsLane: boolean =
+      lane === "thumbnail-extraction"
+        ? appCapabilityProfile?.supportsCustomDecodeThumbnailExtraction === true
+        : lane === "preview-warm"
+          ? appCapabilityProfile?.supportsCustomDecodePreviewWarm === true
+          : appCapabilityProfile?.supportsCustomDecodePreviewActive === true;
+    const runtimeAllowsLane: boolean =
+      runtimeCapabilities === null ||
+      runtimeCapabilities.customDecodeLanes.includes(lane);
+    const supportLevel: MediaRuntimeSupportLevel =
+      probeResult.webCodecsSupportLevel !== "supported"
+        ? probeResult.webCodecsSupportLevel
+        : appAllowsLane && runtimeAllowsLane
+          ? "supported"
+          : "unsupported";
+
+    if (!appAllowsLane || !runtimeAllowsLane) {
+      notes.push(
+        `The current app or runtime does not advertise ${lane} as a safe custom decode lane.`,
+      );
+    }
+
+    return {
+      lane,
+      allowedByRole: true,
+      supportLevel,
+      webCodecsSupportLevel: probeResult.webCodecsSupportLevel,
+      reasons,
+      notes,
+    };
+  }
+
+  /**
+   * @brief Build the shared custom decode decision derived from capability data
+   *
+   * @param request - Immutable capability request
+   * @param customDecodeCapability - Role-scoped capability summary
+   *
+   * @returns Inspectable custom decode decision
+   */
+  private static createCustomDecodeDecision(
+    request: MediaRoleCapabilityRequest,
+    customDecodeCapability: CustomDecodeCapability,
+  ): CustomDecodeDecision {
+    const reasons: CustomDecodeDecisionReason[] = [
+      ...customDecodeCapability.reasons,
+    ];
+    const notes: string[] = [...customDecodeCapability.notes];
+    const lane: CustomDecodeLane | null = customDecodeCapability.lane;
+
+    if (
+      lane === null ||
+      !customDecodeCapability.allowedByRole ||
+      customDecodeCapability.supportLevel !== "supported"
+    ) {
+      return {
+        lane,
+        shouldAttempt: false,
+        preferred: false,
+        fallbackRequired: true,
+        fallbackReason:
+          lane === null
+            ? `The ${request.role} role deliberately stays on the existing non-custom-decode path in this phase.`
+            : "Custom decode is unsupported for the current app or runtime profile.",
+        reasons,
+        notes,
+      };
+    }
+
+    if (lane === "preview-active") {
+      reasons.push("implementation-stub");
+      reasons.push("runtime-fallback");
+      notes.push(
+        "Preview-active custom decode currently stops at frame preparation and still falls back to the established preview renderer path.",
+      );
+
+      return {
+        lane,
+        shouldAttempt: true,
+        preferred: true,
+        fallbackRequired: true,
+        fallbackReason:
+          "Preview-active custom decode still relies on the existing preview renderer path in this phase.",
+        reasons,
+        notes,
+      };
+    }
+
+    return {
+      lane,
+      shouldAttempt: true,
+      preferred: true,
+      fallbackRequired: false,
+      fallbackReason: null,
+      reasons,
+      notes,
+    };
+  }
+
+  /**
    * @brief Deduplicate one ordered lane list while preserving order
    *
    * @param lanes - Ordered lanes to normalize
@@ -818,6 +1162,18 @@ export class CapabilityOracle {
       request: this.cloneRequest(capabilitySnapshot.request),
       probeResult: this.cloneProbeResult(capabilitySnapshot.probeResult),
       decision: this.cloneDecision(capabilitySnapshot.decision),
+      rendererCapability: RendererRouter.cloneCapability(
+        capabilitySnapshot.rendererCapability,
+      )!,
+      rendererDecision: RendererRouter.cloneDecision(
+        capabilitySnapshot.rendererDecision,
+      )!,
+      customDecodeCapability: this.cloneCustomDecodeCapability(
+        capabilitySnapshot.customDecodeCapability,
+      ),
+      customDecodeDecision: this.cloneCustomDecodeDecision(
+        capabilitySnapshot.customDecodeDecision,
+      ),
     };
   }
 
@@ -845,6 +1201,14 @@ export class CapabilityOracle {
                 request.appCapabilityProfile.supportsPreviewVideo,
               supportsThumbnailExtraction:
                 request.appCapabilityProfile.supportsThumbnailExtraction,
+              supportsWebCodecs: request.appCapabilityProfile.supportsWebCodecs,
+              supportsCustomDecodeThumbnailExtraction:
+                request.appCapabilityProfile
+                  .supportsCustomDecodeThumbnailExtraction,
+              supportsCustomDecodePreviewWarm:
+                request.appCapabilityProfile.supportsCustomDecodePreviewWarm,
+              supportsCustomDecodePreviewActive:
+                request.appCapabilityProfile.supportsCustomDecodePreviewActive,
               supportsWorkerOffload:
                 request.appCapabilityProfile.supportsWorkerOffload,
               supportsWebGPUPreferred:
@@ -890,6 +1254,21 @@ export class CapabilityOracle {
                 request.runtimeCapabilities.canPromoteWarmSession,
               canRunMultipleWarmSessions:
                 request.runtimeCapabilities.canRunMultipleWarmSessions,
+              supportsWebCodecs: request.runtimeCapabilities.supportsWebCodecs,
+              supportsWebGpuRenderer:
+                request.runtimeCapabilities.supportsWebGpuRenderer,
+              supportsWebGlRenderer:
+                request.runtimeCapabilities.supportsWebGlRenderer,
+              supportsRendererPreviewRouting:
+                request.runtimeCapabilities.supportsRendererPreviewRouting,
+              supportsRendererExtractionRouting:
+                request.runtimeCapabilities.supportsRendererExtractionRouting,
+              committedPlaybackBypassesRendererRouter:
+                request.runtimeCapabilities
+                  .committedPlaybackBypassesRendererRouter,
+              customDecodeLanes: [
+                ...request.runtimeCapabilities.customDecodeLanes,
+              ],
               supportsCommittedPlayback:
                 request.runtimeCapabilities.supportsCommittedPlayback,
               supportsPremiumCommittedPlayback:
@@ -961,9 +1340,16 @@ export class CapabilityOracle {
       nativeLaneSupportLevel: probeResult.nativeLaneSupportLevel,
       shakaLaneSupportLevel: probeResult.shakaLaneSupportLevel,
       customLaneSupportLevel: probeResult.customLaneSupportLevel,
+      webCodecsSupportLevel: probeResult.webCodecsSupportLevel,
       nativeRendererSupportLevel: probeResult.nativeRendererSupportLevel,
       webgpuRendererSupportLevel: probeResult.webgpuRendererSupportLevel,
       webglRendererSupportLevel: probeResult.webglRendererSupportLevel,
+      previewRendererRoutingSupportLevel:
+        probeResult.previewRendererRoutingSupportLevel,
+      extractionRendererRoutingSupportLevel:
+        probeResult.extractionRendererRoutingSupportLevel,
+      committedPlaybackBypassesRendererRouter:
+        probeResult.committedPlaybackBypassesRendererRouter,
       premiumPlaybackSupportLevel: probeResult.premiumPlaybackSupportLevel,
       workerOffloadSupportLevel: probeResult.workerOffloadSupportLevel,
     };
@@ -988,6 +1374,47 @@ export class CapabilityOracle {
       workerOffloadViable: decision.workerOffloadViable,
       reasons: [...decision.reasons],
       notes: [...decision.notes],
+    };
+  }
+
+  /**
+   * @brief Clone one custom decode capability summary
+   *
+   * @param customDecodeCapability - Capability summary to clone
+   *
+   * @returns Cloned custom decode capability summary
+   */
+  private static cloneCustomDecodeCapability(
+    customDecodeCapability: CustomDecodeCapability,
+  ): CustomDecodeCapability {
+    return {
+      lane: customDecodeCapability.lane,
+      allowedByRole: customDecodeCapability.allowedByRole,
+      supportLevel: customDecodeCapability.supportLevel,
+      webCodecsSupportLevel: customDecodeCapability.webCodecsSupportLevel,
+      reasons: [...customDecodeCapability.reasons],
+      notes: [...customDecodeCapability.notes],
+    };
+  }
+
+  /**
+   * @brief Clone one custom decode decision
+   *
+   * @param customDecodeDecision - Decision to clone
+   *
+   * @returns Cloned custom decode decision
+   */
+  private static cloneCustomDecodeDecision(
+    customDecodeDecision: CustomDecodeDecision,
+  ): CustomDecodeDecision {
+    return {
+      lane: customDecodeDecision.lane,
+      shouldAttempt: customDecodeDecision.shouldAttempt,
+      preferred: customDecodeDecision.preferred,
+      fallbackRequired: customDecodeDecision.fallbackRequired,
+      fallbackReason: customDecodeDecision.fallbackReason,
+      reasons: [...customDecodeDecision.reasons],
+      notes: [...customDecodeDecision.notes],
     };
   }
 }

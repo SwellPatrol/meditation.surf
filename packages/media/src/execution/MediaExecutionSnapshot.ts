@@ -8,8 +8,10 @@
 
 import type { AudioExecutionSnapshot } from "../audio/AudioExecutionSnapshot";
 import type { CommittedPlaybackSnapshot } from "../committed/CommittedPlaybackSnapshot";
+import type { CustomDecodeSnapshot } from "../custom-decode/CustomDecodeSnapshot";
 import type { MediaPlanSession } from "../planning/MediaPlanSession";
 import type { PreviewSessionAssignment } from "../preview/PreviewSessionAssignment";
+import type { RendererSnapshot } from "../rendering/RendererSnapshot";
 import type { MediaExecutionCommandType } from "./MediaExecutionCommandType";
 import type { MediaExecutionState } from "./MediaExecutionState";
 import type { MediaRuntimeSessionHandle } from "./MediaRuntimeSessionHandle";
@@ -27,6 +29,8 @@ export type MediaExecutionSnapshot = {
   committedPlayback: CommittedPlaybackSnapshot | null;
   audioExecution: AudioExecutionSnapshot | null;
   startupDebugState: MediaStartupDebugState | null;
+  customDecode: CustomDecodeSnapshot | null;
+  renderer: RendererSnapshot | null;
   lastCommandType: MediaExecutionCommandType | null;
   failureReason: string | null;
 };

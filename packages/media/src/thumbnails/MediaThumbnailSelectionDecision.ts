@@ -7,7 +7,10 @@
  */
 
 import type { MediaThumbnailCandidateFrame } from "./MediaThumbnailCandidateFrame";
-import type { MediaThumbnailExtractionStrategy } from "./MediaThumbnailExtractionPolicy";
+import type {
+  MediaThumbnailExtractionStrategy,
+  MediaThumbnailFallbackBehavior,
+} from "./MediaThumbnailExtractionPolicy";
 import type { MediaThumbnailFrameRejectionReason } from "./MediaThumbnailFrameRejectionReason";
 import type { MediaThumbnailQualityIntent } from "./MediaThumbnailQualityIntent";
 import type { MediaThumbnailSelectionReason } from "./MediaThumbnailSelectionReason";
@@ -18,9 +21,17 @@ import type { MediaThumbnailSelectionReason } from "./MediaThumbnailSelectionRea
 export type MediaThumbnailSelectionDecision = {
   requestedStrategy: MediaThumbnailExtractionStrategy;
   strategyUsed: MediaThumbnailExtractionStrategy;
+  fallbackBehavior: MediaThumbnailFallbackBehavior;
   qualityIntent: MediaThumbnailQualityIntent;
   selectionReason: MediaThumbnailSelectionReason;
   resolvedReason: MediaThumbnailSelectionReason;
+  firstFrameAccepted: boolean;
+  firstFrameRejected: boolean;
+  firstFrameRejectionReason: MediaThumbnailFrameRejectionReason | null;
+  representativeSearchUsed: boolean;
+  representativeTargetTimeMs: number | null;
+  representativeWindowStartMs: number | null;
+  representativeWindowEndMs: number | null;
   selectedFrameTimeMs: number | null;
   selectedCandidateIndex: number | null;
   attemptedFrameCount: number;

@@ -6,6 +6,10 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { CustomDecodeCapability } from "../custom-decode/CustomDecodeCapability";
+import type { CustomDecodeDecision } from "../custom-decode/CustomDecodeDecision";
+import type { RendererCapability } from "../rendering/RendererCapability";
+import type { RendererDecision } from "../rendering/RendererDecision";
 import type { CapabilityDecision } from "./CapabilityDecision";
 import type { CapabilityProbeResult } from "./CapabilityProbeResult";
 import type { MediaRoleCapabilityRequest } from "./MediaRoleCapabilityRequest";
@@ -18,4 +22,8 @@ export type MediaRoleCapabilitySnapshot = {
   request: MediaRoleCapabilityRequest;
   probeResult: CapabilityProbeResult;
   decision: CapabilityDecision;
+  rendererCapability: RendererCapability;
+  rendererDecision: RendererDecision;
+  customDecodeCapability: CustomDecodeCapability;
+  customDecodeDecision: CustomDecodeDecision;
 };

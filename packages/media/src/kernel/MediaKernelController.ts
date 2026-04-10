@@ -17,6 +17,7 @@ import { MediaSessionPlanner } from "../planning/MediaSessionPlanner";
 import type { PreviewCandidateInput } from "../preview/PreviewCandidateInput";
 import type { PreviewFarmState } from "../preview/PreviewFarmState";
 import { PreviewScheduler } from "../preview/PreviewScheduler";
+import { RendererRouter } from "../rendering/RendererRouter";
 import type { MediaSessionDescriptor } from "../sessions/MediaSessionDescriptor";
 import type { MediaSessionSnapshot } from "../sessions/MediaSessionSnapshot";
 import type { MediaSessionState } from "../sessions/MediaSessionState";
@@ -576,6 +577,18 @@ export class MediaKernelController {
         supportsThumbnailExtraction:
           mergedProfile.supportsThumbnailExtraction &&
           appMediaCapabilities.profile.supportsThumbnailExtraction,
+        supportsWebCodecs:
+          mergedProfile.supportsWebCodecs &&
+          appMediaCapabilities.profile.supportsWebCodecs,
+        supportsCustomDecodeThumbnailExtraction:
+          mergedProfile.supportsCustomDecodeThumbnailExtraction &&
+          appMediaCapabilities.profile.supportsCustomDecodeThumbnailExtraction,
+        supportsCustomDecodePreviewWarm:
+          mergedProfile.supportsCustomDecodePreviewWarm &&
+          appMediaCapabilities.profile.supportsCustomDecodePreviewWarm,
+        supportsCustomDecodePreviewActive:
+          mergedProfile.supportsCustomDecodePreviewActive &&
+          appMediaCapabilities.profile.supportsCustomDecodePreviewActive,
         supportsWorkerOffload:
           mergedProfile.supportsWorkerOffload &&
           appMediaCapabilities.profile.supportsWorkerOffload,
@@ -658,6 +671,12 @@ export class MediaKernelController {
       supportsShakaPlayback: profile.supportsShakaPlayback,
       supportsPreviewVideo: profile.supportsPreviewVideo,
       supportsThumbnailExtraction: profile.supportsThumbnailExtraction,
+      supportsWebCodecs: profile.supportsWebCodecs,
+      supportsCustomDecodeThumbnailExtraction:
+        profile.supportsCustomDecodeThumbnailExtraction,
+      supportsCustomDecodePreviewWarm: profile.supportsCustomDecodePreviewWarm,
+      supportsCustomDecodePreviewActive:
+        profile.supportsCustomDecodePreviewActive,
       supportsWorkerOffload: profile.supportsWorkerOffload,
       supportsWebGPUPreferred: profile.supportsWebGPUPreferred,
       supportsWebGLFallback: profile.supportsWebGLFallback,
@@ -751,6 +770,21 @@ export class MediaKernelController {
                         supportsThumbnailExtraction:
                           mediaPlanSession.capabilitySnapshot.request
                             .appCapabilityProfile.supportsThumbnailExtraction,
+                        supportsWebCodecs:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .appCapabilityProfile.supportsWebCodecs,
+                        supportsCustomDecodeThumbnailExtraction:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .appCapabilityProfile
+                            .supportsCustomDecodeThumbnailExtraction,
+                        supportsCustomDecodePreviewWarm:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .appCapabilityProfile
+                            .supportsCustomDecodePreviewWarm,
+                        supportsCustomDecodePreviewActive:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .appCapabilityProfile
+                            .supportsCustomDecodePreviewActive,
                         supportsWorkerOffload:
                           mediaPlanSession.capabilitySnapshot.request
                             .appCapabilityProfile.supportsWorkerOffload,
@@ -816,6 +850,30 @@ export class MediaKernelController {
                         canRunMultipleWarmSessions:
                           mediaPlanSession.capabilitySnapshot.request
                             .runtimeCapabilities.canRunMultipleWarmSessions,
+                        supportsWebCodecs:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities.supportsWebCodecs,
+                        supportsWebGpuRenderer:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities.supportsWebGpuRenderer,
+                        supportsWebGlRenderer:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities.supportsWebGlRenderer,
+                        supportsRendererPreviewRouting:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities.supportsRendererPreviewRouting,
+                        supportsRendererExtractionRouting:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities
+                            .supportsRendererExtractionRouting,
+                        committedPlaybackBypassesRendererRouter:
+                          mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities
+                            .committedPlaybackBypassesRendererRouter,
+                        customDecodeLanes: [
+                          ...mediaPlanSession.capabilitySnapshot.request
+                            .runtimeCapabilities.customDecodeLanes,
+                        ],
                         supportsCommittedPlayback:
                           mediaPlanSession.capabilitySnapshot.request
                             .runtimeCapabilities.supportsCommittedPlayback,
@@ -908,6 +966,9 @@ export class MediaKernelController {
                 customLaneSupportLevel:
                   mediaPlanSession.capabilitySnapshot.probeResult
                     .customLaneSupportLevel,
+                webCodecsSupportLevel:
+                  mediaPlanSession.capabilitySnapshot.probeResult
+                    .webCodecsSupportLevel,
                 nativeRendererSupportLevel:
                   mediaPlanSession.capabilitySnapshot.probeResult
                     .nativeRendererSupportLevel,
@@ -917,6 +978,15 @@ export class MediaKernelController {
                 webglRendererSupportLevel:
                   mediaPlanSession.capabilitySnapshot.probeResult
                     .webglRendererSupportLevel,
+                previewRendererRoutingSupportLevel:
+                  mediaPlanSession.capabilitySnapshot.probeResult
+                    .previewRendererRoutingSupportLevel,
+                extractionRendererRoutingSupportLevel:
+                  mediaPlanSession.capabilitySnapshot.probeResult
+                    .extractionRendererRoutingSupportLevel,
+                committedPlaybackBypassesRendererRouter:
+                  mediaPlanSession.capabilitySnapshot.probeResult
+                    .committedPlaybackBypassesRendererRouter,
                 premiumPlaybackSupportLevel:
                   mediaPlanSession.capabilitySnapshot.probeResult
                     .premiumPlaybackSupportLevel,
@@ -950,6 +1020,72 @@ export class MediaKernelController {
                 ],
                 notes: [...mediaPlanSession.capabilitySnapshot.decision.notes],
               },
+              rendererCapability: RendererRouter.cloneCapability(
+                mediaPlanSession.capabilitySnapshot.rendererCapability,
+              )!,
+              rendererDecision: RendererRouter.cloneDecision(
+                mediaPlanSession.capabilitySnapshot.rendererDecision,
+              )!,
+              customDecodeCapability: {
+                lane: mediaPlanSession.capabilitySnapshot.customDecodeCapability
+                  .lane,
+                allowedByRole:
+                  mediaPlanSession.capabilitySnapshot.customDecodeCapability
+                    .allowedByRole,
+                supportLevel:
+                  mediaPlanSession.capabilitySnapshot.customDecodeCapability
+                    .supportLevel,
+                webCodecsSupportLevel:
+                  mediaPlanSession.capabilitySnapshot.customDecodeCapability
+                    .webCodecsSupportLevel,
+                reasons: [
+                  ...mediaPlanSession.capabilitySnapshot.customDecodeCapability
+                    .reasons,
+                ],
+                notes: [
+                  ...mediaPlanSession.capabilitySnapshot.customDecodeCapability
+                    .notes,
+                ],
+              },
+              customDecodeDecision: {
+                lane: mediaPlanSession.capabilitySnapshot.customDecodeDecision
+                  .lane,
+                shouldAttempt:
+                  mediaPlanSession.capabilitySnapshot.customDecodeDecision
+                    .shouldAttempt,
+                preferred:
+                  mediaPlanSession.capabilitySnapshot.customDecodeDecision
+                    .preferred,
+                fallbackRequired:
+                  mediaPlanSession.capabilitySnapshot.customDecodeDecision
+                    .fallbackRequired,
+                fallbackReason:
+                  mediaPlanSession.capabilitySnapshot.customDecodeDecision
+                    .fallbackReason,
+                reasons: [
+                  ...mediaPlanSession.capabilitySnapshot.customDecodeDecision
+                    .reasons,
+                ],
+                notes: [
+                  ...mediaPlanSession.capabilitySnapshot.customDecodeDecision
+                    .notes,
+                ],
+              },
+            },
+      customDecodeDecision:
+        mediaPlanSession.customDecodeDecision === null
+          ? null
+          : {
+              lane: mediaPlanSession.customDecodeDecision.lane,
+              shouldAttempt:
+                mediaPlanSession.customDecodeDecision.shouldAttempt,
+              preferred: mediaPlanSession.customDecodeDecision.preferred,
+              fallbackRequired:
+                mediaPlanSession.customDecodeDecision.fallbackRequired,
+              fallbackReason:
+                mediaPlanSession.customDecodeDecision.fallbackReason,
+              reasons: [...mediaPlanSession.customDecodeDecision.reasons],
+              notes: [...mediaPlanSession.customDecodeDecision.notes],
             },
       fallbackPlaybackLaneOrder: [
         ...mediaPlanSession.fallbackPlaybackLaneOrder,
@@ -1281,6 +1417,13 @@ export class MediaKernelController {
       leftProfile.supportsPreviewVideo === rightProfile.supportsPreviewVideo &&
       leftProfile.supportsThumbnailExtraction ===
         rightProfile.supportsThumbnailExtraction &&
+      leftProfile.supportsWebCodecs === rightProfile.supportsWebCodecs &&
+      leftProfile.supportsCustomDecodeThumbnailExtraction ===
+        rightProfile.supportsCustomDecodeThumbnailExtraction &&
+      leftProfile.supportsCustomDecodePreviewWarm ===
+        rightProfile.supportsCustomDecodePreviewWarm &&
+      leftProfile.supportsCustomDecodePreviewActive ===
+        rightProfile.supportsCustomDecodePreviewActive &&
       leftProfile.supportsWorkerOffload ===
         rightProfile.supportsWorkerOffload &&
       leftProfile.supportsWebGPUPreferred ===

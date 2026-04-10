@@ -25,6 +25,8 @@ export class ExpoMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAd
     canExtractFromHiddenMedia: false,
     canCacheObjectUrls: false,
     canPrioritizeFocusedItem: false,
+    supportsWebCodecs: false,
+    supportsCustomDecodeExtraction: false,
   };
 
   public readonly runtimeId: string;

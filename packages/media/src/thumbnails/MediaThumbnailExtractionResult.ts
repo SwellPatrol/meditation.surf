@@ -6,6 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { CustomDecodeSnapshot } from "../custom-decode/CustomDecodeSnapshot";
+import type { RendererSnapshot } from "../rendering/RendererSnapshot";
 import type { MediaThumbnailExtractionAttempt } from "./MediaThumbnailExtractionAttempt";
 import type { MediaThumbnailSelectionDecision } from "./MediaThumbnailSelectionDecision";
 
@@ -26,4 +28,6 @@ export type MediaThumbnailExtractionResult = {
   wasApproximate: boolean;
   extractionAttempt: MediaThumbnailExtractionAttempt;
   selectionDecision: MediaThumbnailSelectionDecision;
+  customDecode: CustomDecodeSnapshot | null;
+  renderer: RendererSnapshot | null;
 };

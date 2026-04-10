@@ -9,6 +9,7 @@
 import {
   type Catalog,
   type CommittedPlaybackDecision,
+  type CustomDecodeSnapshot,
   type MediaAudioTrackInfo,
   type MediaExecutionCommand,
   type MediaExecutionResult,
@@ -25,13 +26,19 @@ import {
   type MediaTextTrackInfo,
   type MediaVariantInfo,
   type PlaybackSequenceController,
+  type RendererFrameHandle,
+  RendererRouter as SharedRendererRouter,
+  type RendererSnapshot,
 } from "@meditation-surf/core";
 import { type StartupWarmResult, VfsController } from "@meditation-surf/vfs";
 
+import { WebCustomDecodeSessionAdapter } from "./WebCustomDecodeSessionAdapter";
 import {
   type WebPreviewSurfaceEntry,
   WebPreviewSurfaceRegistry,
 } from "./WebPreviewSurfaceRegistry";
+import { WebRendererCapabilityProbe } from "./WebRendererCapabilityProbe";
+import { WebRendererRouter } from "./WebRendererRouter";
 
 type ShakaModule =
   (typeof import("shaka-player/dist/shaka-player.compiled.js"))["default"];
@@ -80,6 +87,9 @@ type ManagedPreviewRuntimeSession = {
   itemId: string | null;
   sourceId: string | null;
   state: MediaExecutionResult["state"];
+  customDecodeSnapshot: CustomDecodeSnapshot | null;
+  previewRendererRouter: WebRendererRouter | null;
+  rendererSnapshot: RendererSnapshot | null;
   hostElement: HTMLDivElement | null;
   videoElement: HTMLVideoElement | null;
   shakaPlayer: ShakaPlayer | null;
@@ -110,6 +120,13 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     canKeepHiddenWarmSession: true,
     canPromoteWarmSession: false,
     canRunMultipleWarmSessions: true,
+    supportsWebCodecs: WebCustomDecodeSessionAdapter.isSupported(),
+    supportsWebGpuRenderer: false,
+    supportsWebGlRenderer: false,
+    supportsRendererPreviewRouting: false,
+    supportsRendererExtractionRouting: false,
+    committedPlaybackBypassesRendererRouter: true,
+    customDecodeLanes: ["preview-warm", "preview-active"],
     supportsCommittedPlayback: true,
     supportsPremiumCommittedPlayback: true,
     committedPlaybackLanePreference: "prefer-native",
@@ -189,8 +206,20 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
    * @returns Web runtime capability snapshot
    */
   public getCapabilities(): MediaRuntimeCapabilities {
+    const rendererProbeResult = WebRendererCapabilityProbe.probe();
+
     return {
       ...WebMediaRuntimeAdapter.CAPABILITIES,
+      supportsWebGpuRenderer: rendererProbeResult.supportsWebGpuRenderer,
+      supportsWebGlRenderer: rendererProbeResult.supportsWebGlRenderer,
+      supportsRendererPreviewRouting:
+        rendererProbeResult.supportsRendererPreviewRouting,
+      supportsRendererExtractionRouting:
+        rendererProbeResult.supportsRendererExtractionRouting,
+      committedPlaybackBypassesRendererRouter: true,
+      customDecodeLanes: [
+        ...WebMediaRuntimeAdapter.CAPABILITIES.customDecodeLanes,
+      ],
       committedPlaybackLanes: [
         ...WebMediaRuntimeAdapter.CAPABILITIES.committedPlaybackLanes,
       ],
@@ -386,10 +415,30 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         null,
         null,
         this.createAcceptedAudioExecution(command, true),
+        previewRuntimeSession.customDecodeSnapshot,
+        previewRuntimeSession.rendererSnapshot,
       );
     }
 
     try {
+      const customDecodeSnapshot: CustomDecodeSnapshot | null =
+        await this.tryWarmPreviewCustomDecode(
+          plannedSession,
+          previewRuntimeSession,
+        );
+      previewRuntimeSession.customDecodeSnapshot =
+        this.cloneCustomDecodeSnapshot(customDecodeSnapshot);
+      previewRuntimeSession.rendererSnapshot =
+        SharedRendererRouter.cloneSnapshot(
+          customDecodeSnapshot?.renderer ??
+            this.createPreviewRendererFallbackSnapshot(
+              plannedSession,
+              "preview-warm",
+              "Preview warm stayed on the existing preview path.",
+              [],
+              null,
+            ),
+        );
       const startupDebugState: MediaStartupDebugState | null =
         await this.buildStartupDebugState(
           "preview-warm",
@@ -414,6 +463,8 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         null,
         startupDebugState,
         this.createAcceptedAudioExecution(command, true),
+        previewRuntimeSession.customDecodeSnapshot,
+        previewRuntimeSession.rendererSnapshot,
       );
     } catch (error: unknown) {
       const failureReason: string = this.describeRuntimeError(
@@ -434,6 +485,8 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
           failureReason,
         ),
         this.createAcceptedAudioExecution(command, false),
+        previewRuntimeSession.customDecodeSnapshot,
+        previewRuntimeSession.rendererSnapshot,
       );
     }
   }
@@ -556,7 +609,10 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     }
 
     this.deactivateOtherActivePreviewSessions(plannedSession.sessionId);
-    this.attachPreviewSurface(previewRuntimeSession, plannedSession.itemId);
+    this.attachPreviewRendererSurface(
+      previewRuntimeSession,
+      plannedSession.itemId,
+    );
     this.applyRequestedPreviewAudioState(
       previewRuntimeSession.videoElement,
       command.audioExecution,
@@ -564,7 +620,18 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
 
     try {
       await previewRuntimeSession.videoElement.play();
+      this.detachPreviewRendererSurface(previewRuntimeSession);
+      this.attachPreviewSurface(previewRuntimeSession, plannedSession.itemId);
       previewRuntimeSession.state = "preview-active";
+      previewRuntimeSession.customDecodeSnapshot =
+        this.promotePreviewCustomDecodeSnapshot(
+          previewRuntimeSession.customDecodeSnapshot,
+        );
+      previewRuntimeSession.rendererSnapshot =
+        this.promotePreviewRendererSnapshot(
+          previewRuntimeSession.rendererSnapshot,
+          plannedSession,
+        );
 
       return this.createResult(
         "preview-active",
@@ -573,6 +640,8 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         null,
         null,
         this.createAcceptedAudioExecution(command, true),
+        previewRuntimeSession.customDecodeSnapshot,
+        previewRuntimeSession.rendererSnapshot,
       );
     } catch (error: unknown) {
       const failureReason: string = this.describeRuntimeError(
@@ -581,6 +650,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       );
 
       this.detachPreviewSurface(previewRuntimeSession);
+      this.detachPreviewRendererSurface(previewRuntimeSession);
       previewRuntimeSession.state = "failed";
 
       return this.createResult(
@@ -590,6 +660,8 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         failureReason,
         null,
         this.createAcceptedAudioExecution(command, false),
+        previewRuntimeSession.customDecodeSnapshot,
+        previewRuntimeSession.rendererSnapshot,
       );
     }
   }
@@ -693,6 +765,10 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       previewRuntimeSession.runtimeSessionHandle,
       null,
       null,
+      null,
+      null,
+      previewRuntimeSession.customDecodeSnapshot,
+      previewRuntimeSession.rendererSnapshot,
     );
   }
 
@@ -761,6 +837,10 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       previewRuntimeSession.runtimeSessionHandle,
       null,
       null,
+      null,
+      null,
+      previewRuntimeSession.customDecodeSnapshot,
+      previewRuntimeSession.rendererSnapshot,
     );
   }
 
@@ -1205,6 +1285,9 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         itemId: null,
         sourceId: null,
         state: "inactive",
+        customDecodeSnapshot: null,
+        previewRendererRouter: null,
+        rendererSnapshot: null,
         hostElement: null,
         videoElement: null,
         shakaPlayer: null,
@@ -1348,7 +1431,9 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     previewRuntimeSession: ManagedPreviewRuntimeSession,
   ): Promise<void> {
     previewRuntimeSession.videoElement?.pause();
+    previewRuntimeSession.previewRendererRouter?.detach();
     this.detachPreviewSurface(previewRuntimeSession);
+    await previewRuntimeSession.previewRendererRouter?.destroy();
     await this.destroyPreviewShakaPlayer(previewRuntimeSession);
 
     if (previewRuntimeSession.videoElement !== null) {
@@ -1359,6 +1444,9 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     previewRuntimeSession.itemId = null;
     previewRuntimeSession.sourceId = null;
     previewRuntimeSession.state = "inactive";
+    previewRuntimeSession.customDecodeSnapshot = null;
+    previewRuntimeSession.previewRendererRouter = null;
+    previewRuntimeSession.rendererSnapshot = null;
   }
 
   /**
@@ -1429,6 +1517,256 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
   }
 
   /**
+   * @brief Attempt the preview custom decode warm path without replacing preview playback
+   *
+   * @param plannedSession - Planned preview session carrying the custom decode decision
+   *
+   * @returns Inspectable custom decode snapshot for the preview slot
+   */
+  private async tryWarmPreviewCustomDecode(
+    plannedSession: NonNullable<MediaExecutionCommand["session"]>,
+    previewRuntimeSession: ManagedPreviewRuntimeSession,
+  ): Promise<CustomDecodeSnapshot | null> {
+    const customDecodeDecision = plannedSession.customDecodeDecision;
+    const customDecodeCapability =
+      plannedSession.capabilitySnapshot?.customDecodeCapability ?? null;
+
+    if (customDecodeDecision === null || customDecodeCapability === null) {
+      return null;
+    }
+
+    if (!customDecodeDecision.shouldAttempt || plannedSession.source === null) {
+      return this.createPreviewCustomDecodeSnapshot(
+        customDecodeCapability,
+        customDecodeDecision,
+        customDecodeDecision.shouldAttempt ? "failed" : "unsupported",
+        false,
+        true,
+        customDecodeDecision.fallbackReason ??
+          "Preview warm stayed on the existing preview path.",
+        null,
+      );
+    }
+
+    const customDecodeSessionAdapter: WebCustomDecodeSessionAdapter =
+      new WebCustomDecodeSessionAdapter(this.vfsController);
+
+    try {
+      const customDecodeSnapshot: CustomDecodeSnapshot =
+        await customDecodeSessionAdapter.open(
+          plannedSession.source,
+          customDecodeCapability,
+          customDecodeDecision,
+        );
+
+      if (
+        !customDecodeSnapshot.usedCustomDecode ||
+        customDecodeSnapshot.state !== "first-frame-ready"
+      ) {
+        return {
+          ...this.cloneCustomDecodeSnapshot(customDecodeSnapshot)!,
+          renderer: this.createPreviewRendererFallbackSnapshot(
+            plannedSession,
+            "preview-warm",
+            customDecodeSnapshot.fallbackReason ??
+              "Preview warm stayed on the existing preview path.",
+            [],
+            customDecodeSnapshot.selectedFrame === null
+              ? null
+              : {
+                  representation:
+                    customDecodeSnapshot.selectedFrame.representation,
+                  origin: "custom-decode",
+                  width: customDecodeSnapshot.selectedFrame.width,
+                  height: customDecodeSnapshot.selectedFrame.height,
+                  frameTimeMs: customDecodeSnapshot.selectedFrame.frameTimeMs,
+                },
+          ),
+        };
+      }
+
+      const frameResult: Awaited<
+        ReturnType<WebCustomDecodeSessionAdapter["captureFrameAtTimeMs"]>
+      > = await customDecodeSessionAdapter.captureFrameAtTimeMs(0);
+      const rendererSnapshot: RendererSnapshot =
+        await this.tryRoutePreviewWarmFrame(
+          plannedSession,
+          previewRuntimeSession,
+          frameResult.bitmap,
+          {
+            representation: frameResult.frameHandle.representation,
+            origin: "custom-decode",
+            width: frameResult.frameHandle.width,
+            height: frameResult.frameHandle.height,
+            frameTimeMs: frameResult.actualFrameTimeMs,
+          },
+        );
+
+      return {
+        ...this.cloneCustomDecodeSnapshot(customDecodeSnapshot)!,
+        selectedFrame: {
+          representation: frameResult.frameHandle.representation,
+          width: frameResult.frameHandle.width,
+          height: frameResult.frameHandle.height,
+          frameTimeMs: frameResult.actualFrameTimeMs,
+        },
+        renderer: SharedRendererRouter.cloneSnapshot(rendererSnapshot),
+        notes: [
+          ...customDecodeSnapshot.notes,
+          "Preview warm prepared a renderer-routable first frame for conservative preview handoff.",
+        ],
+      };
+    } finally {
+      await customDecodeSessionAdapter.close();
+    }
+  }
+
+  /**
+   * @brief Update a warmed custom decode snapshot when preview playback activates
+   *
+   * @param customDecodeSnapshot - Existing preview custom decode snapshot
+   *
+   * @returns Updated snapshot reflecting the active-preview handoff
+   */
+  private promotePreviewCustomDecodeSnapshot(
+    customDecodeSnapshot: CustomDecodeSnapshot | null,
+  ): CustomDecodeSnapshot | null {
+    if (customDecodeSnapshot === null) {
+      return null;
+    }
+
+    return {
+      ...this.cloneCustomDecodeSnapshot(customDecodeSnapshot)!,
+      state: "previewing",
+      usedFallback: true,
+      fallbackReason:
+        customDecodeSnapshot.decision?.fallbackReason ??
+        "Preview-active custom decode fell back to the established preview renderer path.",
+      notes: [
+        ...customDecodeSnapshot.notes,
+        "Preview activation kept the existing video renderer while the custom decode lane remained debug-visible.",
+      ],
+    };
+  }
+
+  /**
+   * @brief Attempt one routed first-frame presentation for a warmed preview slot
+   *
+   * @param plannedSession - Planned preview session being warmed
+   * @param previewRuntimeSession - Runtime-owned preview slot being prepared
+   * @param frameSource - Browser frame source captured from custom decode
+   * @param frameHandle - Shared frame metadata for debug consumers
+   *
+   * @returns Shared renderer snapshot describing the warm-path route
+   */
+  private async tryRoutePreviewWarmFrame(
+    plannedSession: NonNullable<MediaExecutionCommand["session"]>,
+    previewRuntimeSession: ManagedPreviewRuntimeSession,
+    frameSource: CanvasImageSource,
+    frameHandle: RendererFrameHandle,
+  ): Promise<RendererSnapshot> {
+    const webRendererRouter: WebRendererRouter = new WebRendererRouter();
+    const rendererSnapshot: RendererSnapshot =
+      await webRendererRouter.routeFrame({
+        capability:
+          plannedSession.capabilitySnapshot?.rendererCapability ?? null,
+        decision: plannedSession.capabilitySnapshot?.rendererDecision ?? null,
+        sessionId: plannedSession.sessionId,
+        sessionRole: "preview",
+        variantRole: "preview-warm",
+        target: "preview-surface",
+        frameSource,
+        frameHandle,
+        hostElement: null,
+        legacyFallbackReason:
+          "Preview warm stayed on the existing preview video path.",
+        notes: [
+          "Preview warm attempted renderer routing for the custom-decode first frame.",
+        ],
+      });
+
+    if (rendererSnapshot.usedLegacyPath) {
+      await webRendererRouter.destroy();
+      previewRuntimeSession.previewRendererRouter = null;
+
+      return rendererSnapshot;
+    }
+
+    await previewRuntimeSession.previewRendererRouter?.destroy();
+    previewRuntimeSession.previewRendererRouter = webRendererRouter;
+
+    return rendererSnapshot;
+  }
+
+  /**
+   * @brief Create one conservative legacy-path snapshot for preview execution
+   *
+   * @param plannedSession - Planned preview session owning the snapshot
+   * @param variantRole - Role variant being reported
+   * @param fallbackReason - Human-readable fallback reason
+   * @param notes - Extra notes to append to the renderer snapshot
+   * @param frameHandle - Optional frame metadata for the routed or bypassed frame
+   *
+   * @returns Shared renderer snapshot for the preview session
+   */
+  private createPreviewRendererFallbackSnapshot(
+    plannedSession: NonNullable<MediaExecutionCommand["session"]>,
+    variantRole: "preview-warm" | "preview-active",
+    fallbackReason: string,
+    notes: string[],
+    frameHandle: RendererFrameHandle | null,
+  ): RendererSnapshot {
+    return SharedRendererRouter.createSnapshot({
+      capability: plannedSession.capabilitySnapshot?.rendererCapability ?? null,
+      decision: plannedSession.capabilitySnapshot?.rendererDecision ?? null,
+      sessionId: plannedSession.sessionId,
+      sessionRole: "preview",
+      variantRole,
+      target: "preview-surface",
+      selectedBackend:
+        plannedSession.capabilitySnapshot?.rendererDecision.selectedBackend ??
+        null,
+      activeBackend: null,
+      usedLegacyPath: true,
+      bypassedRendererRouter:
+        plannedSession.capabilitySnapshot?.rendererDecision
+          .bypassesRendererRouter ?? false,
+      fallbackReason,
+      failureReason: null,
+      frameHandle,
+      notes,
+    });
+  }
+
+  /**
+   * @brief Update a warm renderer snapshot when the active preview returns to video playback
+   *
+   * @param rendererSnapshot - Existing warm renderer snapshot
+   * @param plannedSession - Planned preview session being activated
+   *
+   * @returns Updated renderer snapshot for the active preview path
+   */
+  private promotePreviewRendererSnapshot(
+    rendererSnapshot: RendererSnapshot | null,
+    plannedSession: NonNullable<MediaExecutionCommand["session"]>,
+  ): RendererSnapshot {
+    return this.createPreviewRendererFallbackSnapshot(
+      plannedSession,
+      "preview-active",
+      "Preview activation deliberately returned to the established HTMLVideoElement preview path after first-frame preparation.",
+      rendererSnapshot === null
+        ? [
+            "Preview activation stayed entirely on the existing preview video path.",
+          ]
+        : [
+            ...rendererSnapshot.notes,
+            "Preview activation reused the conservative video playback path after the renderer-router handoff window.",
+          ],
+      rendererSnapshot?.frameHandle ?? null,
+    );
+  }
+
+  /**
    * @brief Keep active preview slots attached after browse rerenders
    */
   private syncActivePreviewSurfaces(): void {
@@ -1460,8 +1798,53 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
 
       previewRuntimeSession.videoElement?.pause();
       this.detachPreviewSurface(previewRuntimeSession);
+      this.detachPreviewRendererSurface(previewRuntimeSession);
       previewRuntimeSession.state = "ready-first-frame";
     }
+  }
+
+  /**
+   * @brief Attach one warmed renderer canvas to the focused preview host when available
+   *
+   * @param previewRuntimeSession - Preview slot whose renderer canvas should be shown
+   * @param itemId - Focused item that should host the preview renderer
+   */
+  private attachPreviewRendererSurface(
+    previewRuntimeSession: ManagedPreviewRuntimeSession,
+    itemId: string | null,
+  ): void {
+    const previewRendererRouter: WebRendererRouter | null =
+      previewRuntimeSession.previewRendererRouter;
+    const rendererSnapshot: RendererSnapshot | null =
+      previewRuntimeSession.rendererSnapshot;
+    const surfaceEntry: WebPreviewSurfaceEntry | null =
+      this.previewSurfaceRegistry.getEntry(itemId);
+
+    if (
+      previewRendererRouter === null ||
+      rendererSnapshot === null ||
+      rendererSnapshot.usedLegacyPath ||
+      surfaceEntry === null
+    ) {
+      this.detachPreviewRendererSurface(previewRuntimeSession);
+      return;
+    }
+
+    previewRendererRouter.bindToHost(surfaceEntry.hostElement);
+    surfaceEntry.hostElement.classList.add("is-active");
+    previewRuntimeSession.hostElement = surfaceEntry.hostElement;
+    this.updatePreviewCardDebugState(surfaceEntry.hostElement);
+  }
+
+  /**
+   * @brief Detach one preview renderer canvas from its current host
+   *
+   * @param previewRuntimeSession - Preview slot whose renderer should be detached
+   */
+  private detachPreviewRendererSurface(
+    previewRuntimeSession: ManagedPreviewRuntimeSession,
+  ): void {
+    previewRuntimeSession.previewRendererRouter?.detach();
   }
 
   /**
@@ -1485,11 +1868,13 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     }
 
     if (previewRuntimeSession.hostElement === surfaceEntry.hostElement) {
+      previewRuntimeSession.previewRendererRouter?.detach();
       surfaceEntry.hostElement.classList.add("is-active");
       this.updatePreviewCardDebugState(surfaceEntry.hostElement);
       return;
     }
 
+    previewRuntimeSession.previewRendererRouter?.detach();
     this.detachPreviewSurface(previewRuntimeSession);
     surfaceEntry.hostElement.replaceChildren(videoElement);
     surfaceEntry.hostElement.classList.add("is-active");
@@ -1708,6 +2093,8 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     failureReason: string | null,
     startupDebugState: MediaStartupDebugState | null = null,
     audioExecution: MediaExecutionResult["audioExecution"] = null,
+    customDecode: CustomDecodeSnapshot | null = null,
+    renderer: RendererSnapshot | null = null,
   ): MediaExecutionResult {
     return {
       state,
@@ -1837,6 +2224,129 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
               directRuntimeFallbackReason:
                 startupDebugState.directRuntimeFallbackReason,
             },
+      customDecode: this.cloneCustomDecodeSnapshot(customDecode),
+      renderer: SharedRendererRouter.cloneSnapshot(renderer),
+    };
+  }
+
+  /**
+   * @brief Create one preview-scoped custom decode snapshot from plan metadata
+   *
+   * @param capability - Shared capability data for the current preview role
+   * @param decision - Shared decision for the current preview role
+   * @param state - Session state being reported
+   * @param usedCustomDecode - Whether the custom decode path completed work
+   * @param usedFallback - Whether the established preview path is still in use
+   * @param fallbackReason - Human-readable fallback reason
+   * @param failureReason - Optional failure reason
+   *
+   * @returns Shared custom decode snapshot
+   */
+  private createPreviewCustomDecodeSnapshot(
+    capability: NonNullable<
+      NonNullable<MediaExecutionCommand["session"]>["capabilitySnapshot"]
+    >["customDecodeCapability"],
+    decision: NonNullable<
+      MediaExecutionCommand["session"]
+    >["customDecodeDecision"],
+    state: CustomDecodeSnapshot["state"],
+    usedCustomDecode: boolean,
+    usedFallback: boolean,
+    fallbackReason: string | null,
+    failureReason: string | null,
+  ): CustomDecodeSnapshot {
+    return {
+      lane: decision?.lane ?? null,
+      state,
+      usedCustomDecode,
+      usedFallback,
+      fallbackReason,
+      failureReason,
+      selectedFrame: null,
+      renderer: null,
+      capability: {
+        lane: capability.lane,
+        allowedByRole: capability.allowedByRole,
+        supportLevel: capability.supportLevel,
+        webCodecsSupportLevel: capability.webCodecsSupportLevel,
+        reasons: [...capability.reasons],
+        notes: [...capability.notes],
+      },
+      decision:
+        decision === null
+          ? null
+          : {
+              lane: decision.lane,
+              shouldAttempt: decision.shouldAttempt,
+              preferred: decision.preferred,
+              fallbackRequired: decision.fallbackRequired,
+              fallbackReason: decision.fallbackReason,
+              reasons: [...decision.reasons],
+              notes: [...decision.notes],
+            },
+      notes:
+        fallbackReason === null
+          ? [...capability.notes]
+          : [...capability.notes, fallbackReason],
+    };
+  }
+
+  /**
+   * @brief Clone custom decode debug state for execution results
+   *
+   * @param customDecode - Custom decode debug state to clone
+   *
+   * @returns Cloned custom decode snapshot, or `null` when absent
+   */
+  private cloneCustomDecodeSnapshot(
+    customDecode: CustomDecodeSnapshot | null,
+  ): CustomDecodeSnapshot | null {
+    if (customDecode === null) {
+      return null;
+    }
+
+    return {
+      lane: customDecode.lane,
+      state: customDecode.state,
+      usedCustomDecode: customDecode.usedCustomDecode,
+      usedFallback: customDecode.usedFallback,
+      fallbackReason: customDecode.fallbackReason,
+      failureReason: customDecode.failureReason,
+      selectedFrame:
+        customDecode.selectedFrame === null
+          ? null
+          : {
+              representation: customDecode.selectedFrame.representation,
+              width: customDecode.selectedFrame.width,
+              height: customDecode.selectedFrame.height,
+              frameTimeMs: customDecode.selectedFrame.frameTimeMs,
+            },
+      renderer: SharedRendererRouter.cloneSnapshot(customDecode.renderer),
+      capability:
+        customDecode.capability === null
+          ? null
+          : {
+              lane: customDecode.capability.lane,
+              allowedByRole: customDecode.capability.allowedByRole,
+              supportLevel: customDecode.capability.supportLevel,
+              webCodecsSupportLevel:
+                customDecode.capability.webCodecsSupportLevel,
+              reasons: [...customDecode.capability.reasons],
+              notes: [...customDecode.capability.notes],
+            },
+      decision:
+        customDecode.decision === null
+          ? null
+          : {
+              lane: customDecode.decision.lane,
+              shouldAttempt: customDecode.decision.shouldAttempt,
+              preferred: customDecode.decision.preferred,
+              fallbackRequired: customDecode.decision.fallbackRequired,
+              fallbackReason: customDecode.decision.fallbackReason,
+              reasons: [...customDecode.decision.reasons],
+              notes: [...customDecode.decision.notes],
+            },
+      notes: [...customDecode.notes],
     };
   }
 

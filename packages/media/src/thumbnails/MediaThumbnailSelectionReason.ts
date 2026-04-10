@@ -11,7 +11,7 @@
  */
 export type MediaThumbnailSelectionReason =
   | "first-frame-accepted"
-  | "first-non-black-selected"
+  | "representative-frame-selected"
   | "fallback-first-decodable"
   | "fallback-low-quality"
   | "cached-artifact-reused";

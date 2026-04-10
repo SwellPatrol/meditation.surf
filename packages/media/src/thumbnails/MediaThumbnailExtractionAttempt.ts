@@ -6,7 +6,11 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { MediaThumbnailExtractionStrategy } from "./MediaThumbnailExtractionPolicy";
+import type { CustomDecodeSnapshot } from "../custom-decode/CustomDecodeSnapshot";
+import type {
+  MediaThumbnailExtractionStrategy,
+  MediaThumbnailFallbackBehavior,
+} from "./MediaThumbnailExtractionPolicy";
 import type { MediaThumbnailQualityIntent } from "./MediaThumbnailQualityIntent";
 
 /**
@@ -15,8 +19,14 @@ import type { MediaThumbnailQualityIntent } from "./MediaThumbnailQualityIntent"
 export type MediaThumbnailExtractionAttempt = {
   requestedStrategy: MediaThumbnailExtractionStrategy;
   strategyUsed: MediaThumbnailExtractionStrategy;
+  fallbackBehavior: MediaThumbnailFallbackBehavior;
   qualityIntent: MediaThumbnailQualityIntent;
   timeoutMs: number | null;
+  firstFrameFastPath: boolean;
+  representativeSearchOnRejection: boolean;
+  targetTimeSeconds: number | null;
+  searchWindowStartSeconds: number | null;
+  searchWindowEndSeconds: number | null;
   candidateWindowMs: number;
   candidateFrameStepMs: number;
   maxCandidateFrames: number;
@@ -25,6 +35,7 @@ export type MediaThumbnailExtractionAttempt = {
   completedFrameCount: number;
   timedOut: boolean;
   unsupported: boolean;
+  customDecode: CustomDecodeSnapshot | null;
   startedAt: number;
   finishedAt: number;
 };

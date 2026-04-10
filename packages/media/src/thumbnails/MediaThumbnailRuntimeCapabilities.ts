@@ -15,4 +15,6 @@ export type MediaThumbnailRuntimeCapabilities = {
   canExtractFromHiddenMedia: boolean;
   canCacheObjectUrls: boolean;
   canPrioritizeFocusedItem: boolean;
+  supportsWebCodecs: boolean;
+  supportsCustomDecodeExtraction: boolean;
 };

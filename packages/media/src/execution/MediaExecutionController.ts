@@ -17,6 +17,7 @@ import type { CommittedPlaybackDecision } from "../committed/CommittedPlaybackDe
 import type { CommittedPlaybackIntent } from "../committed/CommittedPlaybackIntent";
 import type { CommittedPlaybackLifecycleState } from "../committed/CommittedPlaybackLifecycleState";
 import type { CommittedPlaybackSnapshot } from "../committed/CommittedPlaybackSnapshot";
+import type { CustomDecodeSnapshot } from "../custom-decode/CustomDecodeSnapshot";
 import { MediaInventoryCloner } from "../inventory/MediaInventoryCloner";
 import type { MediaInventoryRequest } from "../inventory/MediaInventoryRequest";
 import type { MediaInventoryResult } from "../inventory/MediaInventoryResult";
@@ -25,6 +26,8 @@ import type { MediaKernelState } from "../kernel/MediaKernelState";
 import type { MediaPlan } from "../planning/MediaPlan";
 import type { MediaPlanSession } from "../planning/MediaPlanSession";
 import type { PreviewSessionAssignment } from "../preview/PreviewSessionAssignment";
+import { RendererRouter } from "../rendering/RendererRouter";
+import type { RendererSnapshot } from "../rendering/RendererSnapshot";
 import type { MediaSessionDescriptor } from "../sessions/MediaSessionDescriptor";
 import type { MediaSourceDescriptor } from "../sources/MediaSourceDescriptor";
 import type { MediaExecutionCommand } from "./MediaExecutionCommand";
@@ -280,6 +283,8 @@ export class MediaExecutionController {
           committedPlaybackSnapshot,
           requestedAudioExecution,
           previousExecutionSnapshot?.startupDebugState ?? null,
+          previousExecutionSnapshot?.customDecode ?? null,
+          previousExecutionSnapshot?.renderer ?? null,
           previousExecutionSnapshot?.lastCommandType ?? null,
           previousExecutionSnapshot?.failureReason ?? null,
         ),
@@ -502,6 +507,8 @@ export class MediaExecutionController {
         null,
         null,
         null,
+        null,
+        null,
       );
     const runtimeCapabilities: MediaRuntimeCapabilities =
       runtimeAdapter.getCapabilities();
@@ -514,6 +521,10 @@ export class MediaExecutionController {
         planSession: this.clonePlanSession(plannedSession),
         state: "unsupported",
         startupDebugState: null,
+        customDecode: this.cloneCustomDecodeSnapshot(
+          currentSnapshot.customDecode,
+        ),
+        renderer: RendererRouter.cloneSnapshot(currentSnapshot.renderer),
         lastCommandType: commandType,
         failureReason: this.createUnsupportedReason(
           commandType,
@@ -630,6 +641,8 @@ export class MediaExecutionController {
         audioExecution: command.audioExecution,
         failureReason: `${plannedSession.sessionId}: ${failureReason}`,
         startupDebugState: null,
+        customDecode: null,
+        renderer: null,
       };
     }
   }
@@ -675,6 +688,10 @@ export class MediaExecutionController {
           currentExecutionSnapshot?.audioExecution ??
           null,
         commandResult.startupDebugState,
+        commandResult.customDecode ??
+          currentExecutionSnapshot?.customDecode ??
+          null,
+        commandResult.renderer ?? currentExecutionSnapshot?.renderer ?? null,
         commandType,
         commandResult.failureReason,
       );
@@ -931,6 +948,8 @@ export class MediaExecutionController {
     committedPlayback: CommittedPlaybackSnapshot | null,
     audioExecution: AudioExecutionSnapshot | null,
     startupDebugState: MediaStartupDebugState | null,
+    customDecode: CustomDecodeSnapshot | null,
+    renderer: RendererSnapshot | null,
     lastCommandType: MediaExecutionCommandType | null,
     failureReason: string | null,
   ): MediaExecutionSnapshot {
@@ -946,6 +965,8 @@ export class MediaExecutionController {
       committedPlayback: this.cloneCommittedPlaybackSnapshot(committedPlayback),
       audioExecution: this.cloneAudioExecutionSnapshot(audioExecution),
       startupDebugState: this.cloneStartupDebugState(startupDebugState),
+      customDecode: this.cloneCustomDecodeSnapshot(customDecode),
+      renderer: RendererRouter.cloneSnapshot(renderer),
       lastCommandType,
       failureReason,
     };
@@ -1008,8 +1029,71 @@ export class MediaExecutionController {
       startupDebugState: this.cloneStartupDebugState(
         executionSnapshot.startupDebugState,
       ),
+      customDecode: this.cloneCustomDecodeSnapshot(
+        executionSnapshot.customDecode,
+      ),
+      renderer: RendererRouter.cloneSnapshot(executionSnapshot.renderer),
       lastCommandType: executionSnapshot.lastCommandType,
       failureReason: executionSnapshot.failureReason,
+    };
+  }
+
+  /**
+   * @brief Clone custom decode debug state for safe read-only snapshots
+   *
+   * @param customDecode - Custom decode debug state to clone
+   *
+   * @returns Cloned custom decode snapshot, or `null` when absent
+   */
+  private cloneCustomDecodeSnapshot(
+    customDecode: CustomDecodeSnapshot | null,
+  ): CustomDecodeSnapshot | null {
+    if (customDecode === null) {
+      return null;
+    }
+
+    return {
+      lane: customDecode.lane,
+      state: customDecode.state,
+      usedCustomDecode: customDecode.usedCustomDecode,
+      usedFallback: customDecode.usedFallback,
+      fallbackReason: customDecode.fallbackReason,
+      failureReason: customDecode.failureReason,
+      selectedFrame:
+        customDecode.selectedFrame === null
+          ? null
+          : {
+              representation: customDecode.selectedFrame.representation,
+              width: customDecode.selectedFrame.width,
+              height: customDecode.selectedFrame.height,
+              frameTimeMs: customDecode.selectedFrame.frameTimeMs,
+            },
+      renderer: RendererRouter.cloneSnapshot(customDecode.renderer),
+      capability:
+        customDecode.capability === null
+          ? null
+          : {
+              lane: customDecode.capability.lane,
+              allowedByRole: customDecode.capability.allowedByRole,
+              supportLevel: customDecode.capability.supportLevel,
+              webCodecsSupportLevel:
+                customDecode.capability.webCodecsSupportLevel,
+              reasons: [...customDecode.capability.reasons],
+              notes: [...customDecode.capability.notes],
+            },
+      decision:
+        customDecode.decision === null
+          ? null
+          : {
+              lane: customDecode.decision.lane,
+              shouldAttempt: customDecode.decision.shouldAttempt,
+              preferred: customDecode.decision.preferred,
+              fallbackRequired: customDecode.decision.fallbackRequired,
+              fallbackReason: customDecode.decision.fallbackReason,
+              reasons: [...customDecode.decision.reasons],
+              notes: [...customDecode.decision.notes],
+            },
+      notes: [...customDecode.notes],
     };
   }
 
@@ -1310,6 +1394,10 @@ export class MediaExecutionController {
               : {
                   ...committedPlaybackDecision.capabilitySnapshot.request
                     .runtimeCapabilities,
+                  customDecodeLanes: [
+                    ...committedPlaybackDecision.capabilitySnapshot.request
+                      .runtimeCapabilities.customDecodeLanes,
+                  ],
                   committedPlaybackLanes: [
                     ...committedPlaybackDecision.capabilitySnapshot.request
                       .runtimeCapabilities.committedPlaybackLanes,
@@ -1346,6 +1434,35 @@ export class MediaExecutionController {
           ],
           notes: [
             ...committedPlaybackDecision.capabilitySnapshot.decision.notes,
+          ],
+        },
+        rendererCapability: RendererRouter.cloneCapability(
+          committedPlaybackDecision.capabilitySnapshot.rendererCapability,
+        )!,
+        rendererDecision: RendererRouter.cloneDecision(
+          committedPlaybackDecision.capabilitySnapshot.rendererDecision,
+        )!,
+        customDecodeCapability: {
+          ...committedPlaybackDecision.capabilitySnapshot
+            .customDecodeCapability,
+          reasons: [
+            ...committedPlaybackDecision.capabilitySnapshot
+              .customDecodeCapability.reasons,
+          ],
+          notes: [
+            ...committedPlaybackDecision.capabilitySnapshot
+              .customDecodeCapability.notes,
+          ],
+        },
+        customDecodeDecision: {
+          ...committedPlaybackDecision.capabilitySnapshot.customDecodeDecision,
+          reasons: [
+            ...committedPlaybackDecision.capabilitySnapshot.customDecodeDecision
+              .reasons,
+          ],
+          notes: [
+            ...committedPlaybackDecision.capabilitySnapshot.customDecodeDecision
+              .notes,
           ],
         },
       },
@@ -1438,6 +1555,20 @@ export class MediaExecutionController {
       source: this.cloneSourceDescriptor(plannedSession.source),
       role: plannedSession.role,
       capabilitySnapshot: plannedSession.capabilitySnapshot,
+      customDecodeDecision:
+        plannedSession.customDecodeDecision === null
+          ? null
+          : {
+              lane: plannedSession.customDecodeDecision.lane,
+              shouldAttempt: plannedSession.customDecodeDecision.shouldAttempt,
+              preferred: plannedSession.customDecodeDecision.preferred,
+              fallbackRequired:
+                plannedSession.customDecodeDecision.fallbackRequired,
+              fallbackReason:
+                plannedSession.customDecodeDecision.fallbackReason,
+              reasons: [...plannedSession.customDecodeDecision.reasons],
+              notes: [...plannedSession.customDecodeDecision.notes],
+            },
       fallbackPlaybackLaneOrder: [...plannedSession.fallbackPlaybackLaneOrder],
       desiredPlaybackLane: plannedSession.desiredPlaybackLane,
       variantSelection: plannedSession.variantSelection,

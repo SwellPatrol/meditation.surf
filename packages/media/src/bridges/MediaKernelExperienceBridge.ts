@@ -519,10 +519,9 @@ export class MediaKernelExperienceBridge<
       : isFocusedRowCandidate
         ? 2200
         : 1800;
-    const candidateWindowMs: number = qualityIntent === "high" ? 900 : 600;
-    const candidateFrameStepMs: number = qualityIntent === "high" ? 150 : 180;
-    const maxCandidateFrames: number = qualityIntent === "high" ? 6 : 4;
-    const maxAttemptCount: number = maxCandidateFrames;
+    const candidateFrameStepMs: number = 1000;
+    const maxCandidateFrames: number = 5;
+    const maxAttemptCount: number = 1 + maxCandidateFrames;
     const audioPolicyDecision: AudioPolicyDecision = AudioPolicy.decide({
       activationIntent: {
         sessionRole: "extractor",
@@ -551,12 +550,18 @@ export class MediaKernelExperienceBridge<
       timeHintMs: 0,
       variantSelection,
       extractionPolicy: {
-        strategy: "first-non-black",
+        strategy: "first-frame-fast-path",
+        fallbackBehavior: "representative-search-then-first-decodable",
+        firstFrameFastPath: true,
+        representativeSearchOnRejection: true,
         qualityIntent,
         timeoutMs,
         targetWidth,
         targetHeight: null,
-        candidateWindowMs,
+        targetTimeSeconds: 7,
+        searchWindowStartSeconds: 5,
+        searchWindowEndSeconds: 9,
+        candidateWindowMs: 4000,
         candidateFrameStepMs,
         maxCandidateFrames,
         maxAttemptCount,
@@ -565,6 +570,10 @@ export class MediaKernelExperienceBridge<
         fadeInFrameThreshold: 40,
       },
       audioPolicyDecision,
+      customDecodeCapability: capabilitySnapshot.customDecodeCapability,
+      customDecodeDecision: capabilitySnapshot.customDecodeDecision,
+      rendererCapability: capabilitySnapshot.rendererCapability,
+      rendererDecision: capabilitySnapshot.rendererDecision,
     };
   }
 
@@ -603,6 +612,18 @@ export class MediaKernelExperienceBridge<
         supportsThumbnailExtraction:
           mergedProfile.supportsThumbnailExtraction &&
           appCapabilityProfile.supportsThumbnailExtraction,
+        supportsWebCodecs:
+          mergedProfile.supportsWebCodecs &&
+          appCapabilityProfile.supportsWebCodecs,
+        supportsCustomDecodeThumbnailExtraction:
+          mergedProfile.supportsCustomDecodeThumbnailExtraction &&
+          appCapabilityProfile.supportsCustomDecodeThumbnailExtraction,
+        supportsCustomDecodePreviewWarm:
+          mergedProfile.supportsCustomDecodePreviewWarm &&
+          appCapabilityProfile.supportsCustomDecodePreviewWarm,
+        supportsCustomDecodePreviewActive:
+          mergedProfile.supportsCustomDecodePreviewActive &&
+          appCapabilityProfile.supportsCustomDecodePreviewActive,
         supportsWorkerOffload:
           mergedProfile.supportsWorkerOffload &&
           appCapabilityProfile.supportsWorkerOffload,

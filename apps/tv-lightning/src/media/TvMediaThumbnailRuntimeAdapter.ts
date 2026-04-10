@@ -25,6 +25,8 @@ export class TvMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAdap
     canExtractFromHiddenMedia: false,
     canCacheObjectUrls: false,
     canPrioritizeFocusedItem: false,
+    supportsWebCodecs: false,
+    supportsCustomDecodeExtraction: false,
   };
 
   public readonly runtimeId: string;

@@ -7,6 +7,7 @@
  */
 
 import type {
+  CustomDecodeSnapshot,
   MediaThumbnailCandidateFrame,
   MediaThumbnailExtractionAttempt,
   MediaThumbnailExtractionResult,
@@ -15,9 +16,17 @@ import type {
   MediaThumbnailRuntimeCapabilities,
   MediaThumbnailSelectionDecision,
   MediaThumbnailSelectionReason,
+  RendererFrameHandle,
+  RendererSnapshot,
 } from "@meditation-surf/core";
-import { MediaThumbnailFrameSelector } from "@meditation-surf/core";
+import {
+  MediaThumbnailFrameSelector,
+  RendererRouter as SharedRendererRouter,
+} from "@meditation-surf/core";
 import { VfsController } from "@meditation-surf/vfs";
+
+import { WebCustomDecodeSessionAdapter } from "./WebCustomDecodeSessionAdapter";
+import { WebRendererRouter } from "./WebRendererRouter";
 
 type ShakaModule =
   (typeof import("shaka-player/dist/shaka-player.compiled.js"))["default"];
@@ -46,6 +55,8 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
     canExtractFromHiddenMedia: true,
     canCacheObjectUrls: false,
     canPrioritizeFocusedItem: true,
+    supportsWebCodecs: WebCustomDecodeSessionAdapter.isSupported(),
+    supportsCustomDecodeExtraction: WebCustomDecodeSessionAdapter.isSupported(),
   };
 
   public readonly runtimeId: string;
@@ -99,8 +110,54 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
     const canvasElement: HTMLCanvasElement =
       this.ensureExtractionCanvasElement();
     const extractionStartedAt: number = Date.now();
+    let customDecodeSessionAdapter: WebCustomDecodeSessionAdapter | null = null;
+    let customDecodeSnapshot: CustomDecodeSnapshot | null =
+      this.createFallbackCustomDecodeSnapshot(
+        request,
+        "Thumbnail extraction is using the existing HTMLVideoElement path.",
+      );
 
     try {
+      if (
+        request.customDecodeDecision.shouldAttempt &&
+        WebMediaThumbnailRuntimeAdapter.CAPABILITIES
+          .supportsCustomDecodeExtraction
+      ) {
+        customDecodeSessionAdapter = new WebCustomDecodeSessionAdapter(
+          this.vfsController,
+        );
+        customDecodeSnapshot = await customDecodeSessionAdapter.open(
+          request.sourceDescriptor,
+          request.customDecodeCapability,
+          request.customDecodeDecision,
+        );
+
+        if (
+          customDecodeSnapshot.usedCustomDecode &&
+          customDecodeSnapshot.state === "first-frame-ready"
+        ) {
+          const candidateFrames: MediaThumbnailCandidateFrame[] =
+            await this.collectCandidateFramesWithCustomDecode(
+              request,
+              customDecodeSessionAdapter,
+              extractionStartedAt,
+            );
+          const selectionDecision: MediaThumbnailSelectionDecision =
+            MediaThumbnailFrameSelector.selectCandidateFrame(
+              request.extractionPolicy,
+              candidateFrames,
+            );
+
+          return await this.captureSelectedFrameWithCustomDecode(
+            request,
+            customDecodeSessionAdapter,
+            selectionDecision,
+            extractionStartedAt,
+            customDecodeSnapshot,
+          );
+        }
+      }
+
       await this.warmStartupArtifacts(request);
       await this.loadRequestSource(request, videoElement, extractionStartedAt);
       const candidateFrames: MediaThumbnailCandidateFrame[] =
@@ -122,8 +179,10 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
         canvasElement,
         selectionDecision,
         extractionStartedAt,
+        customDecodeSnapshot,
       );
     } finally {
+      await customDecodeSessionAdapter?.close();
       await this.resetExtractionPath();
     }
   }
@@ -328,6 +387,82 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
   }
 
   /**
+   * @brief Inspect the bounded candidate set through the WebCodecs frame path
+   *
+   * @param request - Shared request emitted by the thumbnail controller
+   * @param customDecodeSessionAdapter - Web custom decode adapter for the request
+   * @param extractionStartedAt - Wall-clock timestamp when extraction began
+   *
+   * @returns Candidate frames prepared for shared selection logic
+   */
+  private async collectCandidateFramesWithCustomDecode(
+    request: MediaThumbnailRequest,
+    customDecodeSessionAdapter: WebCustomDecodeSessionAdapter,
+    extractionStartedAt: number,
+  ): Promise<MediaThumbnailCandidateFrame[]> {
+    const candidateFrameTimesMs: number[] =
+      MediaThumbnailFrameSelector.createCandidateFrameTimes(
+        request.extractionPolicy,
+        request.timeHintMs,
+      );
+    const boundedCandidateFrameTimesMs: number[] = candidateFrameTimesMs.slice(
+      0,
+      request.extractionPolicy.maxAttemptCount,
+    );
+    const candidateFrames: MediaThumbnailCandidateFrame[] = [];
+
+    for (const [
+      attemptIndex,
+      candidateFrameTimeMs,
+    ] of boundedCandidateFrameTimesMs.entries()) {
+      try {
+        const frameResult = await this.withRemainingTimeout(
+          customDecodeSessionAdapter.captureFrameAtTimeMs(candidateFrameTimeMs),
+          request.extractionPolicy.timeoutMs,
+          extractionStartedAt,
+        );
+
+        candidateFrames.push({
+          attemptIndex,
+          stage: this.resolveCandidateStage(request, candidateFrameTimeMs),
+          requestedFrameTimeMs: candidateFrameTimeMs,
+          frameTimeMs: frameResult.actualFrameTimeMs,
+          averageLuma: frameResult.analysis.averageLuma,
+          darkestSampleLuma: frameResult.analysis.darkestSampleLuma,
+          brightestSampleLuma: frameResult.analysis.brightestSampleLuma,
+          darkPixelRatio: frameResult.analysis.darkPixelRatio,
+          isDecodable: true,
+          rejectionReason: null,
+        });
+      } catch (error: unknown) {
+        const rejectionReason: MediaThumbnailCandidateFrame["rejectionReason"] =
+          error instanceof Error && error.message.includes("timed out")
+            ? "timeout"
+            : "decode-failed";
+
+        candidateFrames.push({
+          attemptIndex,
+          stage: this.resolveCandidateStage(request, candidateFrameTimeMs),
+          requestedFrameTimeMs: candidateFrameTimeMs,
+          frameTimeMs: candidateFrameTimeMs,
+          averageLuma: null,
+          darkestSampleLuma: null,
+          brightestSampleLuma: null,
+          darkPixelRatio: null,
+          isDecodable: false,
+          rejectionReason,
+        });
+
+        if (rejectionReason === "timeout") {
+          break;
+        }
+      }
+    }
+
+    return candidateFrames;
+  }
+
+  /**
    * @brief Inspect one candidate frame at a requested time
    *
    * @param request - Shared request emitted by the thumbnail controller
@@ -362,6 +497,8 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
 
       return {
         attemptIndex,
+        stage: this.resolveCandidateStage(request, candidateFrameTimeMs),
+        requestedFrameTimeMs: candidateFrameTimeMs,
         frameTimeMs: Math.round(videoElement.currentTime * 1000),
         averageLuma: frameAnalysis.averageLuma,
         darkestSampleLuma: frameAnalysis.darkestSampleLuma,
@@ -378,6 +515,8 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
 
       return {
         attemptIndex,
+        stage: this.resolveCandidateStage(request, candidateFrameTimeMs),
+        requestedFrameTimeMs: candidateFrameTimeMs,
         frameTimeMs: candidateFrameTimeMs,
         averageLuma: null,
         darkestSampleLuma: null,
@@ -387,6 +526,25 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
         rejectionReason,
       };
     }
+  }
+
+  /**
+   * @brief Resolve the logical evaluation stage associated with one candidate
+   *
+   * @param request - Shared thumbnail request being processed
+   * @param candidateFrameTimeMs - Candidate frame time being inspected
+   *
+   * @returns Candidate stage used by the shared selector and debug output
+   */
+  private resolveCandidateStage(
+    request: MediaThumbnailRequest,
+    candidateFrameTimeMs: number,
+  ): MediaThumbnailCandidateFrame["stage"] {
+    if (request.extractionPolicy.strategy === "time-hint") {
+      return "time-hint";
+    }
+
+    return candidateFrameTimeMs === 0 ? "first-frame" : "representative-search";
   }
 
   /**
@@ -441,6 +599,7 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
     canvasElement: HTMLCanvasElement,
     selectionDecision: MediaThumbnailSelectionDecision,
     extractionStartedAt: number,
+    customDecode: CustomDecodeSnapshot | null,
   ): Promise<MediaThumbnailExtractionResult> {
     const selectedFrameTimeMs: number | null =
       selectionDecision.selectedFrameTimeMs;
@@ -460,6 +619,23 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
 
     const targetSize: { width: number; height: number } =
       this.resolveTargetSize(request, videoElement);
+    const routedRendererResult: {
+      imagePayload: Blob | null;
+      renderer: RendererSnapshot;
+    } = await this.tryRouteFrameThroughRenderer(
+      request,
+      videoElement,
+      {
+        representation: "canvas-image-source",
+        origin: "legacy-presentation",
+        width: targetSize.width,
+        height: targetSize.height,
+        frameTimeMs: Math.round(videoElement.currentTime * 1000),
+      },
+      [
+        "Thumbnail extraction attempted renderer routing from the hidden video extraction path.",
+      ],
+    );
     const canvasContext: CanvasRenderingContext2D | null =
       canvasElement.getContext("2d");
 
@@ -477,15 +653,15 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
       targetSize.height,
     );
 
-    const imagePayload: Blob = await this.serializeCanvas(
-      canvasElement,
-      request.qualityHint,
-    );
+    const imagePayload: Blob =
+      routedRendererResult.imagePayload ??
+      (await this.serializeCanvas(canvasElement, request.qualityHint));
     const extractionAttempt: MediaThumbnailExtractionAttempt =
       this.createExtractionAttempt(
         request,
         selectionDecision,
         extractionStartedAt,
+        customDecode,
       );
 
     return {
@@ -502,7 +678,208 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
         ...selectionDecision,
         resolvedReason: this.resolveSelectionReason(selectionDecision),
       },
+      customDecode: this.cloneCustomDecodeSnapshot(customDecode),
+      renderer: SharedRendererRouter.cloneSnapshot(
+        routedRendererResult.renderer,
+      ),
     };
+  }
+
+  /**
+   * @brief Capture the selected frame through the WebCodecs bitmap handoff path
+   *
+   * @param request - Shared thumbnail request
+   * @param customDecodeSessionAdapter - Web custom decode adapter for the request
+   * @param selectionDecision - Shared selection decision produced by the selector
+   * @param extractionStartedAt - Wall-clock timestamp when extraction began
+   * @param customDecode - Current custom decode snapshot for the request
+   *
+   * @returns Serialized thumbnail result with inspectable selection metadata
+   */
+  private async captureSelectedFrameWithCustomDecode(
+    request: MediaThumbnailRequest,
+    customDecodeSessionAdapter: WebCustomDecodeSessionAdapter,
+    selectionDecision: MediaThumbnailSelectionDecision,
+    extractionStartedAt: number,
+    customDecode: CustomDecodeSnapshot,
+  ): Promise<MediaThumbnailExtractionResult> {
+    const selectedFrameTimeMs: number | null =
+      selectionDecision.selectedFrameTimeMs;
+
+    if (selectedFrameTimeMs === null) {
+      throw new Error(
+        `Thumbnail extraction could not decode any usable frames for ${request.sourceId}.`,
+      );
+    }
+
+    const frameResult = await this.withRemainingTimeout(
+      customDecodeSessionAdapter.captureFrameAtTimeMs(selectedFrameTimeMs),
+      request.extractionPolicy.timeoutMs,
+      extractionStartedAt,
+    );
+    const targetSize: { width: number; height: number } =
+      this.resolveTargetSize(request, frameResult.bitmap);
+    const routedRendererResult: {
+      imagePayload: Blob | null;
+      renderer: RendererSnapshot;
+    } = await this.tryRouteFrameThroughRenderer(
+      request,
+      frameResult.bitmap,
+      {
+        representation: frameResult.frameHandle.representation,
+        origin: "custom-decode",
+        width: targetSize.width,
+        height: targetSize.height,
+        frameTimeMs: frameResult.actualFrameTimeMs,
+      },
+      [
+        "Thumbnail extraction attempted renderer routing from the custom decode frame handoff path.",
+      ],
+    );
+    const serializedFrame: {
+      imagePayload: Blob;
+      width: number;
+      height: number;
+    } =
+      routedRendererResult.imagePayload === null
+        ? await this.withRemainingTimeout(
+            customDecodeSessionAdapter.serializeBitmap(
+              frameResult.bitmap,
+              request.targetWidth ?? request.extractionPolicy.targetWidth,
+              request.targetHeight ?? request.extractionPolicy.targetHeight,
+              request.qualityHint,
+            ),
+            request.extractionPolicy.timeoutMs,
+            extractionStartedAt,
+          )
+        : {
+            imagePayload: routedRendererResult.imagePayload,
+            width: targetSize.width,
+            height: targetSize.height,
+          };
+    const nextCustomDecode: CustomDecodeSnapshot = {
+      ...this.cloneCustomDecodeSnapshot(customDecode)!,
+      selectedFrame: {
+        representation: frameResult.frameHandle.representation,
+        width: frameResult.frameHandle.width,
+        height: frameResult.frameHandle.height,
+        frameTimeMs: frameResult.actualFrameTimeMs,
+      },
+      renderer: SharedRendererRouter.cloneSnapshot(
+        routedRendererResult.renderer,
+      ),
+      notes: [
+        ...customDecode.notes,
+        "Thumbnail extraction completed through the WebCodecs frame handoff path.",
+      ],
+    };
+    const extractionAttempt: MediaThumbnailExtractionAttempt =
+      this.createExtractionAttempt(
+        request,
+        selectionDecision,
+        extractionStartedAt,
+        nextCustomDecode,
+      );
+
+    return {
+      sourceId: request.sourceId,
+      imagePayload: serializedFrame.imagePayload,
+      imageContentType: serializedFrame.imagePayload.type || "image/jpeg",
+      width: serializedFrame.width,
+      height: serializedFrame.height,
+      frameTimeMs: frameResult.actualFrameTimeMs,
+      extractedAt: Date.now(),
+      wasApproximate: selectionDecision.fallbackUsed,
+      extractionAttempt,
+      selectionDecision: {
+        ...selectionDecision,
+        resolvedReason: this.resolveSelectionReason(selectionDecision),
+      },
+      customDecode: nextCustomDecode,
+      renderer: SharedRendererRouter.cloneSnapshot(
+        routedRendererResult.renderer,
+      ),
+    };
+  }
+
+  /**
+   * @brief Attempt one routed renderer presentation before falling back to legacy serialization
+   *
+   * @param request - Shared thumbnail request being processed
+   * @param frameSource - Frame source being handed to the renderer router
+   * @param frameHandle - Shared frame metadata recorded for debug state
+   * @param notes - Extra notes describing the current routing attempt
+   *
+   * @returns Renderer snapshot plus encoded image payload when a backend succeeded
+   */
+  private async tryRouteFrameThroughRenderer(
+    request: MediaThumbnailRequest,
+    frameSource: CanvasImageSource,
+    frameHandle: RendererFrameHandle,
+    notes: string[],
+  ): Promise<{ imagePayload: Blob | null; renderer: RendererSnapshot }> {
+    const webRendererRouter: WebRendererRouter = new WebRendererRouter();
+
+    try {
+      const rendererSnapshot: RendererSnapshot =
+        await webRendererRouter.routeFrame({
+          capability: request.rendererCapability,
+          decision: request.rendererDecision,
+          sessionId: `thumbnail:${request.sourceId}`,
+          sessionRole: "thumbnail",
+          variantRole: "thumbnail-extract",
+          target: "extraction-surface",
+          frameSource,
+          frameHandle,
+          hostElement: null,
+          legacyFallbackReason:
+            "Thumbnail extraction fell back to the legacy image serialization path.",
+          notes,
+        });
+
+      if (rendererSnapshot.usedLegacyPath) {
+        return {
+          imagePayload: null,
+          renderer: rendererSnapshot,
+        };
+      }
+
+      const imagePayload: Blob | null = await webRendererRouter.captureBlob(
+        "image/jpeg",
+        this.resolveJpegQuality(request.qualityHint),
+      );
+
+      if (imagePayload !== null) {
+        return {
+          imagePayload,
+          renderer: rendererSnapshot,
+        };
+      }
+
+      return {
+        imagePayload: null,
+        renderer: SharedRendererRouter.createSnapshot({
+          capability: request.rendererCapability,
+          decision: request.rendererDecision,
+          sessionId: `thumbnail:${request.sourceId}`,
+          sessionRole: "thumbnail",
+          variantRole: "thumbnail-extract",
+          target: "extraction-surface",
+          selectedBackend: rendererSnapshot.selectedBackend,
+          activeBackend: null,
+          usedLegacyPath: true,
+          bypassedRendererRouter: false,
+          fallbackReason:
+            "Renderer serialization returned no image payload, so thumbnail extraction fell back to the legacy image path.",
+          failureReason: "Renderer serialization returned no image payload.",
+          frameHandle,
+          reasons: ["runtime-fallback"],
+          notes,
+        }),
+      };
+    } finally {
+      await webRendererRouter.destroy();
+    }
   }
 
   /**
@@ -518,6 +895,7 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
     request: MediaThumbnailRequest,
     selectionDecision: MediaThumbnailSelectionDecision,
     extractionStartedAt: number,
+    customDecode: CustomDecodeSnapshot | null,
   ): MediaThumbnailExtractionAttempt {
     const completedFrameCount: number =
       selectionDecision.candidateFrames.filter(
@@ -528,8 +906,16 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
     return {
       requestedStrategy: request.extractionPolicy.strategy,
       strategyUsed: selectionDecision.strategyUsed,
+      fallbackBehavior: request.extractionPolicy.fallbackBehavior,
       qualityIntent: request.extractionPolicy.qualityIntent,
       timeoutMs: request.extractionPolicy.timeoutMs,
+      firstFrameFastPath: request.extractionPolicy.firstFrameFastPath,
+      representativeSearchOnRejection:
+        request.extractionPolicy.representativeSearchOnRejection,
+      targetTimeSeconds: request.extractionPolicy.targetTimeSeconds,
+      searchWindowStartSeconds:
+        request.extractionPolicy.searchWindowStartSeconds,
+      searchWindowEndSeconds: request.extractionPolicy.searchWindowEndSeconds,
       candidateWindowMs: request.extractionPolicy.candidateWindowMs,
       candidateFrameStepMs: request.extractionPolicy.candidateFrameStepMs,
       maxCandidateFrames: request.extractionPolicy.maxCandidateFrames,
@@ -538,6 +924,7 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
       completedFrameCount,
       timedOut: selectionDecision.rejectionReasons.includes("timeout"),
       unsupported: false,
+      customDecode: this.cloneCustomDecodeSnapshot(customDecode),
       startedAt: extractionStartedAt,
       finishedAt: Date.now(),
     };
@@ -554,6 +941,138 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
     selectionDecision: MediaThumbnailSelectionDecision,
   ): MediaThumbnailSelectionReason {
     return selectionDecision.selectionReason;
+  }
+
+  /**
+   * @brief Create a conservative fallback snapshot for the current request
+   *
+   * @param request - Shared thumbnail request being processed
+   * @param fallbackReason - Human-readable reason for using the fallback path
+   *
+   * @returns Shared custom decode snapshot describing the fallback state
+   */
+  private createFallbackCustomDecodeSnapshot(
+    request: MediaThumbnailRequest,
+    fallbackReason: string,
+  ): CustomDecodeSnapshot | null {
+    if (request.customDecodeDecision.lane === null) {
+      return null;
+    }
+
+    return {
+      lane: request.customDecodeDecision.lane,
+      state: request.customDecodeDecision.shouldAttempt
+        ? "failed"
+        : "unsupported",
+      usedCustomDecode: false,
+      usedFallback: true,
+      fallbackReason,
+      failureReason: request.customDecodeDecision.shouldAttempt
+        ? fallbackReason
+        : null,
+      selectedFrame: null,
+      renderer: null,
+      capability: {
+        lane: request.customDecodeCapability.lane,
+        allowedByRole: request.customDecodeCapability.allowedByRole,
+        supportLevel: request.customDecodeCapability.supportLevel,
+        webCodecsSupportLevel:
+          request.customDecodeCapability.webCodecsSupportLevel,
+        reasons: [...request.customDecodeCapability.reasons],
+        notes: [...request.customDecodeCapability.notes],
+      },
+      decision: {
+        lane: request.customDecodeDecision.lane,
+        shouldAttempt: request.customDecodeDecision.shouldAttempt,
+        preferred: request.customDecodeDecision.preferred,
+        fallbackRequired: request.customDecodeDecision.fallbackRequired,
+        fallbackReason: request.customDecodeDecision.fallbackReason,
+        reasons: [...request.customDecodeDecision.reasons],
+        notes: [...request.customDecodeDecision.notes],
+      },
+      notes: [fallbackReason],
+    };
+  }
+
+  /**
+   * @brief Clone one custom decode snapshot for result payloads
+   *
+   * @param customDecode - Custom decode snapshot being cloned
+   *
+   * @returns Cloned snapshot, or `null` when absent
+   */
+  private cloneCustomDecodeSnapshot(
+    customDecode: CustomDecodeSnapshot | null,
+  ): CustomDecodeSnapshot | null {
+    if (customDecode === null) {
+      return null;
+    }
+
+    return {
+      lane: customDecode.lane,
+      state: customDecode.state,
+      usedCustomDecode: customDecode.usedCustomDecode,
+      usedFallback: customDecode.usedFallback,
+      fallbackReason: customDecode.fallbackReason,
+      failureReason: customDecode.failureReason,
+      selectedFrame:
+        customDecode.selectedFrame === null
+          ? null
+          : {
+              representation: customDecode.selectedFrame.representation,
+              width: customDecode.selectedFrame.width,
+              height: customDecode.selectedFrame.height,
+              frameTimeMs: customDecode.selectedFrame.frameTimeMs,
+            },
+      renderer: SharedRendererRouter.cloneSnapshot(customDecode.renderer),
+      capability:
+        customDecode.capability === null
+          ? null
+          : {
+              lane: customDecode.capability.lane,
+              allowedByRole: customDecode.capability.allowedByRole,
+              supportLevel: customDecode.capability.supportLevel,
+              webCodecsSupportLevel:
+                customDecode.capability.webCodecsSupportLevel,
+              reasons: [...customDecode.capability.reasons],
+              notes: [...customDecode.capability.notes],
+            },
+      decision:
+        customDecode.decision === null
+          ? null
+          : {
+              lane: customDecode.decision.lane,
+              shouldAttempt: customDecode.decision.shouldAttempt,
+              preferred: customDecode.decision.preferred,
+              fallbackRequired: customDecode.decision.fallbackRequired,
+              fallbackReason: customDecode.decision.fallbackReason,
+              reasons: [...customDecode.decision.reasons],
+              notes: [...customDecode.decision.notes],
+            },
+      notes: [...customDecode.notes],
+    };
+  }
+
+  /**
+   * @brief Convert the shared thumbnail quality tier into a browser JPEG hint
+   *
+   * @param qualityHint - Shared quality tier selected for the request
+   *
+   * @returns JPEG quality value passed to browser serialization
+   */
+  private resolveJpegQuality(
+    qualityHint: MediaThumbnailRequest["qualityHint"],
+  ): number {
+    switch (qualityHint) {
+      case "low":
+        return 0.72;
+      case "medium":
+        return 0.82;
+      case "high":
+        return 0.9;
+      case "premium-attempt":
+        return 0.94;
+    }
   }
 
   /**
@@ -637,10 +1156,22 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
    */
   private resolveTargetSize(
     request: MediaThumbnailRequest,
-    videoElement: HTMLVideoElement,
+    frameSource:
+      | { height: number; width: number }
+      | { videoHeight: number; videoWidth: number },
   ): { width: number; height: number } {
-    const intrinsicWidth: number = Math.max(1, videoElement.videoWidth || 1);
-    const intrinsicHeight: number = Math.max(1, videoElement.videoHeight || 1);
+    const intrinsicWidth: number = Math.max(
+      1,
+      "videoWidth" in frameSource
+        ? frameSource.videoWidth || 1
+        : frameSource.width || 1,
+    );
+    const intrinsicHeight: number = Math.max(
+      1,
+      "videoHeight" in frameSource
+        ? frameSource.videoHeight || 1
+        : frameSource.height || 1,
+    );
     const targetWidthHint: number | null =
       request.targetWidth ?? request.extractionPolicy.targetWidth;
     const targetHeightHint: number | null =

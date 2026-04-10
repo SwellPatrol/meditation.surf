@@ -16,9 +16,13 @@ export type CapabilityProbeResult = {
   nativeLaneSupportLevel: MediaRuntimeSupportLevel;
   shakaLaneSupportLevel: MediaRuntimeSupportLevel;
   customLaneSupportLevel: MediaRuntimeSupportLevel;
+  webCodecsSupportLevel: MediaRuntimeSupportLevel;
   nativeRendererSupportLevel: MediaRuntimeSupportLevel;
   webgpuRendererSupportLevel: MediaRuntimeSupportLevel;
   webglRendererSupportLevel: MediaRuntimeSupportLevel;
+  previewRendererRoutingSupportLevel: MediaRuntimeSupportLevel;
+  extractionRendererRoutingSupportLevel: MediaRuntimeSupportLevel;
+  committedPlaybackBypassesRendererRouter: boolean;
   premiumPlaybackSupportLevel: MediaRuntimeSupportLevel;
   workerOffloadSupportLevel: MediaRuntimeSupportLevel;
 };

@@ -26,6 +26,7 @@ import { WebAppLayoutController } from "../layout/WebAppLayoutController";
 import { WebMediaRuntimeAdapter } from "../media/WebMediaRuntimeAdapter";
 import { WebMediaThumbnailRuntimeAdapter } from "../media/WebMediaThumbnailRuntimeAdapter";
 import { WebPreviewSurfaceRegistry } from "../media/WebPreviewSurfaceRegistry";
+import { WebRendererCapabilityProbe } from "../media/WebRendererCapabilityProbe";
 import { WebBackgroundVideoController } from "../playback/WebBackgroundVideoController";
 
 /**
@@ -35,25 +36,38 @@ import { WebBackgroundVideoController } from "../playback/WebBackgroundVideoCont
  * adaptation lives here beside the web app.
  */
 export class WebExperienceAdapter {
-  private static readonly MEDIA_CAPABILITY_PROFILE: MediaCapabilityProfile = {
-    supportsNativePlayback: true,
-    supportsShakaPlayback: true,
-    supportsPreviewVideo: true,
-    supportsThumbnailExtraction: true,
-    supportsWorkerOffload: true,
-    supportsWebGPUPreferred: false,
-    supportsWebGLFallback: false,
-    supportsCustomPipeline: false,
-    supportsPremiumPlayback: true,
-    previewSchedulerBudget: {
-      maxWarmSessions: 3,
-      maxActivePreviewSessions: 1,
-      maxHiddenSessions: 2,
-      maxPreviewReuseMs: 5000,
-      maxPreviewOverlapMs: 0,
-      keepWarmAfterBlurMs: 2500,
-    },
-  };
+  /**
+   * @brief Build the current web media capability profile from live browser support
+   *
+   * @returns Capability profile reported into the shared media kernel
+   */
+  private static createMediaCapabilityProfile(): MediaCapabilityProfile {
+    const rendererProbeResult = WebRendererCapabilityProbe.probe();
+
+    return {
+      supportsNativePlayback: true,
+      supportsShakaPlayback: true,
+      supportsPreviewVideo: true,
+      supportsThumbnailExtraction: true,
+      supportsWebCodecs: true,
+      supportsCustomDecodeThumbnailExtraction: true,
+      supportsCustomDecodePreviewWarm: true,
+      supportsCustomDecodePreviewActive: true,
+      supportsWorkerOffload: true,
+      supportsWebGPUPreferred: rendererProbeResult.supportsWebGpuRenderer,
+      supportsWebGLFallback: rendererProbeResult.supportsWebGlRenderer,
+      supportsCustomPipeline: false,
+      supportsPremiumPlayback: true,
+      previewSchedulerBudget: {
+        maxWarmSessions: 3,
+        maxActivePreviewSessions: 1,
+        maxHiddenSessions: 2,
+        maxPreviewReuseMs: 5000,
+        maxPreviewOverlapMs: 0,
+        keepWarmAfterBlurMs: 2500,
+      },
+    };
+  }
 
   public readonly appLayoutController: WebAppLayoutController;
   public readonly backgroundVideoController: WebBackgroundVideoController;
@@ -83,7 +97,7 @@ export class WebExperienceAdapter {
     this.previewSurfaceRegistry = new WebPreviewSurfaceRegistry();
     this.mediaKernelController.reportAppCapabilities(
       "web-vite",
-      WebExperienceAdapter.MEDIA_CAPABILITY_PROFILE,
+      WebExperienceAdapter.createMediaCapabilityProfile(),
     );
     this.mediaThumbnailController.setRuntimeAdapter(
       new WebMediaThumbnailRuntimeAdapter(this.vfsController),

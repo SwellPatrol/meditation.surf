@@ -7,6 +7,7 @@
  */
 
 import type { MediaRoleCapabilitySnapshot } from "../capability-oracle/MediaRoleCapabilitySnapshot";
+import type { CustomDecodeDecision } from "../custom-decode/CustomDecodeDecision";
 import type { MediaPlaybackLane } from "../sessions/MediaPlaybackLane";
 import type { MediaRendererKind } from "../sessions/MediaRendererKind";
 import type { MediaSessionRole } from "../sessions/MediaSessionRole";
@@ -26,6 +27,7 @@ export type MediaPlanSession = {
   source: MediaSourceDescriptor | null;
   role: MediaSessionRole;
   capabilitySnapshot: MediaRoleCapabilitySnapshot | null;
+  customDecodeDecision: CustomDecodeDecision | null;
   fallbackPlaybackLaneOrder: MediaPlaybackLane[];
   desiredPlaybackLane: MediaPlaybackLane | null;
   variantSelection: VariantSelectionDecision | null;

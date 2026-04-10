@@ -326,6 +326,14 @@ export class WebAppShell {
                   },
                   extractionPolicy: {
                     strategy: thumbnailEntry.request.extractionPolicy.strategy,
+                    fallbackBehavior:
+                      thumbnailEntry.request.extractionPolicy.fallbackBehavior,
+                    firstFrameFastPath:
+                      thumbnailEntry.request.extractionPolicy
+                        .firstFrameFastPath,
+                    representativeSearchOnRejection:
+                      thumbnailEntry.request.extractionPolicy
+                        .representativeSearchOnRejection,
                     qualityIntent:
                       thumbnailEntry.request.extractionPolicy.qualityIntent,
                     timeoutMs:
@@ -334,6 +342,14 @@ export class WebAppShell {
                       thumbnailEntry.request.extractionPolicy.targetWidth,
                     targetHeight:
                       thumbnailEntry.request.extractionPolicy.targetHeight,
+                    targetTimeSeconds:
+                      thumbnailEntry.request.extractionPolicy.targetTimeSeconds,
+                    searchWindowStartSeconds:
+                      thumbnailEntry.request.extractionPolicy
+                        .searchWindowStartSeconds,
+                    searchWindowEndSeconds:
+                      thumbnailEntry.request.extractionPolicy
+                        .searchWindowEndSeconds,
                     candidateWindowMs:
                       thumbnailEntry.request.extractionPolicy.candidateWindowMs,
                     candidateFrameStepMs:
@@ -434,6 +450,92 @@ export class WebAppShell {
                       ...thumbnailEntry.request.audioPolicyDecision
                         .reasonDetails,
                     ],
+                  },
+                  customDecodeCapability: {
+                    lane: thumbnailEntry.request.customDecodeCapability.lane,
+                    allowedByRole:
+                      thumbnailEntry.request.customDecodeCapability
+                        .allowedByRole,
+                    supportLevel:
+                      thumbnailEntry.request.customDecodeCapability
+                        .supportLevel,
+                    webCodecsSupportLevel:
+                      thumbnailEntry.request.customDecodeCapability
+                        .webCodecsSupportLevel,
+                    reasons: [
+                      ...thumbnailEntry.request.customDecodeCapability.reasons,
+                    ],
+                    notes: [
+                      ...thumbnailEntry.request.customDecodeCapability.notes,
+                    ],
+                  },
+                  customDecodeDecision: {
+                    lane: thumbnailEntry.request.customDecodeDecision.lane,
+                    shouldAttempt:
+                      thumbnailEntry.request.customDecodeDecision.shouldAttempt,
+                    preferred:
+                      thumbnailEntry.request.customDecodeDecision.preferred,
+                    fallbackRequired:
+                      thumbnailEntry.request.customDecodeDecision
+                        .fallbackRequired,
+                    fallbackReason:
+                      thumbnailEntry.request.customDecodeDecision
+                        .fallbackReason,
+                    reasons: [
+                      ...thumbnailEntry.request.customDecodeDecision.reasons,
+                    ],
+                    notes: [
+                      ...thumbnailEntry.request.customDecodeDecision.notes,
+                    ],
+                  },
+                  rendererCapability: {
+                    role: thumbnailEntry.request.rendererCapability.role,
+                    webgpuSupportLevel:
+                      thumbnailEntry.request.rendererCapability
+                        .webgpuSupportLevel,
+                    webglSupportLevel:
+                      thumbnailEntry.request.rendererCapability
+                        .webglSupportLevel,
+                    rendererRoutingSupportLevel:
+                      thumbnailEntry.request.rendererCapability
+                        .rendererRoutingSupportLevel,
+                    rendererRoutingAllowed:
+                      thumbnailEntry.request.rendererCapability
+                        .rendererRoutingAllowed,
+                    committedPlaybackBypassesRendererRouter:
+                      thumbnailEntry.request.rendererCapability
+                        .committedPlaybackBypassesRendererRouter,
+                    reasons: [
+                      ...thumbnailEntry.request.rendererCapability.reasons,
+                    ],
+                    notes: [...thumbnailEntry.request.rendererCapability.notes],
+                  },
+                  rendererDecision: {
+                    role: thumbnailEntry.request.rendererDecision.role,
+                    shouldRouteThroughRenderer:
+                      thumbnailEntry.request.rendererDecision
+                        .shouldRouteThroughRenderer,
+                    bypassesRendererRouter:
+                      thumbnailEntry.request.rendererDecision
+                        .bypassesRendererRouter,
+                    preferredBackendOrder: [
+                      ...thumbnailEntry.request.rendererDecision
+                        .preferredBackendOrder,
+                    ],
+                    fallbackBackendOrder: [
+                      ...thumbnailEntry.request.rendererDecision
+                        .fallbackBackendOrder,
+                    ],
+                    selectedBackend:
+                      thumbnailEntry.request.rendererDecision.selectedBackend,
+                    fallbackRequired:
+                      thumbnailEntry.request.rendererDecision.fallbackRequired,
+                    fallbackReason:
+                      thumbnailEntry.request.rendererDecision.fallbackReason,
+                    reasons: [
+                      ...thumbnailEntry.request.rendererDecision.reasons,
+                    ],
+                    notes: [...thumbnailEntry.request.rendererDecision.notes],
                   },
                 },
           result:
@@ -558,11 +660,29 @@ export class WebAppShell {
                       strategyUsed:
                         thumbnailEntry.result.debug.extractionAttempt
                           .strategyUsed,
+                      fallbackBehavior:
+                        thumbnailEntry.result.debug.extractionAttempt
+                          .fallbackBehavior,
                       qualityIntent:
                         thumbnailEntry.result.debug.extractionAttempt
                           .qualityIntent,
                       timeoutMs:
                         thumbnailEntry.result.debug.extractionAttempt.timeoutMs,
+                      firstFrameFastPath:
+                        thumbnailEntry.result.debug.extractionAttempt
+                          .firstFrameFastPath,
+                      representativeSearchOnRejection:
+                        thumbnailEntry.result.debug.extractionAttempt
+                          .representativeSearchOnRejection,
+                      targetTimeSeconds:
+                        thumbnailEntry.result.debug.extractionAttempt
+                          .targetTimeSeconds,
+                      searchWindowStartSeconds:
+                        thumbnailEntry.result.debug.extractionAttempt
+                          .searchWindowStartSeconds,
+                      searchWindowEndSeconds:
+                        thumbnailEntry.result.debug.extractionAttempt
+                          .searchWindowEndSeconds,
                       candidateWindowMs:
                         thumbnailEntry.result.debug.extractionAttempt
                           .candidateWindowMs,
@@ -591,6 +711,37 @@ export class WebAppShell {
                       finishedAt:
                         thumbnailEntry.result.debug.extractionAttempt
                           .finishedAt,
+                      customDecode:
+                        thumbnailEntry.result.debug.extractionAttempt
+                          .customDecode === null
+                          ? null
+                          : {
+                              ...thumbnailEntry.result.debug.extractionAttempt
+                                .customDecode,
+                              renderer:
+                                thumbnailEntry.result.debug.extractionAttempt
+                                  .customDecode.renderer === null
+                                  ? null
+                                  : {
+                                      ...thumbnailEntry.result.debug
+                                        .extractionAttempt.customDecode
+                                        .renderer,
+                                      reasons: [
+                                        ...thumbnailEntry.result.debug
+                                          .extractionAttempt.customDecode
+                                          .renderer.reasons,
+                                      ],
+                                      notes: [
+                                        ...thumbnailEntry.result.debug
+                                          .extractionAttempt.customDecode
+                                          .renderer.notes,
+                                      ],
+                                    },
+                              notes: [
+                                ...thumbnailEntry.result.debug.extractionAttempt
+                                  .customDecode.notes,
+                              ],
+                            },
                     },
                     selectionDecision: {
                       requestedStrategy:
@@ -602,12 +753,36 @@ export class WebAppShell {
                       qualityIntent:
                         thumbnailEntry.result.debug.selectionDecision
                           .qualityIntent,
+                      fallbackBehavior:
+                        thumbnailEntry.result.debug.selectionDecision
+                          .fallbackBehavior,
                       selectionReason:
                         thumbnailEntry.result.debug.selectionDecision
                           .selectionReason,
                       resolvedReason:
                         thumbnailEntry.result.debug.selectionDecision
                           .resolvedReason,
+                      firstFrameAccepted:
+                        thumbnailEntry.result.debug.selectionDecision
+                          .firstFrameAccepted,
+                      firstFrameRejected:
+                        thumbnailEntry.result.debug.selectionDecision
+                          .firstFrameRejected,
+                      firstFrameRejectionReason:
+                        thumbnailEntry.result.debug.selectionDecision
+                          .firstFrameRejectionReason,
+                      representativeSearchUsed:
+                        thumbnailEntry.result.debug.selectionDecision
+                          .representativeSearchUsed,
+                      representativeTargetTimeMs:
+                        thumbnailEntry.result.debug.selectionDecision
+                          .representativeTargetTimeMs,
+                      representativeWindowStartMs:
+                        thumbnailEntry.result.debug.selectionDecision
+                          .representativeWindowStartMs,
+                      representativeWindowEndMs:
+                        thumbnailEntry.result.debug.selectionDecision
+                          .representativeWindowEndMs,
                       selectedFrameTimeMs:
                         thumbnailEntry.result.debug.selectionDecision
                           .selectedFrameTimeMs,
@@ -636,6 +811,9 @@ export class WebAppShell {
                             candidateFrame: (typeof thumbnailEntry.result.debug.selectionDecision.candidateFrames)[number],
                           ): (typeof thumbnailEntry.result.debug.selectionDecision.candidateFrames)[number] => ({
                             attemptIndex: candidateFrame.attemptIndex,
+                            stage: candidateFrame.stage,
+                            requestedFrameTimeMs:
+                              candidateFrame.requestedFrameTimeMs,
                             frameTimeMs: candidateFrame.frameTimeMs,
                             averageLuma: candidateFrame.averageLuma,
                             darkestSampleLuma: candidateFrame.darkestSampleLuma,
@@ -647,6 +825,227 @@ export class WebAppShell {
                           }),
                         ),
                     },
+                    customDecode:
+                      thumbnailEntry.result.debug.customDecode === null
+                        ? null
+                        : {
+                            lane: thumbnailEntry.result.debug.customDecode.lane,
+                            state:
+                              thumbnailEntry.result.debug.customDecode.state,
+                            usedCustomDecode:
+                              thumbnailEntry.result.debug.customDecode
+                                .usedCustomDecode,
+                            usedFallback:
+                              thumbnailEntry.result.debug.customDecode
+                                .usedFallback,
+                            fallbackReason:
+                              thumbnailEntry.result.debug.customDecode
+                                .fallbackReason,
+                            failureReason:
+                              thumbnailEntry.result.debug.customDecode
+                                .failureReason,
+                            selectedFrame:
+                              thumbnailEntry.result.debug.customDecode
+                                .selectedFrame === null
+                                ? null
+                                : {
+                                    ...thumbnailEntry.result.debug.customDecode
+                                      .selectedFrame,
+                                  },
+                            capability:
+                              thumbnailEntry.result.debug.customDecode
+                                .capability === null
+                                ? null
+                                : {
+                                    ...thumbnailEntry.result.debug.customDecode
+                                      .capability,
+                                    reasons: [
+                                      ...thumbnailEntry.result.debug
+                                        .customDecode.capability.reasons,
+                                    ],
+                                    notes: [
+                                      ...thumbnailEntry.result.debug
+                                        .customDecode.capability.notes,
+                                    ],
+                                  },
+                            decision:
+                              thumbnailEntry.result.debug.customDecode
+                                .decision === null
+                                ? null
+                                : {
+                                    ...thumbnailEntry.result.debug.customDecode
+                                      .decision,
+                                    reasons: [
+                                      ...thumbnailEntry.result.debug
+                                        .customDecode.decision.reasons,
+                                    ],
+                                    notes: [
+                                      ...thumbnailEntry.result.debug
+                                        .customDecode.decision.notes,
+                                    ],
+                                  },
+                            renderer:
+                              thumbnailEntry.result.debug.customDecode
+                                .renderer === null
+                                ? null
+                                : {
+                                    ...thumbnailEntry.result.debug.customDecode
+                                      .renderer,
+                                    reasons: [
+                                      ...thumbnailEntry.result.debug
+                                        .customDecode.renderer.reasons,
+                                    ],
+                                    notes: [
+                                      ...thumbnailEntry.result.debug
+                                        .customDecode.renderer.notes,
+                                    ],
+                                  },
+                            notes: [
+                              ...thumbnailEntry.result.debug.customDecode.notes,
+                            ],
+                          },
+                    renderer:
+                      thumbnailEntry.result.debug.renderer === null
+                        ? null
+                        : {
+                            capability:
+                              thumbnailEntry.result.debug.renderer
+                                .capability === null
+                                ? null
+                                : {
+                                    role: thumbnailEntry.result.debug.renderer
+                                      .capability.role,
+                                    webgpuSupportLevel:
+                                      thumbnailEntry.result.debug.renderer
+                                        .capability.webgpuSupportLevel,
+                                    webglSupportLevel:
+                                      thumbnailEntry.result.debug.renderer
+                                        .capability.webglSupportLevel,
+                                    rendererRoutingSupportLevel:
+                                      thumbnailEntry.result.debug.renderer
+                                        .capability.rendererRoutingSupportLevel,
+                                    rendererRoutingAllowed:
+                                      thumbnailEntry.result.debug.renderer
+                                        .capability.rendererRoutingAllowed,
+                                    committedPlaybackBypassesRendererRouter:
+                                      thumbnailEntry.result.debug.renderer
+                                        .capability
+                                        .committedPlaybackBypassesRendererRouter,
+                                    reasons: [
+                                      ...thumbnailEntry.result.debug.renderer
+                                        .capability.reasons,
+                                    ],
+                                    notes: [
+                                      ...thumbnailEntry.result.debug.renderer
+                                        .capability.notes,
+                                    ],
+                                  },
+                            decision:
+                              thumbnailEntry.result.debug.renderer.decision ===
+                              null
+                                ? null
+                                : {
+                                    role: thumbnailEntry.result.debug.renderer
+                                      .decision.role,
+                                    shouldRouteThroughRenderer:
+                                      thumbnailEntry.result.debug.renderer
+                                        .decision.shouldRouteThroughRenderer,
+                                    bypassesRendererRouter:
+                                      thumbnailEntry.result.debug.renderer
+                                        .decision.bypassesRendererRouter,
+                                    preferredBackendOrder: [
+                                      ...thumbnailEntry.result.debug.renderer
+                                        .decision.preferredBackendOrder,
+                                    ],
+                                    fallbackBackendOrder: [
+                                      ...thumbnailEntry.result.debug.renderer
+                                        .decision.fallbackBackendOrder,
+                                    ],
+                                    selectedBackend:
+                                      thumbnailEntry.result.debug.renderer
+                                        .decision.selectedBackend,
+                                    fallbackRequired:
+                                      thumbnailEntry.result.debug.renderer
+                                        .decision.fallbackRequired,
+                                    fallbackReason:
+                                      thumbnailEntry.result.debug.renderer
+                                        .decision.fallbackReason,
+                                    reasons: [
+                                      ...thumbnailEntry.result.debug.renderer
+                                        .decision.reasons,
+                                    ],
+                                    notes: [
+                                      ...thumbnailEntry.result.debug.renderer
+                                        .decision.notes,
+                                    ],
+                                  },
+                            binding:
+                              thumbnailEntry.result.debug.renderer.binding ===
+                              null
+                                ? null
+                                : {
+                                    sessionId:
+                                      thumbnailEntry.result.debug.renderer
+                                        .binding.sessionId,
+                                    sessionRole:
+                                      thumbnailEntry.result.debug.renderer
+                                        .binding.sessionRole,
+                                    variantRole:
+                                      thumbnailEntry.result.debug.renderer
+                                        .binding.variantRole,
+                                    backendKind:
+                                      thumbnailEntry.result.debug.renderer
+                                        .binding.backendKind,
+                                    target:
+                                      thumbnailEntry.result.debug.renderer
+                                        .binding.target,
+                                  },
+                            selectedBackend:
+                              thumbnailEntry.result.debug.renderer
+                                .selectedBackend,
+                            activeBackend:
+                              thumbnailEntry.result.debug.renderer
+                                .activeBackend,
+                            usedLegacyPath:
+                              thumbnailEntry.result.debug.renderer
+                                .usedLegacyPath,
+                            bypassedRendererRouter:
+                              thumbnailEntry.result.debug.renderer
+                                .bypassedRendererRouter,
+                            fallbackReason:
+                              thumbnailEntry.result.debug.renderer
+                                .fallbackReason,
+                            failureReason:
+                              thumbnailEntry.result.debug.renderer
+                                .failureReason,
+                            frameHandle:
+                              thumbnailEntry.result.debug.renderer
+                                .frameHandle === null
+                                ? null
+                                : {
+                                    representation:
+                                      thumbnailEntry.result.debug.renderer
+                                        .frameHandle.representation,
+                                    origin:
+                                      thumbnailEntry.result.debug.renderer
+                                        .frameHandle.origin,
+                                    width:
+                                      thumbnailEntry.result.debug.renderer
+                                        .frameHandle.width,
+                                    height:
+                                      thumbnailEntry.result.debug.renderer
+                                        .frameHandle.height,
+                                    frameTimeMs:
+                                      thumbnailEntry.result.debug.renderer
+                                        .frameHandle.frameTimeMs,
+                                  },
+                            reasons: [
+                              ...thumbnailEntry.result.debug.renderer.reasons,
+                            ],
+                            notes: [
+                              ...thumbnailEntry.result.debug.renderer.notes,
+                            ],
+                          },
                   },
                 },
           failureReason: thumbnailEntry.failureReason,

@@ -13,6 +13,8 @@ import type { MediaThumbnailFrameRejectionReason } from "./MediaThumbnailFrameRe
  */
 export type MediaThumbnailCandidateFrame = {
   attemptIndex: number;
+  stage: "first-frame" | "representative-search" | "time-hint";
+  requestedFrameTimeMs: number | null;
   frameTimeMs: number | null;
   averageLuma: number | null;
   darkestSampleLuma: number | null;

@@ -13,6 +13,8 @@ import type {
 } from "@meditation-surf/vfs";
 
 import type { AudioPolicyDecision } from "../audio/AudioPolicyDecision";
+import type { CustomDecodeSnapshot } from "../custom-decode/CustomDecodeSnapshot";
+import type { RendererSnapshot } from "../rendering/RendererSnapshot";
 import type { MediaThumbnailExtractionAttempt } from "./MediaThumbnailExtractionAttempt";
 import type { MediaThumbnailSelectionDecision } from "./MediaThumbnailSelectionDecision";
 
@@ -36,5 +38,7 @@ export type MediaThumbnailResult = {
     audioPolicyDecision: AudioPolicyDecision;
     extractionAttempt: MediaThumbnailExtractionAttempt;
     selectionDecision: MediaThumbnailSelectionDecision;
+    customDecode: CustomDecodeSnapshot | null;
+    renderer: RendererSnapshot | null;
   };
 };

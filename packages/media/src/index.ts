@@ -35,6 +35,14 @@ export type { CommittedPlaybackLanePreference } from "./committed/CommittedPlayb
 export type { CommittedPlaybackLifecycleState } from "./committed/CommittedPlaybackLifecycleState";
 export type { CommittedPlaybackMode } from "./committed/CommittedPlaybackMode";
 export type { CommittedPlaybackSnapshot } from "./committed/CommittedPlaybackSnapshot";
+export type { CustomDecodeCapability } from "./custom-decode/CustomDecodeCapability";
+export type { CustomDecodeDecision } from "./custom-decode/CustomDecodeDecision";
+export type { CustomDecodeDecisionReason } from "./custom-decode/CustomDecodeDecisionReason";
+export type { CustomDecodeFrameHandle } from "./custom-decode/CustomDecodeFrameHandle";
+export type { CustomDecodeLane } from "./custom-decode/CustomDecodeLane";
+export type { CustomDecodeSessionAdapter } from "./custom-decode/CustomDecodeSessionAdapter";
+export type { CustomDecodeSessionState } from "./custom-decode/CustomDecodeSessionState";
+export type { CustomDecodeSnapshot } from "./custom-decode/CustomDecodeSnapshot";
 export {
   MediaKernelExperienceBridge,
   type MediaBrowseContentResolver,
@@ -103,6 +111,14 @@ export type { PreviewSessionAssignment } from "./preview/PreviewSessionAssignmen
 export type { PreviewWarmState } from "./preview/PreviewWarmState";
 export type { MediaSessionPriority } from "./planning/MediaSessionPriority";
 export type { MediaSessionVisibility } from "./planning/MediaSessionVisibility";
+export { RendererRouter } from "./rendering/RendererRouter";
+export type { RendererBackendKind } from "./rendering/RendererBackendKind";
+export type { RendererCapability } from "./rendering/RendererCapability";
+export type { RendererDecision } from "./rendering/RendererDecision";
+export type { RendererDecisionReason } from "./rendering/RendererDecisionReason";
+export type { RendererFrameHandle } from "./rendering/RendererFrameHandle";
+export type { RendererSessionBinding } from "./rendering/RendererSessionBinding";
+export type { RendererSnapshot } from "./rendering/RendererSnapshot";
 export type { MediaPlaybackLane } from "./sessions/MediaPlaybackLane";
 export type { MediaRendererKind } from "./sessions/MediaRendererKind";
 export type { MediaSessionDescriptor } from "./sessions/MediaSessionDescriptor";
@@ -126,6 +142,7 @@ export type { MediaThumbnailExtractionResult } from "./thumbnails/MediaThumbnail
 export type {
   MediaThumbnailExtractionPolicy,
   MediaThumbnailExtractionStrategy,
+  MediaThumbnailFallbackBehavior,
   MediaThumbnailPriority,
   MediaThumbnailQuality,
 } from "./thumbnails/MediaThumbnailExtractionPolicy";

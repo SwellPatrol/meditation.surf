@@ -15,8 +15,9 @@ import type { MediaThumbnailSelectionReason } from "./MediaThumbnailSelectionRea
 /**
  * @brief Pure shared selector for deterministic thumbnail frame choices
  *
- * The selector intentionally uses small brightness heuristics only. Runtime
- * adapters remain responsible for actual frame decoding and pixel access.
+ * The selector now keeps the fast path explicit: try the first frame first,
+ * then only search the representative window when that first frame is
+ * unsuitable, and only then fall back to the first decodable frame.
  */
 export class MediaThumbnailFrameSelector {
   /**
@@ -35,50 +36,22 @@ export class MediaThumbnailFrameSelector {
       return [Math.max(0, Math.round(timeHintMs ?? 0))];
     }
 
-    if (extractionPolicy.strategy === "first-frame") {
-      return [0];
-    }
-
     const candidateFrameTimesMs: number[] = [];
-    const boundedWindowMs: number = Math.max(
-      0,
-      extractionPolicy.candidateWindowMs,
-    );
-    const boundedStepMs: number = Math.max(
-      1,
-      extractionPolicy.candidateFrameStepMs,
-    );
-    const maxCandidateFrames: number = Math.max(
-      1,
-      extractionPolicy.maxCandidateFrames,
-    );
 
-    for (
-      let candidateIndex: number = 0;
-      candidateIndex < maxCandidateFrames;
-      candidateIndex += 1
-    ) {
-      const candidateFrameTimeMs: number = Math.min(
-        boundedWindowMs,
-        candidateIndex * boundedStepMs,
-      );
-
-      if (
-        candidateFrameTimesMs.length > 0 &&
-        candidateFrameTimesMs[candidateFrameTimesMs.length - 1] ===
-          candidateFrameTimeMs
-      ) {
-        break;
-      }
-
-      candidateFrameTimesMs.push(candidateFrameTimeMs);
-
-      if (candidateFrameTimeMs >= boundedWindowMs) {
-        break;
-      }
+    if (extractionPolicy.firstFrameFastPath) {
+      candidateFrameTimesMs.push(0);
     }
 
-    return candidateFrameTimesMs.length > 0 ? candidateFrameTimesMs : [0];
+    if (extractionPolicy.representativeSearchOnRejection) {
+      candidateFrameTimesMs.push(
+        ...this.createRepresentativeCandidateFrameTimes(extractionPolicy),
+      );
+    }
+
+    return this.deduplicateCandidateFrameTimes(candidateFrameTimesMs).slice(
+      0,
+      Math.max(1, extractionPolicy.maxAttemptCount),
+    );
   }
 
   /**
@@ -100,32 +73,10 @@ export class MediaThumbnailFrameSelector {
         ): MediaThumbnailCandidateFrame =>
           this.cloneCandidateFrame(candidateFrame),
       );
-
-    if (extractionPolicy.strategy !== "first-non-black") {
-      const firstDecodableCandidateIndex: number =
-        clonedCandidateFrames.findIndex(
-          (candidateFrame: MediaThumbnailCandidateFrame): boolean =>
-            candidateFrame.isDecodable,
-        );
-
-      if (firstDecodableCandidateIndex < 0) {
-        return this.createSelectionDecision(
-          extractionPolicy,
-          clonedCandidateFrames,
-          "fallback-first-decodable",
-          null,
-          false,
-        );
-      }
-
-      return this.createSelectionDecision(
-        extractionPolicy,
-        clonedCandidateFrames,
-        "first-frame-accepted",
-        firstDecodableCandidateIndex,
-        false,
-      );
-    }
+    const firstFrameCandidateIndex: number = clonedCandidateFrames.findIndex(
+      (candidateFrame: MediaThumbnailCandidateFrame): boolean =>
+        candidateFrame.stage === "first-frame",
+    );
 
     let firstDecodableCandidateIndex: number | null = null;
 
@@ -137,24 +88,66 @@ export class MediaThumbnailFrameSelector {
         firstDecodableCandidateIndex = candidateIndex;
       }
 
-      const rejectionReason: MediaThumbnailFrameRejectionReason | null =
-        this.getRejectionReason(extractionPolicy, candidateFrame);
+      candidateFrame.rejectionReason = this.getRejectionReason(
+        extractionPolicy,
+        candidateFrame,
+      );
+    }
 
-      candidateFrame.rejectionReason = rejectionReason;
-
-      if (rejectionReason !== null) {
-        continue;
-      }
+    if (extractionPolicy.strategy === "time-hint") {
+      const selectedTimeHintCandidateIndex: number =
+        firstDecodableCandidateIndex ?? -1;
 
       return this.createSelectionDecision(
         extractionPolicy,
         clonedCandidateFrames,
-        candidateIndex === 0
-          ? "first-frame-accepted"
-          : "first-non-black-selected",
-        candidateIndex,
+        selectedTimeHintCandidateIndex < 0
+          ? "fallback-first-decodable"
+          : "first-frame-accepted",
+        selectedTimeHintCandidateIndex < 0
+          ? null
+          : selectedTimeHintCandidateIndex,
         false,
+        "time-hint",
       );
+    }
+
+    if (
+      firstFrameCandidateIndex >= 0 &&
+      clonedCandidateFrames[firstFrameCandidateIndex]?.rejectionReason === null
+    ) {
+      return this.createSelectionDecision(
+        extractionPolicy,
+        clonedCandidateFrames,
+        "first-frame-accepted",
+        firstFrameCandidateIndex,
+        false,
+        "first-frame-fast-path",
+      );
+    }
+
+    if (extractionPolicy.representativeSearchOnRejection) {
+      for (const [
+        candidateIndex,
+        candidateFrame,
+      ] of clonedCandidateFrames.entries()) {
+        if (candidateFrame.stage !== "representative-search") {
+          continue;
+        }
+
+        if (candidateFrame.rejectionReason !== null) {
+          continue;
+        }
+
+        return this.createSelectionDecision(
+          extractionPolicy,
+          clonedCandidateFrames,
+          "representative-frame-selected",
+          candidateIndex,
+          false,
+          "representative-search-on-rejection",
+        );
+      }
     }
 
     if (firstDecodableCandidateIndex !== null) {
@@ -169,6 +162,9 @@ export class MediaThumbnailFrameSelector {
         fallbackSelectionReason,
         firstDecodableCandidateIndex,
         true,
+        extractionPolicy.representativeSearchOnRejection
+          ? "representative-search-on-rejection"
+          : "first-frame-fast-path",
       );
     }
 
@@ -178,7 +174,78 @@ export class MediaThumbnailFrameSelector {
       "fallback-first-decodable",
       null,
       true,
+      extractionPolicy.representativeSearchOnRejection
+        ? "representative-search-on-rejection"
+        : "first-frame-fast-path",
     );
+  }
+
+  /**
+   * @brief Build a bounded candidate list centered on the representative target
+   *
+   * @param extractionPolicy - Shared policy carrying target and window bounds
+   *
+   * @returns Ordered representative candidate frame times in milliseconds
+   */
+  private static createRepresentativeCandidateFrameTimes(
+    extractionPolicy: MediaThumbnailExtractionPolicy,
+  ): number[] {
+    const targetTimeMs: number = Math.max(
+      0,
+      Math.round((extractionPolicy.targetTimeSeconds ?? 0) * 1000),
+    );
+    const windowStartMs: number = Math.max(
+      0,
+      Math.round((extractionPolicy.searchWindowStartSeconds ?? 0) * 1000),
+    );
+    const windowEndMs: number = Math.max(
+      windowStartMs,
+      Math.round((extractionPolicy.searchWindowEndSeconds ?? 0) * 1000),
+    );
+    const boundedTargetTimeMs: number = Math.min(
+      windowEndMs,
+      Math.max(windowStartMs, targetTimeMs),
+    );
+    const boundedStepMs: number = Math.max(
+      1,
+      extractionPolicy.candidateFrameStepMs,
+    );
+    const maxCandidateFrames: number = Math.max(
+      1,
+      extractionPolicy.maxCandidateFrames,
+    );
+    const candidateFrameTimesMs: number[] = [boundedTargetTimeMs];
+
+    for (
+      let offsetIndex: number = 1;
+      candidateFrameTimesMs.length < maxCandidateFrames;
+      offsetIndex += 1
+    ) {
+      const negativeCandidateTimeMs: number =
+        boundedTargetTimeMs - offsetIndex * boundedStepMs;
+      const positiveCandidateTimeMs: number =
+        boundedTargetTimeMs + offsetIndex * boundedStepMs;
+
+      if (negativeCandidateTimeMs >= windowStartMs) {
+        candidateFrameTimesMs.push(negativeCandidateTimeMs);
+      }
+
+      if (
+        candidateFrameTimesMs.length < maxCandidateFrames &&
+        positiveCandidateTimeMs <= windowEndMs
+      ) {
+        candidateFrameTimesMs.push(positiveCandidateTimeMs);
+      }
+
+      if (
+        negativeCandidateTimeMs < windowStartMs &&
+        positiveCandidateTimeMs > windowEndMs
+      ) {
+        break;
+      }
+    }
+
+    return candidateFrameTimesMs;
   }
 
   /**
@@ -235,6 +302,7 @@ export class MediaThumbnailFrameSelector {
    * @param selectionReason - Selection reason chosen for the decision
    * @param selectedCandidateIndex - Optional chosen candidate index
    * @param fallbackUsed - Whether the final choice was a fallback
+   * @param strategyUsed - Concrete strategy that produced the final outcome
    *
    * @returns Immutable shared selection decision
    */
@@ -244,7 +312,13 @@ export class MediaThumbnailFrameSelector {
     selectionReason: MediaThumbnailSelectionReason,
     selectedCandidateIndex: number | null,
     fallbackUsed: boolean,
+    strategyUsed: MediaThumbnailSelectionDecision["strategyUsed"],
   ): MediaThumbnailSelectionDecision {
+    const firstFrameCandidate: MediaThumbnailCandidateFrame | undefined =
+      candidateFrames.find(
+        (candidateFrame: MediaThumbnailCandidateFrame): boolean =>
+          candidateFrame.stage === "first-frame",
+      );
     const rejectionReasons: MediaThumbnailFrameRejectionReason[] =
       candidateFrames.flatMap(
         (
@@ -257,10 +331,33 @@ export class MediaThumbnailFrameSelector {
 
     return {
       requestedStrategy: extractionPolicy.strategy,
-      strategyUsed: extractionPolicy.strategy,
+      strategyUsed,
+      fallbackBehavior: extractionPolicy.fallbackBehavior,
       qualityIntent: extractionPolicy.qualityIntent,
       selectionReason,
       resolvedReason: selectionReason,
+      firstFrameAccepted: firstFrameCandidate?.rejectionReason === null,
+      firstFrameRejected:
+        (firstFrameCandidate?.rejectionReason ?? null) !== null,
+      firstFrameRejectionReason: firstFrameCandidate?.rejectionReason ?? null,
+      representativeSearchUsed:
+        extractionPolicy.representativeSearchOnRejection &&
+        candidateFrames.some(
+          (candidateFrame: MediaThumbnailCandidateFrame): boolean =>
+            candidateFrame.stage === "representative-search",
+        ),
+      representativeTargetTimeMs:
+        extractionPolicy.targetTimeSeconds === null
+          ? null
+          : Math.round(extractionPolicy.targetTimeSeconds * 1000),
+      representativeWindowStartMs:
+        extractionPolicy.searchWindowStartSeconds === null
+          ? null
+          : Math.round(extractionPolicy.searchWindowStartSeconds * 1000),
+      representativeWindowEndMs:
+        extractionPolicy.searchWindowEndSeconds === null
+          ? null
+          : Math.round(extractionPolicy.searchWindowEndSeconds * 1000),
       selectedFrameTimeMs:
         selectedCandidateIndex === null
           ? null
@@ -271,17 +368,35 @@ export class MediaThumbnailFrameSelector {
       fallbackUsed,
       cachedArtifactReused: false,
       rejectionReasons,
-      candidateFrames: candidateFrames.map(
-        (
-          candidateFrame: MediaThumbnailCandidateFrame,
-        ): MediaThumbnailCandidateFrame =>
-          this.cloneCandidateFrame(candidateFrame),
-      ),
+      candidateFrames,
     };
   }
 
   /**
-   * @brief Clone one candidate frame for immutable shared consumption
+   * @brief Deduplicate candidate frame times while preserving order
+   *
+   * @param candidateFrameTimesMs - Candidate frame times to normalize
+   *
+   * @returns Deduplicated frame times
+   */
+  private static deduplicateCandidateFrameTimes(
+    candidateFrameTimesMs: number[],
+  ): number[] {
+    const deduplicatedCandidateFrameTimesMs: number[] = [];
+
+    for (const candidateFrameTimeMs of candidateFrameTimesMs) {
+      if (deduplicatedCandidateFrameTimesMs.includes(candidateFrameTimeMs)) {
+        continue;
+      }
+
+      deduplicatedCandidateFrameTimesMs.push(candidateFrameTimeMs);
+    }
+
+    return deduplicatedCandidateFrameTimesMs;
+  }
+
+  /**
+   * @brief Clone one runtime-provided candidate frame into shared immutable state
    *
    * @param candidateFrame - Candidate frame being cloned
    *
@@ -292,6 +407,8 @@ export class MediaThumbnailFrameSelector {
   ): MediaThumbnailCandidateFrame {
     return {
       attemptIndex: candidateFrame.attemptIndex,
+      stage: candidateFrame.stage,
+      requestedFrameTimeMs: candidateFrame.requestedFrameTimeMs,
       frameTimeMs: candidateFrame.frameTimeMs,
       averageLuma: candidateFrame.averageLuma,
       darkestSampleLuma: candidateFrame.darkestSampleLuma,

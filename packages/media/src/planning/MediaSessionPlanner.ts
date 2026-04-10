@@ -9,6 +9,7 @@
 import type { MediaCapabilityProfile } from "../capabilities/MediaCapabilityProfile";
 import { CapabilityOracle } from "../capability-oracle/CapabilityOracle";
 import type { MediaRoleCapabilitySnapshot } from "../capability-oracle/MediaRoleCapabilitySnapshot";
+import type { CustomDecodeDecision } from "../custom-decode/CustomDecodeDecision";
 import type { MediaIntent } from "../intent/MediaIntent";
 import type { MediaKernelItem } from "../kernel/MediaKernelItem";
 import type { MediaKernelState } from "../kernel/MediaKernelState";
@@ -33,6 +34,7 @@ import type { MediaPlanSession } from "./MediaPlanSession";
 
 type PlannedRoleDecision = {
   capabilitySnapshot: MediaRoleCapabilitySnapshot;
+  customDecodeDecision: CustomDecodeDecision;
   fallbackPlaybackLaneOrder: MediaPlaybackLane[];
   desiredPlaybackLane: MediaPlaybackLane | null;
   desiredRendererKind: MediaRendererKind;
@@ -190,6 +192,7 @@ export class MediaSessionPlanner {
       source: sourceDescriptor,
       role: "background",
       capabilitySnapshot: plannedRoleDecision.capabilitySnapshot,
+      customDecodeDecision: plannedRoleDecision.customDecodeDecision,
       fallbackPlaybackLaneOrder: plannedRoleDecision.fallbackPlaybackLaneOrder,
       desiredPlaybackLane: plannedRoleDecision.desiredPlaybackLane,
       variantSelection: plannedRoleDecision.variantSelection,
@@ -361,6 +364,7 @@ export class MediaSessionPlanner {
         },
         role: "preview",
         capabilitySnapshot: plannedRoleDecision.capabilitySnapshot,
+        customDecodeDecision: plannedRoleDecision.customDecodeDecision,
         fallbackPlaybackLaneOrder:
           plannedRoleDecision.fallbackPlaybackLaneOrder,
         desiredPlaybackLane: plannedRoleDecision.desiredPlaybackLane,
@@ -420,6 +424,7 @@ export class MediaSessionPlanner {
       source: sourceDescriptor,
       role: "background",
       capabilitySnapshot: plannedRoleDecision.capabilitySnapshot,
+      customDecodeDecision: plannedRoleDecision.customDecodeDecision,
       fallbackPlaybackLaneOrder: plannedRoleDecision.fallbackPlaybackLaneOrder,
       desiredPlaybackLane: plannedRoleDecision.desiredPlaybackLane,
       variantSelection: plannedRoleDecision.variantSelection,
@@ -562,6 +567,7 @@ export class MediaSessionPlanner {
 
     return {
       capabilitySnapshot,
+      customDecodeDecision: capabilitySnapshot.customDecodeDecision,
       fallbackPlaybackLaneOrder: [
         ...capabilitySnapshot.decision.preferredFallbackLaneOrder,
       ],

@@ -37,6 +37,13 @@ export class TvMediaRuntimeAdapter implements MediaRuntimeAdapter {
     canKeepHiddenWarmSession: false,
     canPromoteWarmSession: false,
     canRunMultipleWarmSessions: false,
+    supportsWebCodecs: false,
+    supportsWebGpuRenderer: false,
+    supportsWebGlRenderer: false,
+    supportsRendererPreviewRouting: false,
+    supportsRendererExtractionRouting: false,
+    committedPlaybackBypassesRendererRouter: true,
+    customDecodeLanes: [],
     supportsCommittedPlayback: true,
     supportsPremiumCommittedPlayback: false,
     committedPlaybackLanePreference: "prefer-existing-runtime",
@@ -87,6 +94,20 @@ export class TvMediaRuntimeAdapter implements MediaRuntimeAdapter {
   public getCapabilities(): MediaRuntimeCapabilities {
     return {
       ...TvMediaRuntimeAdapter.CAPABILITIES,
+      customDecodeLanes: [
+        ...TvMediaRuntimeAdapter.CAPABILITIES.customDecodeLanes,
+      ],
+      supportsWebGpuRenderer:
+        TvMediaRuntimeAdapter.CAPABILITIES.supportsWebGpuRenderer,
+      supportsWebGlRenderer:
+        TvMediaRuntimeAdapter.CAPABILITIES.supportsWebGlRenderer,
+      supportsRendererPreviewRouting:
+        TvMediaRuntimeAdapter.CAPABILITIES.supportsRendererPreviewRouting,
+      supportsRendererExtractionRouting:
+        TvMediaRuntimeAdapter.CAPABILITIES.supportsRendererExtractionRouting,
+      committedPlaybackBypassesRendererRouter:
+        TvMediaRuntimeAdapter.CAPABILITIES
+          .committedPlaybackBypassesRendererRouter,
       committedPlaybackLanes: [
         ...TvMediaRuntimeAdapter.CAPABILITIES.committedPlaybackLanes,
       ],
@@ -428,6 +449,8 @@ export class TvMediaRuntimeAdapter implements MediaRuntimeAdapter {
             },
       failureReason,
       startupDebugState: null,
+      customDecode: null,
+      renderer: null,
     };
   }
 

@@ -16,6 +16,10 @@ export type MediaCapabilityProfile = {
   supportsShakaPlayback: boolean;
   supportsPreviewVideo: boolean;
   supportsThumbnailExtraction: boolean;
+  supportsWebCodecs: boolean;
+  supportsCustomDecodeThumbnailExtraction: boolean;
+  supportsCustomDecodePreviewWarm: boolean;
+  supportsCustomDecodePreviewActive: boolean;
   supportsWorkerOffload: boolean;
   supportsWebGPUPreferred: boolean;
   supportsWebGLFallback: boolean;

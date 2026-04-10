@@ -37,6 +37,13 @@ export class ExpoMediaRuntimeAdapter implements MediaRuntimeAdapter {
     canKeepHiddenWarmSession: false,
     canPromoteWarmSession: false,
     canRunMultipleWarmSessions: false,
+    supportsWebCodecs: false,
+    supportsWebGpuRenderer: false,
+    supportsWebGlRenderer: false,
+    supportsRendererPreviewRouting: false,
+    supportsRendererExtractionRouting: false,
+    committedPlaybackBypassesRendererRouter: true,
+    customDecodeLanes: [],
     supportsCommittedPlayback: true,
     supportsPremiumCommittedPlayback: false,
     committedPlaybackLanePreference: "prefer-native",
@@ -87,6 +94,20 @@ export class ExpoMediaRuntimeAdapter implements MediaRuntimeAdapter {
   public getCapabilities(): MediaRuntimeCapabilities {
     return {
       ...ExpoMediaRuntimeAdapter.CAPABILITIES,
+      customDecodeLanes: [
+        ...ExpoMediaRuntimeAdapter.CAPABILITIES.customDecodeLanes,
+      ],
+      supportsWebGpuRenderer:
+        ExpoMediaRuntimeAdapter.CAPABILITIES.supportsWebGpuRenderer,
+      supportsWebGlRenderer:
+        ExpoMediaRuntimeAdapter.CAPABILITIES.supportsWebGlRenderer,
+      supportsRendererPreviewRouting:
+        ExpoMediaRuntimeAdapter.CAPABILITIES.supportsRendererPreviewRouting,
+      supportsRendererExtractionRouting:
+        ExpoMediaRuntimeAdapter.CAPABILITIES.supportsRendererExtractionRouting,
+      committedPlaybackBypassesRendererRouter:
+        ExpoMediaRuntimeAdapter.CAPABILITIES
+          .committedPlaybackBypassesRendererRouter,
       committedPlaybackLanes: [
         ...ExpoMediaRuntimeAdapter.CAPABILITIES.committedPlaybackLanes,
       ],
@@ -428,6 +449,8 @@ export class ExpoMediaRuntimeAdapter implements MediaRuntimeAdapter {
             },
       failureReason,
       startupDebugState: null,
+      customDecode: null,
+      renderer: null,
     };
   }
 

@@ -7,6 +7,10 @@
  */
 
 import type { AudioPolicyDecision } from "../audio/AudioPolicyDecision";
+import type { CustomDecodeCapability } from "../custom-decode/CustomDecodeCapability";
+import type { CustomDecodeDecision } from "../custom-decode/CustomDecodeDecision";
+import type { RendererCapability } from "../rendering/RendererCapability";
+import type { RendererDecision } from "../rendering/RendererDecision";
 import type { MediaSourceDescriptor } from "../sources/MediaSourceDescriptor";
 import type { VariantSelectionDecision } from "../variant-policy/VariantSelectionDecision";
 import type { MediaThumbnailDescriptor } from "./MediaThumbnailDescriptor";
@@ -34,4 +38,8 @@ export type MediaThumbnailRequest = {
   variantSelection: VariantSelectionDecision;
   extractionPolicy: MediaThumbnailExtractionPolicy;
   audioPolicyDecision: AudioPolicyDecision;
+  customDecodeCapability: CustomDecodeCapability;
+  customDecodeDecision: CustomDecodeDecision;
+  rendererCapability: RendererCapability;
+  rendererDecision: RendererDecision;
 };

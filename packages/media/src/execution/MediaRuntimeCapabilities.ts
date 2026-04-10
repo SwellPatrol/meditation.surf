@@ -8,6 +8,7 @@
 
 import type { AudioCapabilityProfile } from "../audio/AudioCapabilityProfile";
 import type { CommittedPlaybackLanePreference } from "../committed/CommittedPlaybackLanePreference";
+import type { CustomDecodeLane } from "../custom-decode/CustomDecodeLane";
 import type { PreviewSchedulerBudget } from "../preview/PreviewSchedulerBudget";
 import type { MediaPlaybackLane } from "../sessions/MediaPlaybackLane";
 
@@ -21,6 +22,13 @@ export type MediaRuntimeCapabilities = {
   canKeepHiddenWarmSession: boolean;
   canPromoteWarmSession: boolean;
   canRunMultipleWarmSessions: boolean;
+  supportsWebCodecs: boolean;
+  supportsWebGpuRenderer: boolean;
+  supportsWebGlRenderer: boolean;
+  supportsRendererPreviewRouting: boolean;
+  supportsRendererExtractionRouting: boolean;
+  committedPlaybackBypassesRendererRouter: boolean;
+  customDecodeLanes: CustomDecodeLane[];
   supportsCommittedPlayback: boolean;
   supportsPremiumCommittedPlayback: boolean;
   committedPlaybackLanePreference: CommittedPlaybackLanePreference;
