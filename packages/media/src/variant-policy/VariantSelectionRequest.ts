@@ -7,6 +7,7 @@
  */
 
 import type { MediaRoleCapabilitySnapshot } from "../capability-oracle/MediaRoleCapabilitySnapshot";
+import type { MediaInventoryResult } from "../inventory/MediaInventoryResult";
 import type { VariantRolePolicy } from "./VariantRolePolicy";
 
 /**
@@ -15,6 +16,7 @@ import type { VariantRolePolicy } from "./VariantRolePolicy";
 export type VariantSelectionRequest = {
   role: VariantRolePolicy;
   capabilitySnapshot: MediaRoleCapabilitySnapshot | null;
+  inventoryResult: MediaInventoryResult | null;
   maxWidth: number | null;
   maxHeight: number | null;
   maxBandwidth: number | null;

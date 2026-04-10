@@ -6,6 +6,10 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { MediaAudioTrackInfo } from "../inventory/MediaAudioTrackInfo";
+import { MediaInventoryCloner } from "../inventory/MediaInventoryCloner";
+import type { MediaInventoryResult } from "../inventory/MediaInventoryResult";
+import type { MediaInventorySnapshot } from "../inventory/MediaInventorySnapshot";
 import type { AudioActivationIntent } from "./AudioActivationIntent";
 import type { AudioCapabilityProfile } from "./AudioCapabilityProfile";
 import type { AudioPolicyDecision } from "./AudioPolicyDecision";
@@ -19,6 +23,7 @@ export type AudioPolicyInput = {
   activationIntent: AudioActivationIntent;
   runtimeAudioCapabilities: AudioCapabilityProfile | null;
   audioTrackPolicy: AudioTrackPolicy | null;
+  inventoryResult: MediaInventoryResult | null;
 };
 
 /**
@@ -62,6 +67,10 @@ export class AudioPolicy {
     const audioTrackPolicy: AudioTrackPolicy =
       input.audioTrackPolicy ??
       this.createDefaultTrackPolicy(activationIntent.sessionRole);
+    const inventorySnapshot: MediaInventorySnapshot | null =
+      input.inventoryResult === null
+        ? null
+        : MediaInventoryCloner.cloneSnapshot(input.inventoryResult.snapshot);
     const reasons: AudioPolicyDecisionReason[] = [];
     const reasonDetails: string[] = [];
     const committedPlaybackLane = activationIntent.committedPlaybackLane;
@@ -85,6 +94,8 @@ export class AudioPolicy {
         requestedPremiumAttempt: false,
         usedFallback: false,
         trackPolicy: audioTrackPolicy,
+        inventorySnapshot,
+        selectedAudioTrack: null,
         capabilityProfile: this.cloneCapabilityProfile(
           runtimeAudioCapabilities,
         ),
@@ -113,6 +124,8 @@ export class AudioPolicy {
         requestedPremiumAttempt: false,
         usedFallback: false,
         trackPolicy: audioTrackPolicy,
+        inventorySnapshot,
+        selectedAudioTrack: null,
         capabilityProfile: this.cloneCapabilityProfile(
           runtimeAudioCapabilities,
         ),
@@ -125,14 +138,22 @@ export class AudioPolicy {
     const wantsPremiumAttempt: boolean =
       activationIntent.committedPlaybackMode === "premium-attempt" &&
       audioTrackPolicy.preferPremiumAudio;
+    const selectedPremiumTrack: MediaAudioTrackInfo | null =
+      this.selectPremiumAudioTrack(inventorySnapshot, audioTrackPolicy);
+    const selectedDefaultTrack: MediaAudioTrackInfo | null =
+      this.selectDefaultAudioTrack(inventorySnapshot, audioTrackPolicy);
+    const selectedFallbackTrack: MediaAudioTrackInfo | null =
+      this.selectFallbackStereoTrack(inventorySnapshot, audioTrackPolicy);
 
     reasons.push("committed-playback");
     reasonDetails.push(
       "Committed playback is the only shared media path allowed to activate audible playback.",
     );
+    this.foldInventoryReasons(inventorySnapshot, reasons, reasonDetails);
 
     if (
       wantsPremiumAttempt &&
+      (inventorySnapshot === null || selectedPremiumTrack !== null) &&
       runtimeAudioCapabilities?.canAttemptPremiumAudio === true
     ) {
       reasons.push("premium-supported");
@@ -140,12 +161,21 @@ export class AudioPolicy {
         "The runtime reported that it can safely attempt the premium committed-audio path.",
       );
 
+      if (selectedPremiumTrack !== null) {
+        reasonDetails.push(
+          `Inventory selected premium audio track ${selectedPremiumTrack.id} for committed playback.`,
+        );
+      }
+
       return {
         audioMode: "premium-attempt",
         fallbackMode: null,
         requestedPremiumAttempt: true,
         usedFallback: false,
         trackPolicy: audioTrackPolicy,
+        inventorySnapshot,
+        selectedAudioTrack:
+          MediaInventoryCloner.cloneAudioTrackInfo(selectedPremiumTrack),
         capabilityProfile: this.cloneCapabilityProfile(
           runtimeAudioCapabilities,
         ),
@@ -157,14 +187,28 @@ export class AudioPolicy {
 
     if (wantsPremiumAttempt) {
       reasons.push("premium-unsupported");
-      reasonDetails.push(
-        "The runtime did not report premium committed-audio support for this phase.",
-      );
+      if (selectedPremiumTrack === null && inventorySnapshot !== null) {
+        reasons.push("premium-track-unavailable");
+        reasonDetails.push(
+          "Inventory did not expose a plausible premium audio track for committed playback.",
+        );
+      } else {
+        reasonDetails.push(
+          "The runtime did not report premium committed-audio support for this phase.",
+        );
+      }
     }
 
     if (runtimeAudioCapabilities?.canPlayCommittedAudio === true) {
       if (!reasons.includes("default-runtime-audio")) {
         reasons.push("default-runtime-audio");
+      }
+
+      if (selectedDefaultTrack !== null) {
+        reasons.push("default-track-selected");
+        reasonDetails.push(
+          `Inventory selected default committed audio track ${selectedDefaultTrack.id}.`,
+        );
       }
 
       if (wantsPremiumAttempt) {
@@ -180,6 +224,9 @@ export class AudioPolicy {
         requestedPremiumAttempt: wantsPremiumAttempt,
         usedFallback: wantsPremiumAttempt,
         trackPolicy: audioTrackPolicy,
+        inventorySnapshot,
+        selectedAudioTrack:
+          MediaInventoryCloner.cloneAudioTrackInfo(selectedDefaultTrack),
         capabilityProfile: this.cloneCapabilityProfile(
           runtimeAudioCapabilities,
         ),
@@ -197,6 +244,12 @@ export class AudioPolicy {
       if (wantsPremiumAttempt) {
         reasons.push("fallback-from-premium");
       }
+      if (selectedFallbackTrack !== null) {
+        reasons.push("fallback-track-selected");
+        reasonDetails.push(
+          `Inventory selected fallback stereo track ${selectedFallbackTrack.id}.`,
+        );
+      }
       reasonDetails.push(
         "The runtime could not honor the preferred committed audio path, so the policy selected a stereo fallback.",
       );
@@ -207,6 +260,10 @@ export class AudioPolicy {
         requestedPremiumAttempt: wantsPremiumAttempt,
         usedFallback: true,
         trackPolicy: audioTrackPolicy,
+        inventorySnapshot,
+        selectedAudioTrack: MediaInventoryCloner.cloneAudioTrackInfo(
+          selectedFallbackTrack,
+        ),
         capabilityProfile: this.cloneCapabilityProfile(
           runtimeAudioCapabilities,
         ),
@@ -227,11 +284,184 @@ export class AudioPolicy {
       requestedPremiumAttempt: wantsPremiumAttempt,
       usedFallback: true,
       trackPolicy: audioTrackPolicy,
+      inventorySnapshot,
+      selectedAudioTrack: MediaInventoryCloner.cloneAudioTrackInfo(
+        selectedDefaultTrack ?? selectedFallbackTrack,
+      ),
       capabilityProfile: this.cloneCapabilityProfile(runtimeAudioCapabilities),
       committedPlaybackLane,
       reasons,
       reasonDetails,
     };
+  }
+
+  /**
+   * @brief Fold inventory visibility into the shared audio-policy debug state
+   *
+   * @param inventorySnapshot - Optional inventory snapshot used by the policy
+   * @param reasons - Mutable reason collection
+   * @param reasonDetails - Mutable human-readable detail collection
+   */
+  private static foldInventoryReasons(
+    inventorySnapshot: MediaInventorySnapshot | null,
+    reasons: AudioPolicyDecisionReason[],
+    reasonDetails: string[],
+  ): void {
+    if (inventorySnapshot === null) {
+      reasons.push("inventory-unavailable");
+      reasonDetails.push(
+        "Committed audio selection used fallback policy only because no inventory snapshot was available.",
+      );
+      return;
+    }
+
+    if (inventorySnapshot.supportLevel === "full") {
+      reasons.push("inventory-full");
+    } else if (inventorySnapshot.supportLevel === "partial") {
+      reasons.push("inventory-partial");
+    } else {
+      reasons.push("inventory-unavailable");
+    }
+
+    for (const inventoryNote of inventorySnapshot.notes) {
+      if (!reasonDetails.includes(inventoryNote)) {
+        reasonDetails.push(inventoryNote);
+      }
+    }
+  }
+
+  /**
+   * @brief Select a premium audio track when inventory exposes one
+   *
+   * @param inventorySnapshot - Optional inventory snapshot
+   * @param audioTrackPolicy - Shared audio policy preferences
+   *
+   * @returns Premium audio track, or `null` when none matched
+   */
+  private static selectPremiumAudioTrack(
+    inventorySnapshot: MediaInventorySnapshot | null,
+    audioTrackPolicy: AudioTrackPolicy,
+  ): MediaAudioTrackInfo | null {
+    const availableAudioTracks: MediaAudioTrackInfo[] =
+      inventorySnapshot?.inventory?.audioTracks ?? [];
+    const premiumAudioTracks: MediaAudioTrackInfo[] = availableAudioTracks
+      .filter(
+        (audioTrackInfo: MediaAudioTrackInfo): boolean =>
+          audioTrackInfo.isPremiumCandidate,
+      )
+      .sort(
+        (
+          leftAudioTrackInfo: MediaAudioTrackInfo,
+          rightAudioTrackInfo: MediaAudioTrackInfo,
+        ): number =>
+          this.scoreAudioTrack(rightAudioTrackInfo, audioTrackPolicy) -
+          this.scoreAudioTrack(leftAudioTrackInfo, audioTrackPolicy),
+      );
+
+    return MediaInventoryCloner.cloneAudioTrackInfo(
+      premiumAudioTracks[0] ?? null,
+    );
+  }
+
+  /**
+   * @brief Select a conservative default audio track from inventory
+   *
+   * @param inventorySnapshot - Optional inventory snapshot
+   * @param audioTrackPolicy - Shared audio policy preferences
+   *
+   * @returns Default-safe audio track, or `null` when none matched
+   */
+  private static selectDefaultAudioTrack(
+    inventorySnapshot: MediaInventorySnapshot | null,
+    audioTrackPolicy: AudioTrackPolicy,
+  ): MediaAudioTrackInfo | null {
+    const availableAudioTracks: MediaAudioTrackInfo[] =
+      inventorySnapshot?.inventory?.audioTracks ?? [];
+    const sortedAudioTracks: MediaAudioTrackInfo[] = [
+      ...availableAudioTracks,
+    ].sort(
+      (
+        leftAudioTrackInfo: MediaAudioTrackInfo,
+        rightAudioTrackInfo: MediaAudioTrackInfo,
+      ): number =>
+        this.scoreAudioTrack(rightAudioTrackInfo, audioTrackPolicy) -
+        this.scoreAudioTrack(leftAudioTrackInfo, audioTrackPolicy),
+    );
+
+    return MediaInventoryCloner.cloneAudioTrackInfo(
+      sortedAudioTracks[0] ?? null,
+    );
+  }
+
+  /**
+   * @brief Select a stereo-capable fallback audio track when possible
+   *
+   * @param inventorySnapshot - Optional inventory snapshot
+   * @param audioTrackPolicy - Shared audio policy preferences
+   *
+   * @returns Fallback stereo track, or `null` when none matched
+   */
+  private static selectFallbackStereoTrack(
+    inventorySnapshot: MediaInventorySnapshot | null,
+    audioTrackPolicy: AudioTrackPolicy,
+  ): MediaAudioTrackInfo | null {
+    const availableAudioTracks: MediaAudioTrackInfo[] =
+      inventorySnapshot?.inventory?.audioTracks ?? [];
+    const stereoTracks: MediaAudioTrackInfo[] = availableAudioTracks
+      .filter(
+        (audioTrackInfo: MediaAudioTrackInfo): boolean =>
+          audioTrackInfo.channelCount === null ||
+          audioTrackInfo.channelCount <= 2,
+      )
+      .sort(
+        (
+          leftAudioTrackInfo: MediaAudioTrackInfo,
+          rightAudioTrackInfo: MediaAudioTrackInfo,
+        ): number =>
+          this.scoreAudioTrack(rightAudioTrackInfo, audioTrackPolicy) -
+          this.scoreAudioTrack(leftAudioTrackInfo, audioTrackPolicy),
+      );
+
+    return MediaInventoryCloner.cloneAudioTrackInfo(stereoTracks[0] ?? null);
+  }
+
+  /**
+   * @brief Score one audio track using conservative default-track preferences
+   *
+   * @param audioTrackInfo - Audio track being ranked
+   * @param audioTrackPolicy - Shared audio policy preferences
+   *
+   * @returns Relative score where higher values are preferred
+   */
+  private static scoreAudioTrack(
+    audioTrackInfo: MediaAudioTrackInfo,
+    audioTrackPolicy: AudioTrackPolicy,
+  ): number {
+    let score: number = 0;
+
+    if (audioTrackInfo.isDefault && audioTrackPolicy.preferDefaultTrack) {
+      score += 100;
+    }
+
+    if (
+      audioTrackPolicy.preferredLanguage !== null &&
+      audioTrackInfo.language === audioTrackPolicy.preferredLanguage
+    ) {
+      score += 40;
+    }
+
+    if (
+      audioTrackPolicy.preferredChannelLayout !== null &&
+      audioTrackInfo.channelLayout === audioTrackPolicy.preferredChannelLayout
+    ) {
+      score += 20;
+    }
+
+    if (audioTrackInfo.channelCount !== null) {
+      score += audioTrackInfo.channelCount;
+    }
+
+    return score;
   }
 
   /**

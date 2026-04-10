@@ -6,6 +6,9 @@
  * See the file LICENSE.txt for more information.
  */
 
+import { MediaInventoryCloner } from "../inventory/MediaInventoryCloner";
+import type { MediaInventorySnapshot } from "../inventory/MediaInventorySnapshot";
+import type { MediaVariantInfo } from "../inventory/MediaVariantInfo";
 import type { VariantQualityTier } from "./VariantQualityTier";
 import type { VariantSelectionDecision } from "./VariantSelectionDecision";
 import type { VariantSelectionReason } from "./VariantSelectionReason";
@@ -29,6 +32,10 @@ export class VariantPolicy {
     const notes: string[] = [
       `Variant policy evaluated ${request.role} for the current media request.`,
     ];
+    const inventorySnapshot: MediaInventorySnapshot | null =
+      request.inventoryResult === null
+        ? null
+        : MediaInventoryCloner.cloneSnapshot(request.inventoryResult.snapshot);
     let desiredQualityTier: VariantQualityTier = "medium";
     let preferStartupLatency: boolean = false;
     let preferImageQuality: boolean = false;
@@ -124,6 +131,34 @@ export class VariantPolicy {
       reasons.push("bandwidth-limited");
     }
 
+    this.foldInventoryReasons(inventorySnapshot, reasons, notes);
+    const selectedVariant: MediaVariantInfo | null = this.selectVariant(
+      inventorySnapshot,
+      desiredQualityTier,
+      request.maxWidth,
+      request.maxHeight,
+      request.maxBandwidth,
+    );
+    const matchedAvailableVariant: boolean = selectedVariant !== null;
+
+    if (selectedVariant !== null) {
+      reasons.push("matched-available-variant");
+      if (selectedVariant.isPremiumCandidate) {
+        reasons.push("selected-premium-variant");
+      } else {
+        reasons.push("selected-standard-variant");
+      }
+
+      notes.push(
+        `Variant policy matched quality intent to available variant ${selectedVariant.id}.`,
+      );
+    } else if (inventorySnapshot?.inventory !== null) {
+      reasons.push("no-compatible-variant");
+      notes.push(
+        "Inventory was available, but no compatible variant matched the shared quality intent.",
+      );
+    }
+
     return {
       role: request.role,
       desiredQualityTier,
@@ -133,8 +168,173 @@ export class VariantPolicy {
       maxWidth: request.maxWidth,
       maxHeight: request.maxHeight,
       maxBandwidth: request.maxBandwidth,
+      inventorySnapshot,
+      selectedVariant: MediaInventoryCloner.cloneVariantInfo(selectedVariant),
+      matchedAvailableVariant,
       reasons,
       notes,
     };
+  }
+
+  /**
+   * @brief Fold inventory availability into the shared variant-policy debug state
+   *
+   * @param inventorySnapshot - Optional inventory snapshot
+   * @param reasons - Mutable reason collection
+   * @param notes - Mutable note collection
+   */
+  private static foldInventoryReasons(
+    inventorySnapshot: MediaInventorySnapshot | null,
+    reasons: VariantSelectionReason[],
+    notes: string[],
+  ): void {
+    if (inventorySnapshot === null) {
+      reasons.push("inventory-unavailable");
+      notes.push(
+        "Variant policy used role and capability hints only because no inventory snapshot was available.",
+      );
+      return;
+    }
+
+    if (inventorySnapshot.supportLevel === "full") {
+      reasons.push("inventory-full");
+    } else if (inventorySnapshot.supportLevel === "partial") {
+      reasons.push("inventory-partial");
+    } else {
+      reasons.push("inventory-unavailable");
+    }
+
+    for (const inventoryNote of inventorySnapshot.notes) {
+      if (!notes.includes(inventoryNote)) {
+        notes.push(inventoryNote);
+      }
+    }
+  }
+
+  /**
+   * @brief Select the best available variant for one quality intent
+   *
+   * @param inventorySnapshot - Optional inventory snapshot
+   * @param desiredQualityTier - Shared quality intent
+   * @param maxWidth - Optional width cap
+   * @param maxHeight - Optional height cap
+   * @param maxBandwidth - Optional bandwidth cap
+   *
+   * @returns Best matching available variant, or `null` when none matched
+   */
+  private static selectVariant(
+    inventorySnapshot: MediaInventorySnapshot | null,
+    desiredQualityTier: VariantQualityTier,
+    maxWidth: number | null,
+    maxHeight: number | null,
+    maxBandwidth: number | null,
+  ): MediaVariantInfo | null {
+    const availableVariants: MediaVariantInfo[] =
+      inventorySnapshot?.inventory?.variants ?? [];
+    const compatibleVariants: MediaVariantInfo[] = availableVariants
+      .filter((variantInfo: MediaVariantInfo): boolean =>
+        this.isVariantCompatible(
+          variantInfo,
+          maxWidth,
+          maxHeight,
+          maxBandwidth,
+        ),
+      )
+      .sort(
+        (
+          leftVariantInfo: MediaVariantInfo,
+          rightVariantInfo: MediaVariantInfo,
+        ): number =>
+          this.scoreVariant(rightVariantInfo) -
+          this.scoreVariant(leftVariantInfo),
+      );
+
+    if (compatibleVariants.length === 0) {
+      return null;
+    }
+
+    if (desiredQualityTier === "premium-attempt") {
+      const premiumVariant: MediaVariantInfo | undefined =
+        compatibleVariants.find(
+          (variantInfo: MediaVariantInfo): boolean =>
+            variantInfo.isPremiumCandidate,
+        );
+
+      if (premiumVariant !== undefined) {
+        return MediaInventoryCloner.cloneVariantInfo(premiumVariant);
+      }
+    }
+
+    const standardVariant: MediaVariantInfo | undefined =
+      compatibleVariants.find(
+        (variantInfo: MediaVariantInfo): boolean =>
+          !variantInfo.isPremiumCandidate,
+      );
+
+    return MediaInventoryCloner.cloneVariantInfo(
+      standardVariant ?? compatibleVariants[0],
+    );
+  }
+
+  /**
+   * @brief Check whether one variant satisfies explicit dimension and bandwidth caps
+   *
+   * @param variantInfo - Variant being evaluated
+   * @param maxWidth - Optional width cap
+   * @param maxHeight - Optional height cap
+   * @param maxBandwidth - Optional bandwidth cap
+   *
+   * @returns `true` when the variant remains compatible
+   */
+  private static isVariantCompatible(
+    variantInfo: MediaVariantInfo,
+    maxWidth: number | null,
+    maxHeight: number | null,
+    maxBandwidth: number | null,
+  ): boolean {
+    if (
+      maxWidth !== null &&
+      variantInfo.width !== null &&
+      variantInfo.width > maxWidth
+    ) {
+      return false;
+    }
+
+    if (
+      maxHeight !== null &&
+      variantInfo.height !== null &&
+      variantInfo.height > maxHeight
+    ) {
+      return false;
+    }
+
+    if (
+      maxBandwidth !== null &&
+      variantInfo.bitrate !== null &&
+      variantInfo.bitrate > maxBandwidth
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * @brief Score one variant conservatively for higher-fidelity playback
+   *
+   * @param variantInfo - Variant being scored
+   *
+   * @returns Relative score where higher values are preferred
+   */
+  private static scoreVariant(variantInfo: MediaVariantInfo): number {
+    const width: number = variantInfo.width ?? 0;
+    const height: number = variantInfo.height ?? 0;
+    const bitrate: number = variantInfo.bitrate ?? 0;
+    const frameRate: number = variantInfo.frameRate ?? 0;
+    const resolutionScore: number = width * height;
+    const defaultScore: number = variantInfo.isDefault ? 50 : 0;
+    const premiumScore: number = variantInfo.isPremiumCandidate ? 100 : 0;
+
+    return resolutionScore + bitrate + frameRate + defaultScore + premiumScore;
   }
 }

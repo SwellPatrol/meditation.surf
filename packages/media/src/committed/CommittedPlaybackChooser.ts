@@ -14,6 +14,9 @@ import { CapabilityOracle } from "../capability-oracle/CapabilityOracle";
 import type { MediaRoleCapabilitySnapshot } from "../capability-oracle/MediaRoleCapabilitySnapshot";
 import type { MediaExecutionSnapshot } from "../execution/MediaExecutionSnapshot";
 import type { MediaRuntimeCapabilities } from "../execution/MediaRuntimeCapabilities";
+import { MediaInventoryCloner } from "../inventory/MediaInventoryCloner";
+import type { MediaInventoryResult } from "../inventory/MediaInventoryResult";
+import type { MediaInventorySnapshot } from "../inventory/MediaInventorySnapshot";
 import type { MediaPlaybackLane } from "../sessions/MediaPlaybackLane";
 import type { MediaRendererKind } from "../sessions/MediaRendererKind";
 import type { MediaSourceDescriptor } from "../sources/MediaSourceDescriptor";
@@ -38,6 +41,7 @@ export type CommittedPlaybackChooserInput = {
   preferredLaneHint: MediaPlaybackLane | null;
   preferredRendererKindHint: MediaRendererKind | null;
   audioTrackPolicy: AudioTrackPolicy | null;
+  inventoryResult: MediaInventoryResult | null;
 };
 
 /**
@@ -76,9 +80,16 @@ export class CommittedPlaybackChooser {
         existingChosenLane,
         runtimeLanePreference: lanePreference,
       });
+    const inventoryResult: MediaInventoryResult | null =
+      input.inventoryResult === null
+        ? null
+        : MediaInventoryCloner.cloneResult(input.inventoryResult);
+    const inventorySnapshot: MediaInventorySnapshot | null =
+      inventoryResult?.snapshot ?? null;
     const qualitySelection: VariantSelectionDecision = VariantPolicy.select({
       role: "background-playback",
       capabilitySnapshot,
+      inventoryResult,
       maxWidth: null,
       maxHeight: null,
       maxBandwidth: null,
@@ -110,10 +121,13 @@ export class CommittedPlaybackChooser {
       chosenLane !== preferredLane;
     const reasons: CommittedPlaybackDecisionReason[] = ["capability-oracle"];
     const reasonDetails: string[] = [...capabilitySnapshot.decision.notes];
+    this.foldInventoryReasons(inventorySnapshot, reasons, reasonDetails);
     const mode: CommittedPlaybackMode = this.selectMode(
       input,
       chosenLane,
       capabilitySnapshot,
+      inventorySnapshot,
+      qualitySelection,
       runtimeCapabilities,
       reasons,
       reasonDetails,
@@ -128,6 +142,7 @@ export class CommittedPlaybackChooser {
       },
       runtimeAudioCapabilities: runtimeCapabilities?.audioCapabilities ?? null,
       audioTrackPolicy,
+      inventoryResult,
     });
     const audioActivationMode: AudioActivationMode =
       audioPolicyDecision.audioMode;
@@ -186,6 +201,7 @@ export class CommittedPlaybackChooser {
       mode,
       capabilitySnapshot,
       qualitySelection,
+      inventoryResult,
       preferredLaneOrder,
       preferredLane,
       chosenLane,
@@ -198,6 +214,17 @@ export class CommittedPlaybackChooser {
             : input.preferredRendererKindHint),
       fallbackOrder,
       premiumPlaybackViable: capabilitySnapshot.decision.premiumPlaybackViable,
+      premiumAttemptRequested: input.intent.intentType === "selected",
+      premiumAttemptAccepted: mode === "premium-attempt",
+      premiumFallbackReason:
+        mode === "premium-attempt"
+          ? null
+          : this.resolvePremiumFallbackReason(
+              input.intent.intentType,
+              capabilitySnapshot,
+              inventorySnapshot,
+              qualitySelection,
+            ),
       reasons,
       reasonDetails,
       audioPolicyDecision,
@@ -312,6 +339,8 @@ export class CommittedPlaybackChooser {
    * @param input - Immutable chooser inputs
    * @param chosenLane - Lane selected for committed playback
    * @param capabilitySnapshot - Capability-oracle snapshot for committed playback
+   * @param inventorySnapshot - Inventory snapshot, when available
+   * @param qualitySelection - Variant selection resolved for committed playback
    * @param runtimeCapabilities - Runtime execution capabilities
    * @param reasons - Mutable reason collection
    * @param reasonDetails - Mutable human-readable detail collection
@@ -322,6 +351,8 @@ export class CommittedPlaybackChooser {
     input: CommittedPlaybackChooserInput,
     chosenLane: MediaPlaybackLane | null,
     capabilitySnapshot: MediaRoleCapabilitySnapshot,
+    inventorySnapshot: MediaInventorySnapshot | null,
+    qualitySelection: VariantSelectionDecision,
     runtimeCapabilities: MediaRuntimeCapabilities | null,
     reasons: CommittedPlaybackDecisionReason[],
     reasonDetails: string[],
@@ -332,16 +363,40 @@ export class CommittedPlaybackChooser {
 
     if (
       input.intent.intentType === "selected" &&
-      capabilitySnapshot.decision.premiumPlaybackViable
+      capabilitySnapshot.decision.premiumPlaybackViable &&
+      this.isPremiumAttemptPlausible(inventorySnapshot, qualitySelection)
     ) {
+      if (
+        inventorySnapshot !== null &&
+        qualitySelection.selectedVariant?.isPremiumCandidate === true
+      ) {
+        reasons.push("premium-candidate-available");
+      }
       reasons.push("premium-supported");
       reasonDetails.push(
-        "Runtime and app capabilities allow a premium committed playback attempt.",
+        "Runtime, app capabilities, and available inventory allow a premium committed playback attempt.",
       );
       return "premium-attempt";
     }
 
-    if (!capabilitySnapshot.decision.premiumPlaybackViable) {
+    if (
+      input.intent.intentType === "selected" &&
+      capabilitySnapshot.decision.premiumPlaybackViable
+    ) {
+      if (
+        inventorySnapshot !== null &&
+        qualitySelection.selectedVariant?.isPremiumCandidate !== true
+      ) {
+        reasons.push("premium-candidate-unavailable");
+      }
+      reasons.push("premium-unsupported");
+      reasonDetails.push(
+        this.resolvePremiumUnsupportedDetail(
+          inventorySnapshot,
+          qualitySelection,
+        ),
+      );
+    } else if (!capabilitySnapshot.decision.premiumPlaybackViable) {
       reasons.push("premium-unsupported");
       reasonDetails.push(
         "The capability oracle did not treat premium committed playback as viable for this runtime path.",
@@ -393,5 +448,127 @@ export class CommittedPlaybackChooser {
         reasonDetails.push(reasonDetail);
       }
     }
+  }
+
+  /**
+   * @brief Fold inventory visibility into committed playback debug output
+   *
+   * @param inventorySnapshot - Optional inventory snapshot
+   * @param reasons - Mutable reason collection
+   * @param reasonDetails - Mutable human-readable detail collection
+   */
+  private static foldInventoryReasons(
+    inventorySnapshot: MediaInventorySnapshot | null,
+    reasons: CommittedPlaybackDecisionReason[],
+    reasonDetails: string[],
+  ): void {
+    if (inventorySnapshot === null) {
+      reasons.push("inventory-unavailable");
+      reasonDetails.push(
+        "Committed playback selection used fallback policy only because no inventory snapshot was available.",
+      );
+      return;
+    }
+
+    if (inventorySnapshot.supportLevel === "full") {
+      reasons.push("inventory-full");
+    } else if (inventorySnapshot.supportLevel === "partial") {
+      reasons.push("inventory-partial");
+    } else {
+      reasons.push("inventory-unavailable");
+    }
+
+    for (const inventoryNote of inventorySnapshot.notes) {
+      if (!reasonDetails.includes(inventoryNote)) {
+        reasonDetails.push(inventoryNote);
+      }
+    }
+  }
+
+  /**
+   * @brief Determine whether a premium attempt remains plausible with inventory
+   *
+   * @param inventorySnapshot - Optional inventory snapshot
+   * @param qualitySelection - Variant decision resolved for committed playback
+   *
+   * @returns `true` when a premium attempt remains plausible
+   */
+  private static isPremiumAttemptPlausible(
+    inventorySnapshot: MediaInventorySnapshot | null,
+    qualitySelection: VariantSelectionDecision,
+  ): boolean {
+    if (inventorySnapshot === null) {
+      return true;
+    }
+
+    if (inventorySnapshot.supportLevel === "unsupported") {
+      return true;
+    }
+
+    return (
+      qualitySelection.selectedVariant?.isPremiumCandidate === true ||
+      qualitySelection.matchedAvailableVariant === false
+    );
+  }
+
+  /**
+   * @brief Explain why a premium attempt could not be honored
+   *
+   * @param inventorySnapshot - Optional inventory snapshot
+   * @param qualitySelection - Variant decision resolved for committed playback
+   *
+   * @returns Human-readable detail string
+   */
+  private static resolvePremiumUnsupportedDetail(
+    inventorySnapshot: MediaInventorySnapshot | null,
+    qualitySelection: VariantSelectionDecision,
+  ): string {
+    if (inventorySnapshot === null) {
+      return "Committed playback kept the coarse capability fallback because inventory was unavailable.";
+    }
+
+    if (
+      inventorySnapshot.supportLevel !== "unsupported" &&
+      qualitySelection.selectedVariant?.isPremiumCandidate !== true
+    ) {
+      return "Inventory showed no plausible premium video variant for committed playback, so the chooser stayed on a standard-compatible mode.";
+    }
+
+    return "The capability oracle did not treat premium committed playback as viable for this runtime path.";
+  }
+
+  /**
+   * @brief Resolve a stable premium fallback reason for shared debug state
+   *
+   * @param intentType - Current committed playback intent type
+   * @param capabilitySnapshot - Capability-oracle snapshot
+   * @param inventorySnapshot - Optional inventory snapshot
+   * @param qualitySelection - Variant decision resolved for committed playback
+   *
+   * @returns Human-readable fallback reason, or `null` when none applies
+   */
+  private static resolvePremiumFallbackReason(
+    intentType: CommittedPlaybackIntent["intentType"],
+    capabilitySnapshot: MediaRoleCapabilitySnapshot,
+    inventorySnapshot: MediaInventorySnapshot | null,
+    qualitySelection: VariantSelectionDecision,
+  ): string | null {
+    if (intentType !== "selected") {
+      return "Committed playback did not request a premium attempt for the current background-active intent.";
+    }
+
+    if (!capabilitySnapshot.decision.premiumPlaybackViable) {
+      return "Capability policy did not allow a premium committed playback attempt.";
+    }
+
+    if (
+      inventorySnapshot !== null &&
+      inventorySnapshot.supportLevel !== "unsupported" &&
+      qualitySelection.selectedVariant?.isPremiumCandidate !== true
+    ) {
+      return "Inventory did not expose a plausible premium video variant for committed playback.";
+    }
+
+    return null;
   }
 }

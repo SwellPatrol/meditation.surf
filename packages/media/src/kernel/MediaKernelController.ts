@@ -9,6 +9,7 @@
 import type { AppMediaCapabilities } from "../capabilities/AppMediaCapabilities";
 import type { MediaCapabilityProfile } from "../capabilities/MediaCapabilityProfile";
 import type { MediaIntent } from "../intent/MediaIntent";
+import { MediaInventoryCloner } from "../inventory/MediaInventoryCloner";
 import type { MediaPlan } from "../planning/MediaPlan";
 import type { MediaPlanReason } from "../planning/MediaPlanReason";
 import type { MediaPlanSession } from "../planning/MediaPlanSession";
@@ -970,6 +971,17 @@ export class MediaKernelController {
               maxWidth: mediaPlanSession.variantSelection.maxWidth,
               maxHeight: mediaPlanSession.variantSelection.maxHeight,
               maxBandwidth: mediaPlanSession.variantSelection.maxBandwidth,
+              inventorySnapshot:
+                mediaPlanSession.variantSelection.inventorySnapshot === null
+                  ? null
+                  : MediaInventoryCloner.cloneSnapshot(
+                      mediaPlanSession.variantSelection.inventorySnapshot,
+                    ),
+              selectedVariant: MediaInventoryCloner.cloneVariantInfo(
+                mediaPlanSession.variantSelection.selectedVariant,
+              ),
+              matchedAvailableVariant:
+                mediaPlanSession.variantSelection.matchedAvailableVariant,
               reasons: [...mediaPlanSession.variantSelection.reasons],
               notes: [...mediaPlanSession.variantSelection.notes],
             },

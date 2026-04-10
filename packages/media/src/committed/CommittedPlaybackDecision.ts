@@ -9,6 +9,7 @@
 import type { AudioPolicyDecision } from "../audio/AudioPolicyDecision";
 import type { AudioTrackPolicy } from "../audio/AudioTrackPolicy";
 import type { MediaRoleCapabilitySnapshot } from "../capability-oracle/MediaRoleCapabilitySnapshot";
+import type { MediaInventoryResult } from "../inventory/MediaInventoryResult";
 import type { MediaPlaybackLane } from "../sessions/MediaPlaybackLane";
 import type { MediaRendererKind } from "../sessions/MediaRendererKind";
 import type { VariantSelectionDecision } from "../variant-policy/VariantSelectionDecision";
@@ -24,12 +25,16 @@ export type CommittedPlaybackDecision = {
   mode: CommittedPlaybackMode;
   capabilitySnapshot: MediaRoleCapabilitySnapshot;
   qualitySelection: VariantSelectionDecision;
+  inventoryResult: MediaInventoryResult | null;
   preferredLaneOrder: MediaPlaybackLane[];
   preferredLane: MediaPlaybackLane | null;
   chosenLane: MediaPlaybackLane | null;
   preferredRendererKind: MediaRendererKind | null;
   fallbackOrder: MediaPlaybackLane[];
   premiumPlaybackViable: boolean;
+  premiumAttemptRequested: boolean;
+  premiumAttemptAccepted: boolean;
+  premiumFallbackReason: string | null;
   reasons: CommittedPlaybackDecisionReason[];
   reasonDetails: string[];
   audioPolicyDecision: AudioPolicyDecision;

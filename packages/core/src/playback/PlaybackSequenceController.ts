@@ -6,7 +6,10 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { CommittedPlaybackDecision } from "@meditation-surf/media";
+import {
+  type CommittedPlaybackDecision,
+  MediaInventoryCloner,
+} from "@meditation-surf/media";
 
 import type { Catalog } from "../catalog/Catalog";
 import type { CatalogSection } from "../catalog/CatalogSection";
@@ -187,13 +190,33 @@ export class PlaybackSequenceController {
     return {
       mode: committedPlaybackDecision.mode,
       capabilitySnapshot: committedPlaybackDecision.capabilitySnapshot,
-      qualitySelection: committedPlaybackDecision.qualitySelection,
+      qualitySelection: {
+        ...committedPlaybackDecision.qualitySelection,
+        inventorySnapshot:
+          committedPlaybackDecision.qualitySelection.inventorySnapshot === null
+            ? null
+            : MediaInventoryCloner.cloneSnapshot(
+                committedPlaybackDecision.qualitySelection.inventorySnapshot,
+              ),
+        selectedVariant: MediaInventoryCloner.cloneVariantInfo(
+          committedPlaybackDecision.qualitySelection.selectedVariant,
+        ),
+        reasons: [...committedPlaybackDecision.qualitySelection.reasons],
+        notes: [...committedPlaybackDecision.qualitySelection.notes],
+      },
+      inventoryResult: MediaInventoryCloner.cloneResult(
+        committedPlaybackDecision.inventoryResult,
+      ),
       preferredLaneOrder: [...committedPlaybackDecision.preferredLaneOrder],
       preferredLane: committedPlaybackDecision.preferredLane,
       chosenLane: committedPlaybackDecision.chosenLane,
       preferredRendererKind: committedPlaybackDecision.preferredRendererKind,
       fallbackOrder: [...committedPlaybackDecision.fallbackOrder],
       premiumPlaybackViable: committedPlaybackDecision.premiumPlaybackViable,
+      premiumAttemptRequested:
+        committedPlaybackDecision.premiumAttemptRequested,
+      premiumAttemptAccepted: committedPlaybackDecision.premiumAttemptAccepted,
+      premiumFallbackReason: committedPlaybackDecision.premiumFallbackReason,
       reasons: [...committedPlaybackDecision.reasons],
       reasonDetails: [...committedPlaybackDecision.reasonDetails],
       audioPolicyDecision: {
@@ -221,6 +244,16 @@ export class PlaybackSequenceController {
             committedPlaybackDecision.audioPolicyDecision.trackPolicy
               .allowFallbackStereo,
         },
+        inventorySnapshot:
+          committedPlaybackDecision.audioPolicyDecision.inventorySnapshot ===
+          null
+            ? null
+            : MediaInventoryCloner.cloneSnapshot(
+                committedPlaybackDecision.audioPolicyDecision.inventorySnapshot,
+              ),
+        selectedAudioTrack: MediaInventoryCloner.cloneAudioTrackInfo(
+          committedPlaybackDecision.audioPolicyDecision.selectedAudioTrack,
+        ),
         capabilityProfile:
           committedPlaybackDecision.audioPolicyDecision.capabilityProfile ===
           null
@@ -315,10 +348,18 @@ export class PlaybackSequenceController {
         rightCommittedPlaybackDecision.usedFallbackLane &&
       leftCommittedPlaybackDecision.premiumPlaybackViable ===
         rightCommittedPlaybackDecision.premiumPlaybackViable &&
+      leftCommittedPlaybackDecision.premiumAttemptRequested ===
+        rightCommittedPlaybackDecision.premiumAttemptRequested &&
+      leftCommittedPlaybackDecision.premiumAttemptAccepted ===
+        rightCommittedPlaybackDecision.premiumAttemptAccepted &&
+      leftCommittedPlaybackDecision.premiumFallbackReason ===
+        rightCommittedPlaybackDecision.premiumFallbackReason &&
       leftCommittedPlaybackDecision.lanePreference ===
         rightCommittedPlaybackDecision.lanePreference &&
       leftCommittedPlaybackDecision.startPositionSeconds ===
         rightCommittedPlaybackDecision.startPositionSeconds &&
+      JSON.stringify(leftCommittedPlaybackDecision.inventoryResult) ===
+        JSON.stringify(rightCommittedPlaybackDecision.inventoryResult) &&
       JSON.stringify(leftCommittedPlaybackDecision.fallbackOrder) ===
         JSON.stringify(rightCommittedPlaybackDecision.fallbackOrder) &&
       JSON.stringify(leftCommittedPlaybackDecision.reasons) ===

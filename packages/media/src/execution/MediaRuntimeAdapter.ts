@@ -6,6 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { MediaInventoryProvider } from "../inventory/MediaInventoryProvider";
 import type { MediaExecutionCommand } from "./MediaExecutionCommand";
 import type { MediaExecutionResult } from "./MediaExecutionResult";
 import type { MediaRuntimeCapabilities } from "./MediaRuntimeCapabilities";
@@ -13,7 +14,7 @@ import type { MediaRuntimeCapabilities } from "./MediaRuntimeCapabilities";
 /**
  * @brief Runtime adapter contract implemented by each app shell
  */
-export interface MediaRuntimeAdapter {
+export interface MediaRuntimeAdapter extends MediaInventoryProvider {
   readonly runtimeId: string;
 
   /**

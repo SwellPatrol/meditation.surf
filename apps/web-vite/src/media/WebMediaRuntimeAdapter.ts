@@ -6,19 +6,25 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type {
-  Catalog,
-  CommittedPlaybackDecision,
-  MediaExecutionCommand,
-  MediaExecutionResult,
-  MediaItem,
-  MediaPlaybackLane,
-  MediaRuntimeAdapter,
-  MediaRuntimeCapabilities,
-  MediaRuntimeSessionHandle,
-  MediaSourceDescriptor,
-  MediaStartupDebugState,
-  PlaybackSequenceController,
+import {
+  type Catalog,
+  type CommittedPlaybackDecision,
+  type MediaAudioTrackInfo,
+  type MediaExecutionCommand,
+  type MediaExecutionResult,
+  MediaInventoryCloner,
+  type MediaInventoryRequest,
+  type MediaInventoryResult,
+  type MediaItem,
+  type MediaPlaybackLane,
+  type MediaRuntimeAdapter,
+  type MediaRuntimeCapabilities,
+  type MediaRuntimeSessionHandle,
+  type MediaSourceDescriptor,
+  type MediaStartupDebugState,
+  type MediaTextTrackInfo,
+  type MediaVariantInfo,
+  type PlaybackSequenceController,
 } from "@meditation-surf/core";
 import { type StartupWarmResult, VfsController } from "@meditation-surf/vfs";
 
@@ -30,6 +36,43 @@ import {
 type ShakaModule =
   (typeof import("shaka-player/dist/shaka-player.compiled.js"))["default"];
 type ShakaPlayer = InstanceType<ShakaModule["Player"]>;
+type ShakaTrack = {
+  id: number;
+  active: boolean;
+  audioBandwidth: number | null;
+  audioCodec: string | null;
+  bandwidth: number;
+  channelsCount: number | null;
+  codec: string | null;
+  codecs: string | null;
+  frameRate: number | null;
+  height: number | null;
+  kind: string | null;
+  label: string | null;
+  language: string;
+  primary: boolean;
+  spatialAudio?: boolean;
+  type: string;
+  videoBandwidth: number | null;
+  videoCodec: string | null;
+  width: number | null;
+};
+type ShakaTextTrack = {
+  active: boolean;
+  codecs: string | null;
+  id: number;
+  kind: string | null;
+  label: string | null;
+  language: string;
+  primary: boolean;
+};
+type ShakaInventoryPlayer = {
+  destroy(): Promise<void>;
+  getAudioTracks(): ShakaTrack[];
+  getTextTracks(): ShakaTextTrack[];
+  getVariantTracks(): ShakaTrack[];
+  load(sourceUrl: string): Promise<unknown>;
+};
 
 type ManagedPreviewRuntimeSession = {
   runtimeSessionHandle: MediaRuntimeSessionHandle;
@@ -96,6 +139,10 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
   private readonly previewRuntimeSessions: ManagedPreviewRuntimeSession[];
   private readonly previewSurfaceRegistry: WebPreviewSurfaceRegistry;
   private readonly backgroundRuntimeSession: ManagedBackgroundRuntimeSession;
+  private readonly inventoryResultPromisesBySourceId: Map<
+    string,
+    Promise<MediaInventoryResult>
+  >;
   private readonly vfsController: VfsController;
 
   /**
@@ -118,6 +165,10 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     this.previewSurfaceRegistry = previewSurfaceRegistry;
     this.vfsController = vfsController;
     this.previewRuntimeSessions = this.createPreviewRuntimeSessions();
+    this.inventoryResultPromisesBySourceId = new Map<
+      string,
+      Promise<MediaInventoryResult>
+    >();
     this.backgroundRuntimeSession = {
       runtimeSessionHandle: {
         handleId: "background-session",
@@ -181,6 +232,55 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
             .canKeepExtractionSilent,
       },
     };
+  }
+
+  /**
+   * @brief Resolve the strongest inspectable inventory snapshot available on web
+   *
+   * @param request - Shared inventory lookup request
+   *
+   * @returns Full Shaka-backed inventory when available, otherwise explicit partial fallback
+   */
+  public async resolveMediaInventory(
+    request: MediaInventoryRequest,
+  ): Promise<MediaInventoryResult> {
+    const sourceDescriptor: MediaSourceDescriptor | null =
+      request.sourceDescriptor;
+
+    if (sourceDescriptor === null) {
+      return {
+        supportLevel: "unsupported",
+        snapshot: {
+          sourceId: null,
+          supportLevel: "unsupported",
+          inventorySource: "unavailable",
+          selectionReason: "inventory-unsupported",
+          inventory: null,
+          notes: [
+            "Web inventory lookup could not run because the source descriptor was missing.",
+          ],
+        },
+        failureReason:
+          "No source descriptor was available for web inventory lookup.",
+      };
+    }
+
+    const existingInventoryPromise: Promise<MediaInventoryResult> | undefined =
+      this.inventoryResultPromisesBySourceId.get(sourceDescriptor.sourceId);
+
+    if (existingInventoryPromise !== undefined) {
+      return await existingInventoryPromise;
+    }
+
+    const inventoryPromise: Promise<MediaInventoryResult> =
+      this.buildInventoryResult(request);
+
+    this.inventoryResultPromisesBySourceId.set(
+      sourceDescriptor.sourceId,
+      inventoryPromise,
+    );
+
+    return await inventoryPromise;
   }
 
   /**
@@ -756,6 +856,334 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
   }
 
   /**
+   * @brief Build one cached web inventory result for the requested source
+   *
+   * @param request - Shared inventory lookup request
+   *
+   * @returns Best available inventory result for the source
+   */
+  private async buildInventoryResult(
+    request: MediaInventoryRequest,
+  ): Promise<MediaInventoryResult> {
+    const sourceDescriptor: MediaSourceDescriptor | null =
+      request.sourceDescriptor;
+
+    if (sourceDescriptor === null) {
+      return {
+        supportLevel: "unsupported",
+        snapshot: {
+          sourceId: null,
+          supportLevel: "unsupported",
+          inventorySource: "unavailable",
+          selectionReason: "inventory-unsupported",
+          inventory: null,
+          notes: ["Web inventory lookup had no source descriptor to inspect."],
+        },
+        failureReason:
+          "Web inventory lookup had no source descriptor to inspect.",
+      };
+    }
+
+    const playbackMimeType: string =
+      sourceDescriptor.mimeType ?? "application/x-mpegURL";
+    const probeVideoElement: HTMLVideoElement = document.createElement("video");
+    const canUseNativeHlsPlayback: boolean =
+      probeVideoElement.canPlayType(playbackMimeType) !== "";
+
+    try {
+      return await this.probeShakaInventory(
+        sourceDescriptor,
+        canUseNativeHlsPlayback,
+      );
+    } catch (error: unknown) {
+      const failureReason: string = this.describeRuntimeError(
+        error,
+        "Web inventory probing fell back from the adaptive runtime path.",
+      );
+
+      if (canUseNativeHlsPlayback) {
+        return this.createNativePartialInventoryResult(
+          sourceDescriptor,
+          failureReason,
+        );
+      }
+
+      return {
+        supportLevel: "unsupported",
+        snapshot: {
+          sourceId: sourceDescriptor.sourceId,
+          supportLevel: "unsupported",
+          inventorySource: "unavailable",
+          selectionReason: "inventory-probe-failed",
+          inventory: null,
+          notes: [failureReason],
+        },
+        failureReason,
+      };
+    }
+  }
+
+  /**
+   * @brief Probe one source through Shaka to expose real manifest inventory
+   *
+   * @param sourceDescriptor - Shared source descriptor being inspected
+   * @param canUseNativeHlsPlayback - Whether the browser can use its native path
+   *
+   * @returns Full manifest-backed inventory result
+   */
+  private async probeShakaInventory(
+    sourceDescriptor: MediaSourceDescriptor,
+    canUseNativeHlsPlayback: boolean,
+  ): Promise<MediaInventoryResult> {
+    const shakaModule: { default: ShakaModule } =
+      await import("shaka-player/dist/shaka-player.compiled.js");
+    const shaka: ShakaModule = shakaModule.default;
+
+    shaka.polyfill.installAll();
+    if (!shaka.Player.isBrowserSupported()) {
+      if (canUseNativeHlsPlayback) {
+        return this.createNativePartialInventoryResult(
+          sourceDescriptor,
+          "Shaka inventory probing was unavailable, so the web shell reported native-only partial inventory.",
+        );
+      }
+
+      return {
+        supportLevel: "unsupported",
+        snapshot: {
+          sourceId: sourceDescriptor.sourceId,
+          supportLevel: "unsupported",
+          inventorySource: "unavailable",
+          selectionReason: "inventory-unsupported",
+          inventory: null,
+          notes: [
+            "Shaka is unsupported in this browser for inventory probing.",
+          ],
+        },
+        failureReason:
+          "Shaka is unsupported in this browser for inventory probing.",
+      };
+    }
+
+    const probeVideoElement: HTMLVideoElement = document.createElement("video");
+    const shakaPlayer: ShakaInventoryPlayer = new shaka.Player(
+      probeVideoElement,
+    ) as unknown as ShakaInventoryPlayer;
+
+    try {
+      await shakaPlayer.load(sourceDescriptor.url);
+      const variantTracks: ShakaTrack[] = shakaPlayer.getVariantTracks();
+      const audioTracks: ShakaTrack[] = shakaPlayer.getAudioTracks();
+      const textTracks: ShakaTextTrack[] = shakaPlayer.getTextTracks();
+
+      return {
+        supportLevel: "full",
+        snapshot: {
+          sourceId: sourceDescriptor.sourceId,
+          supportLevel: "full",
+          inventorySource: "adaptive-runtime",
+          selectionReason: "inventory-full",
+          inventory: {
+            sourceId: sourceDescriptor.sourceId,
+            inventorySource: "adaptive-runtime",
+            variants: variantTracks.map(
+              (variantTrack: ShakaTrack): MediaVariantInfo =>
+                this.createVariantInfo(variantTrack),
+            ),
+            audioTracks: audioTracks.map(
+              (audioTrack: ShakaTrack): MediaAudioTrackInfo =>
+                this.createAudioTrackInfo(audioTrack),
+            ),
+            textTracks: textTracks.map(
+              (textTrack: ShakaTextTrack): MediaTextTrackInfo =>
+                this.createTextTrackInfo(textTrack),
+            ),
+          },
+          notes: [
+            "Web inventory used a Shaka-backed manifest probe for committed playback.",
+          ],
+        },
+        failureReason: null,
+      };
+    } finally {
+      await shakaPlayer.destroy();
+    }
+  }
+
+  /**
+   * @brief Create the native-only partial inventory result used as a safe fallback
+   *
+   * @param sourceDescriptor - Shared source descriptor being inspected
+   * @param note - Human-readable fallback note
+   *
+   * @returns Partial native inventory result
+   */
+  private createNativePartialInventoryResult(
+    sourceDescriptor: MediaSourceDescriptor,
+    note: string,
+  ): MediaInventoryResult {
+    return {
+      supportLevel: "partial",
+      snapshot: {
+        sourceId: sourceDescriptor.sourceId,
+        supportLevel: "partial",
+        inventorySource: "native-runtime",
+        selectionReason: "inventory-partial",
+        inventory: {
+          sourceId: sourceDescriptor.sourceId,
+          inventorySource: "native-runtime",
+          variants: [],
+          audioTracks: [],
+          textTracks: [],
+        },
+        notes: [
+          "Browser-native playback exposed only partial inventory before committed playback started.",
+          note,
+        ],
+      },
+      failureReason: null,
+    };
+  }
+
+  /**
+   * @brief Convert one Shaka variant track into the shared inventory domain model
+   *
+   * @param variantTrack - Shaka variant track
+   *
+   * @returns Shared variant metadata
+   */
+  private createVariantInfo(variantTrack: ShakaTrack): MediaVariantInfo {
+    return {
+      id: `variant-${variantTrack.id}`,
+      width: variantTrack.width,
+      height: variantTrack.height,
+      bitrate:
+        variantTrack.videoBandwidth ??
+        (variantTrack.bandwidth > 0 ? variantTrack.bandwidth : null),
+      codec: variantTrack.videoCodec ?? variantTrack.codecs ?? null,
+      frameRate: variantTrack.frameRate,
+      isDefault: variantTrack.primary || variantTrack.active,
+      isPremiumCandidate: this.isPremiumVariantCandidate(variantTrack),
+    };
+  }
+
+  /**
+   * @brief Convert one Shaka audio track into the shared inventory domain model
+   *
+   * @param audioTrack - Shaka audio track
+   *
+   * @returns Shared audio-track metadata
+   */
+  private createAudioTrackInfo(audioTrack: ShakaTrack): MediaAudioTrackInfo {
+    return {
+      id: `audio-${audioTrack.id}`,
+      language: audioTrack.language || null,
+      channelLayout: this.describeChannelLayout(audioTrack.channelsCount),
+      channelCount: audioTrack.channelsCount,
+      codec: audioTrack.audioCodec ?? audioTrack.codecs ?? null,
+      isDefault: audioTrack.primary || audioTrack.active,
+      isPremiumCandidate: this.isPremiumAudioCandidate(audioTrack),
+    };
+  }
+
+  /**
+   * @brief Convert one Shaka text track into the shared inventory domain model
+   *
+   * @param textTrack - Shaka text track
+   *
+   * @returns Shared text-track metadata
+   */
+  private createTextTrackInfo(textTrack: ShakaTextTrack): MediaTextTrackInfo {
+    return {
+      id: `text-${textTrack.id}`,
+      language: textTrack.language || null,
+      kind: textTrack.kind,
+      label: textTrack.label,
+      codec: textTrack.codecs ?? null,
+      isDefault: textTrack.primary || textTrack.active,
+    };
+  }
+
+  /**
+   * @brief Determine whether one variant should be treated as premium-capable
+   *
+   * @param variantTrack - Shaka variant track
+   *
+   * @returns `true` when the track looks like a premium candidate
+   */
+  private isPremiumVariantCandidate(variantTrack: ShakaTrack): boolean {
+    const width: number = variantTrack.width ?? 0;
+    const height: number = variantTrack.height ?? 0;
+    const bitrate: number =
+      variantTrack.videoBandwidth ?? variantTrack.bandwidth ?? 0;
+    const codec: string = (
+      variantTrack.videoCodec ??
+      variantTrack.codecs ??
+      ""
+    ).toLowerCase();
+
+    return (
+      width >= 2560 ||
+      height >= 1440 ||
+      bitrate >= 12000000 ||
+      codec.includes("hvc1") ||
+      codec.includes("hev1") ||
+      codec.includes("dvhe") ||
+      codec.includes("av01")
+    );
+  }
+
+  /**
+   * @brief Determine whether one audio track should be treated as premium-capable
+   *
+   * @param audioTrack - Shaka audio track
+   *
+   * @returns `true` when the track looks like a premium candidate
+   */
+  private isPremiumAudioCandidate(audioTrack: ShakaTrack): boolean {
+    const codec: string = (
+      audioTrack.audioCodec ??
+      audioTrack.codecs ??
+      ""
+    ).toLowerCase();
+    const channelCount: number = audioTrack.channelsCount ?? 0;
+
+    return (
+      channelCount > 2 ||
+      audioTrack.spatialAudio === true ||
+      codec.includes("ec-3") ||
+      codec.includes("ac-4") ||
+      codec.includes("atmos")
+    );
+  }
+
+  /**
+   * @brief Convert a numeric channel count into a conservative layout label
+   *
+   * @param channelCount - Audio channel count reported by the runtime
+   *
+   * @returns Shared channel-layout label, or `null` when unavailable
+   */
+  private describeChannelLayout(channelCount: number | null): string | null {
+    if (channelCount === null) {
+      return null;
+    }
+
+    switch (channelCount) {
+      case 1:
+        return "1.0";
+      case 2:
+        return "2.0";
+      case 6:
+        return "5.1";
+      case 8:
+        return "7.1";
+      default:
+        return `${channelCount}.0`;
+    }
+  }
+
+  /**
    * @brief Create the fixed preview pool used by the web runtime
    *
    * @returns Stable preview slot array
@@ -1289,6 +1717,27 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
           ? null
           : {
               ...committedPlaybackDecision,
+              qualitySelection: {
+                ...committedPlaybackDecision.qualitySelection,
+                inventorySnapshot:
+                  committedPlaybackDecision.qualitySelection
+                    .inventorySnapshot === null
+                    ? null
+                    : MediaInventoryCloner.cloneSnapshot(
+                        committedPlaybackDecision.qualitySelection
+                          .inventorySnapshot,
+                      ),
+                selectedVariant: MediaInventoryCloner.cloneVariantInfo(
+                  committedPlaybackDecision.qualitySelection.selectedVariant,
+                ),
+                reasons: [
+                  ...committedPlaybackDecision.qualitySelection.reasons,
+                ],
+                notes: [...committedPlaybackDecision.qualitySelection.notes],
+              },
+              inventoryResult: MediaInventoryCloner.cloneResult(
+                committedPlaybackDecision.inventoryResult,
+              ),
               fallbackOrder: [...committedPlaybackDecision.fallbackOrder],
               reasons: [...committedPlaybackDecision.reasons],
               reasonDetails: [...committedPlaybackDecision.reasonDetails],
@@ -1326,6 +1775,15 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
                     audioExecution.policyDecision.trackPolicy
                       .allowFallbackStereo,
                 },
+                inventorySnapshot:
+                  audioExecution.policyDecision.inventorySnapshot === null
+                    ? null
+                    : MediaInventoryCloner.cloneSnapshot(
+                        audioExecution.policyDecision.inventorySnapshot,
+                      ),
+                selectedAudioTrack: MediaInventoryCloner.cloneAudioTrackInfo(
+                  audioExecution.policyDecision.selectedAudioTrack,
+                ),
                 capabilityProfile:
                   audioExecution.policyDecision.capabilityProfile === null
                     ? null

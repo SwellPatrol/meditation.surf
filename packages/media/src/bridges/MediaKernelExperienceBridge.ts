@@ -504,6 +504,7 @@ export class MediaKernelExperienceBridge<
     const variantSelection: VariantSelectionDecision = VariantPolicy.select({
       role: "thumbnail-extract",
       capabilitySnapshot,
+      inventoryResult: null,
       maxWidth: targetWidth,
       maxHeight: null,
       maxBandwidth: null,
@@ -532,6 +533,7 @@ export class MediaKernelExperienceBridge<
       },
       runtimeAudioCapabilities: null,
       audioTrackPolicy: AudioPolicy.createDefaultTrackPolicy("extractor"),
+      inventoryResult: null,
     });
 
     return {

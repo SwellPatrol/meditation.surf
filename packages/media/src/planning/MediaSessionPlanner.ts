@@ -554,6 +554,7 @@ export class MediaSessionPlanner {
     const variantSelection: VariantSelectionDecision = VariantPolicy.select({
       role,
       capabilitySnapshot,
+      inventoryResult: null,
       maxWidth: null,
       maxHeight: null,
       maxBandwidth: null,

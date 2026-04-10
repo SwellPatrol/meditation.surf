@@ -15,6 +15,7 @@ import {
 } from "@meditation-surf/vfs";
 
 import type { AudioPolicyDecision } from "../audio/AudioPolicyDecision";
+import { MediaInventoryCloner } from "../inventory/MediaInventoryCloner";
 import type { MediaThumbnailCacheEntry } from "./MediaThumbnailCacheEntry";
 import type { MediaThumbnailDescriptor } from "./MediaThumbnailDescriptor";
 import type { MediaThumbnailExtractionAttempt } from "./MediaThumbnailExtractionAttempt";
@@ -1002,6 +1003,17 @@ export class MediaThumbnailController {
         maxWidth: request.variantSelection.maxWidth,
         maxHeight: request.variantSelection.maxHeight,
         maxBandwidth: request.variantSelection.maxBandwidth,
+        inventorySnapshot:
+          request.variantSelection.inventorySnapshot === null
+            ? null
+            : MediaInventoryCloner.cloneSnapshot(
+                request.variantSelection.inventorySnapshot,
+              ),
+        selectedVariant: MediaInventoryCloner.cloneVariantInfo(
+          request.variantSelection.selectedVariant,
+        ),
+        matchedAvailableVariant:
+          request.variantSelection.matchedAvailableVariant,
         reasons: [...request.variantSelection.reasons],
         notes: [...request.variantSelection.notes],
       },
@@ -1457,6 +1469,15 @@ export class MediaThumbnailController {
         allowFallbackStereo:
           audioPolicyDecision.trackPolicy.allowFallbackStereo,
       },
+      inventorySnapshot:
+        audioPolicyDecision.inventorySnapshot === null
+          ? null
+          : MediaInventoryCloner.cloneSnapshot(
+              audioPolicyDecision.inventorySnapshot,
+            ),
+      selectedAudioTrack: MediaInventoryCloner.cloneAudioTrackInfo(
+        audioPolicyDecision.selectedAudioTrack,
+      ),
       capabilityProfile:
         audioPolicyDecision.capabilityProfile === null
           ? null

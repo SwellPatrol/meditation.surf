@@ -6,16 +6,17 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type {
-  BrowseFocusState,
-  BrowseHeroContent,
-  BrowseInputMode,
-  BrowseMetadataEntry,
-  BrowseRowContent,
-  BrowseScreenContent,
-  BrowseThumbnailContent,
-  MediaThumbnailCacheEntry,
-  MediaThumbnailSnapshot,
+import {
+  type BrowseFocusState,
+  type BrowseHeroContent,
+  type BrowseInputMode,
+  type BrowseMetadataEntry,
+  type BrowseRowContent,
+  type BrowseScreenContent,
+  type BrowseThumbnailContent,
+  MediaInventoryCloner,
+  type MediaThumbnailCacheEntry,
+  type MediaThumbnailSnapshot,
 } from "@meditation-surf/core";
 
 import { WebAppLayoutController } from "../layout/WebAppLayoutController";
@@ -295,6 +296,20 @@ export class WebAppShell {
                       thumbnailEntry.request.variantSelection.maxHeight,
                     maxBandwidth:
                       thumbnailEntry.request.variantSelection.maxBandwidth,
+                    inventorySnapshot:
+                      thumbnailEntry.request.variantSelection
+                        .inventorySnapshot === null
+                        ? null
+                        : MediaInventoryCloner.cloneSnapshot(
+                            thumbnailEntry.request.variantSelection
+                              .inventorySnapshot,
+                          ),
+                    selectedVariant: MediaInventoryCloner.cloneVariantInfo(
+                      thumbnailEntry.request.variantSelection.selectedVariant,
+                    ),
+                    matchedAvailableVariant:
+                      thumbnailEntry.request.variantSelection
+                        .matchedAvailableVariant,
                     reasons: [
                       ...thumbnailEntry.request.variantSelection.reasons,
                     ],
@@ -357,6 +372,19 @@ export class WebAppShell {
                         thumbnailEntry.request.audioPolicyDecision.trackPolicy
                           .allowFallbackStereo,
                     },
+                    inventorySnapshot:
+                      thumbnailEntry.request.audioPolicyDecision
+                        .inventorySnapshot === null
+                        ? null
+                        : MediaInventoryCloner.cloneSnapshot(
+                            thumbnailEntry.request.audioPolicyDecision
+                              .inventorySnapshot,
+                          ),
+                    selectedAudioTrack:
+                      MediaInventoryCloner.cloneAudioTrackInfo(
+                        thumbnailEntry.request.audioPolicyDecision
+                          .selectedAudioTrack,
+                      ),
                     capabilityProfile:
                       thumbnailEntry.request.audioPolicyDecision
                         .capabilityProfile === null
@@ -450,6 +478,19 @@ export class WebAppShell {
                           thumbnailEntry.result.debug.audioPolicyDecision
                             .trackPolicy.allowFallbackStereo,
                       },
+                      inventorySnapshot:
+                        thumbnailEntry.result.debug.audioPolicyDecision
+                          .inventorySnapshot === null
+                          ? null
+                          : MediaInventoryCloner.cloneSnapshot(
+                              thumbnailEntry.result.debug.audioPolicyDecision
+                                .inventorySnapshot,
+                            ),
+                      selectedAudioTrack:
+                        MediaInventoryCloner.cloneAudioTrackInfo(
+                          thumbnailEntry.result.debug.audioPolicyDecision
+                            .selectedAudioTrack,
+                        ),
                       capabilityProfile:
                         thumbnailEntry.result.debug.audioPolicyDecision
                           .capabilityProfile === null

@@ -58,6 +58,18 @@ export type { MediaStartupDebugState } from "./execution/MediaStartupDebugState"
 export type { MediaRuntimeAdapter } from "./execution/MediaRuntimeAdapter";
 export type { MediaRuntimeCapabilities } from "./execution/MediaRuntimeCapabilities";
 export type { MediaRuntimeSessionHandle } from "./execution/MediaRuntimeSessionHandle";
+export { MediaInventoryCloner } from "./inventory/MediaInventoryCloner";
+export type { MediaAudioTrackInfo } from "./inventory/MediaAudioTrackInfo";
+export type { MediaInventory } from "./inventory/MediaInventory";
+export type { MediaInventoryProvider } from "./inventory/MediaInventoryProvider";
+export type { MediaInventoryRequest } from "./inventory/MediaInventoryRequest";
+export type { MediaInventoryResult } from "./inventory/MediaInventoryResult";
+export type { MediaInventorySelectionReason } from "./inventory/MediaInventorySelectionReason";
+export type { MediaInventorySnapshot } from "./inventory/MediaInventorySnapshot";
+export type { MediaInventorySource } from "./inventory/MediaInventorySource";
+export type { MediaInventorySupportLevel } from "./inventory/MediaInventorySupportLevel";
+export type { MediaTextTrackInfo } from "./inventory/MediaTextTrackInfo";
+export type { MediaVariantInfo } from "./inventory/MediaVariantInfo";
 export {
   FocusDelayController,
   type FocusDelayState,

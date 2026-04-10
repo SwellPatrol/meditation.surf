@@ -6,16 +6,19 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type {
-  Catalog,
-  CommittedPlaybackDecision,
-  MediaExecutionCommand,
-  MediaExecutionResult,
-  MediaItem,
-  MediaRuntimeAdapter,
-  MediaRuntimeCapabilities,
-  MediaRuntimeSessionHandle,
-  PlaybackSequenceController,
+import {
+  type Catalog,
+  type CommittedPlaybackDecision,
+  type MediaExecutionCommand,
+  type MediaExecutionResult,
+  MediaInventoryCloner,
+  type MediaInventoryRequest,
+  type MediaInventoryResult,
+  type MediaItem,
+  type MediaRuntimeAdapter,
+  type MediaRuntimeCapabilities,
+  type MediaRuntimeSessionHandle,
+  type PlaybackSequenceController,
 } from "@meditation-surf/core";
 
 /**
@@ -124,6 +127,38 @@ export class TvMediaRuntimeAdapter implements MediaRuntimeAdapter {
           TvMediaRuntimeAdapter.CAPABILITIES.audioCapabilities
             .canKeepExtractionSilent,
       },
+    };
+  }
+
+  /**
+   * @brief Return conservative TV inventory support for committed playback
+   *
+   * @param request - Shared inventory lookup request
+   *
+   * @returns Explicit partial inventory result for TV
+   */
+  public resolveMediaInventory(
+    request: MediaInventoryRequest,
+  ): MediaInventoryResult {
+    return {
+      supportLevel: "partial",
+      snapshot: {
+        sourceId: request.sourceDescriptor?.sourceId ?? null,
+        supportLevel: "partial",
+        inventorySource: "shell-runtime",
+        selectionReason: "inventory-partial",
+        inventory: {
+          sourceId: request.sourceDescriptor?.sourceId ?? null,
+          inventorySource: "shell-runtime",
+          variants: [],
+          audioTracks: [],
+          textTracks: [],
+        },
+        notes: [
+          "TV reports conservative partial inventory only in this phase.",
+        ],
+      },
+      failureReason: null,
     };
   }
 
@@ -291,6 +326,27 @@ export class TvMediaRuntimeAdapter implements MediaRuntimeAdapter {
           ? null
           : {
               ...committedPlaybackDecision,
+              qualitySelection: {
+                ...committedPlaybackDecision.qualitySelection,
+                inventorySnapshot:
+                  committedPlaybackDecision.qualitySelection
+                    .inventorySnapshot === null
+                    ? null
+                    : MediaInventoryCloner.cloneSnapshot(
+                        committedPlaybackDecision.qualitySelection
+                          .inventorySnapshot,
+                      ),
+                selectedVariant: MediaInventoryCloner.cloneVariantInfo(
+                  committedPlaybackDecision.qualitySelection.selectedVariant,
+                ),
+                reasons: [
+                  ...committedPlaybackDecision.qualitySelection.reasons,
+                ],
+                notes: [...committedPlaybackDecision.qualitySelection.notes],
+              },
+              inventoryResult: MediaInventoryCloner.cloneResult(
+                committedPlaybackDecision.inventoryResult,
+              ),
               fallbackOrder: [...committedPlaybackDecision.fallbackOrder],
               reasons: [...committedPlaybackDecision.reasons],
               reasonDetails: [...committedPlaybackDecision.reasonDetails],
@@ -328,6 +384,15 @@ export class TvMediaRuntimeAdapter implements MediaRuntimeAdapter {
                     audioExecution.policyDecision.trackPolicy
                       .allowFallbackStereo,
                 },
+                inventorySnapshot:
+                  audioExecution.policyDecision.inventorySnapshot === null
+                    ? null
+                    : MediaInventoryCloner.cloneSnapshot(
+                        audioExecution.policyDecision.inventorySnapshot,
+                      ),
+                selectedAudioTrack: MediaInventoryCloner.cloneAudioTrackInfo(
+                  audioExecution.policyDecision.selectedAudioTrack,
+                ),
                 capabilityProfile:
                   audioExecution.policyDecision.capabilityProfile === null
                     ? null

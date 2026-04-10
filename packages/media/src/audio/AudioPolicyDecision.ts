@@ -6,6 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { MediaAudioTrackInfo } from "../inventory/MediaAudioTrackInfo";
+import type { MediaInventorySnapshot } from "../inventory/MediaInventorySnapshot";
 import type { MediaPlaybackLane } from "../sessions/MediaPlaybackLane";
 import type { AudioCapabilityProfile } from "./AudioCapabilityProfile";
 import type { AudioFallbackMode } from "./AudioFallbackMode";
@@ -22,6 +24,8 @@ export type AudioPolicyDecision = {
   requestedPremiumAttempt: boolean;
   usedFallback: boolean;
   trackPolicy: AudioTrackPolicy;
+  inventorySnapshot: MediaInventorySnapshot | null;
+  selectedAudioTrack: MediaAudioTrackInfo | null;
   capabilityProfile: AudioCapabilityProfile | null;
   committedPlaybackLane: MediaPlaybackLane | null;
   reasons: AudioPolicyDecisionReason[];
