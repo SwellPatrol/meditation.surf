@@ -1102,21 +1102,13 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
           inventory: {
             sourceId: sourceDescriptor.sourceId,
             inventorySource: "adaptive-runtime",
-            variants: variantTracks.map(
-              (variantTrack: ShakaTrack): MediaVariantInfo =>
-                this.createVariantInfo(variantTrack),
-            ),
-            audioTracks: audioTracks.map(
-              (audioTrack: ShakaTrack): MediaAudioTrackInfo =>
-                this.createAudioTrackInfo(audioTrack),
-            ),
-            textTracks: textTracks.map(
-              (textTrack: ShakaTextTrack): MediaTextTrackInfo =>
-                this.createTextTrackInfo(textTrack),
-            ),
+            variants: this.createNormalizedVariantInfos(variantTracks),
+            audioTracks: this.createNormalizedAudioTrackInfos(audioTracks),
+            textTracks: this.createNormalizedTextTrackInfos(textTracks),
           },
           notes: [
             "Web inventory used a Shaka-backed manifest probe for committed playback.",
+            `Manifest probe resolved ${variantTracks.length} variant entries, ${audioTracks.length} audio entries, and ${textTracks.length} text entries before normalization.`,
           ],
         },
         failureReason: null,
@@ -1159,6 +1151,284 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       },
       failureReason: null,
     };
+  }
+
+  /**
+   * @brief Normalize Shaka variant tracks into a stable shared inventory list
+   *
+   * @param variantTracks - Variant tracks reported by Shaka
+   *
+   * @returns Deduplicated and sorted shared variant metadata
+   */
+  private createNormalizedVariantInfos(
+    variantTracks: ShakaTrack[],
+  ): MediaVariantInfo[] {
+    const variantInfosById: Map<string, MediaVariantInfo> = new Map<
+      string,
+      MediaVariantInfo
+    >();
+
+    for (const variantTrack of variantTracks) {
+      const nextVariantInfo: MediaVariantInfo =
+        this.createVariantInfo(variantTrack);
+      const previousVariantInfo: MediaVariantInfo | undefined =
+        variantInfosById.get(nextVariantInfo.id);
+
+      if (previousVariantInfo === undefined) {
+        variantInfosById.set(nextVariantInfo.id, nextVariantInfo);
+        continue;
+      }
+
+      variantInfosById.set(
+        nextVariantInfo.id,
+        this.mergeVariantInfos(previousVariantInfo, nextVariantInfo),
+      );
+    }
+
+    return [...variantInfosById.values()].sort(
+      (
+        leftVariantInfo: MediaVariantInfo,
+        rightVariantInfo: MediaVariantInfo,
+      ): number =>
+        this.scoreVariantInfo(rightVariantInfo) -
+        this.scoreVariantInfo(leftVariantInfo),
+    );
+  }
+
+  /**
+   * @brief Normalize Shaka audio tracks into a stable shared inventory list
+   *
+   * @param audioTracks - Audio tracks reported by Shaka
+   *
+   * @returns Deduplicated and sorted shared audio-track metadata
+   */
+  private createNormalizedAudioTrackInfos(
+    audioTracks: ShakaTrack[],
+  ): MediaAudioTrackInfo[] {
+    const audioTrackInfosById: Map<string, MediaAudioTrackInfo> = new Map<
+      string,
+      MediaAudioTrackInfo
+    >();
+
+    for (const audioTrack of audioTracks) {
+      const nextAudioTrackInfo: MediaAudioTrackInfo =
+        this.createAudioTrackInfo(audioTrack);
+      const previousAudioTrackInfo: MediaAudioTrackInfo | undefined =
+        audioTrackInfosById.get(nextAudioTrackInfo.id);
+
+      if (previousAudioTrackInfo === undefined) {
+        audioTrackInfosById.set(nextAudioTrackInfo.id, nextAudioTrackInfo);
+        continue;
+      }
+
+      audioTrackInfosById.set(
+        nextAudioTrackInfo.id,
+        this.mergeAudioTrackInfos(previousAudioTrackInfo, nextAudioTrackInfo),
+      );
+    }
+
+    return [...audioTrackInfosById.values()].sort(
+      (
+        leftAudioTrackInfo: MediaAudioTrackInfo,
+        rightAudioTrackInfo: MediaAudioTrackInfo,
+      ): number =>
+        this.scoreAudioTrackInfo(rightAudioTrackInfo) -
+        this.scoreAudioTrackInfo(leftAudioTrackInfo),
+    );
+  }
+
+  /**
+   * @brief Normalize Shaka text tracks into a stable shared inventory list
+   *
+   * @param textTracks - Text tracks reported by Shaka
+   *
+   * @returns Deduplicated and sorted shared text-track metadata
+   */
+  private createNormalizedTextTrackInfos(
+    textTracks: ShakaTextTrack[],
+  ): MediaTextTrackInfo[] {
+    const textTrackInfosById: Map<string, MediaTextTrackInfo> = new Map<
+      string,
+      MediaTextTrackInfo
+    >();
+
+    for (const textTrack of textTracks) {
+      const nextTextTrackInfo: MediaTextTrackInfo =
+        this.createTextTrackInfo(textTrack);
+      const previousTextTrackInfo: MediaTextTrackInfo | undefined =
+        textTrackInfosById.get(nextTextTrackInfo.id);
+
+      if (previousTextTrackInfo === undefined) {
+        textTrackInfosById.set(nextTextTrackInfo.id, nextTextTrackInfo);
+        continue;
+      }
+
+      textTrackInfosById.set(
+        nextTextTrackInfo.id,
+        this.mergeTextTrackInfos(previousTextTrackInfo, nextTextTrackInfo),
+      );
+    }
+
+    return [...textTrackInfosById.values()].sort(
+      (
+        leftTextTrackInfo: MediaTextTrackInfo,
+        rightTextTrackInfo: MediaTextTrackInfo,
+      ): number =>
+        Number(rightTextTrackInfo.isDefault) -
+          Number(leftTextTrackInfo.isDefault) ||
+        (leftTextTrackInfo.language ?? "").localeCompare(
+          rightTextTrackInfo.language ?? "",
+        ) ||
+        leftTextTrackInfo.id.localeCompare(rightTextTrackInfo.id),
+    );
+  }
+
+  /**
+   * @brief Merge two variant entries with the same stable identifier
+   *
+   * @param previousVariantInfo - Previously collected variant metadata
+   * @param nextVariantInfo - Newly collected variant metadata
+   *
+   * @returns Merged variant metadata
+   */
+  private mergeVariantInfos(
+    previousVariantInfo: MediaVariantInfo,
+    nextVariantInfo: MediaVariantInfo,
+  ): MediaVariantInfo {
+    return {
+      id: nextVariantInfo.id,
+      width: this.selectGreaterNumber(
+        previousVariantInfo.width,
+        nextVariantInfo.width,
+      ),
+      height: this.selectGreaterNumber(
+        previousVariantInfo.height,
+        nextVariantInfo.height,
+      ),
+      bitrate: this.selectGreaterNumber(
+        previousVariantInfo.bitrate,
+        nextVariantInfo.bitrate,
+      ),
+      codec: previousVariantInfo.codec ?? nextVariantInfo.codec,
+      frameRate: this.selectGreaterNumber(
+        previousVariantInfo.frameRate,
+        nextVariantInfo.frameRate,
+      ),
+      isDefault: previousVariantInfo.isDefault || nextVariantInfo.isDefault,
+      isPremiumCandidate:
+        previousVariantInfo.isPremiumCandidate ||
+        nextVariantInfo.isPremiumCandidate,
+    };
+  }
+
+  /**
+   * @brief Merge two audio-track entries with the same stable identifier
+   *
+   * @param previousAudioTrackInfo - Previously collected audio-track metadata
+   * @param nextAudioTrackInfo - Newly collected audio-track metadata
+   *
+   * @returns Merged audio-track metadata
+   */
+  private mergeAudioTrackInfos(
+    previousAudioTrackInfo: MediaAudioTrackInfo,
+    nextAudioTrackInfo: MediaAudioTrackInfo,
+  ): MediaAudioTrackInfo {
+    return {
+      id: nextAudioTrackInfo.id,
+      language: previousAudioTrackInfo.language ?? nextAudioTrackInfo.language,
+      channelLayout:
+        previousAudioTrackInfo.channelLayout ??
+        nextAudioTrackInfo.channelLayout,
+      channelCount: this.selectGreaterNumber(
+        previousAudioTrackInfo.channelCount,
+        nextAudioTrackInfo.channelCount,
+      ),
+      codec: previousAudioTrackInfo.codec ?? nextAudioTrackInfo.codec,
+      isDefault:
+        previousAudioTrackInfo.isDefault || nextAudioTrackInfo.isDefault,
+      isPremiumCandidate:
+        previousAudioTrackInfo.isPremiumCandidate ||
+        nextAudioTrackInfo.isPremiumCandidate,
+    };
+  }
+
+  /**
+   * @brief Merge two text-track entries with the same stable identifier
+   *
+   * @param previousTextTrackInfo - Previously collected text-track metadata
+   * @param nextTextTrackInfo - Newly collected text-track metadata
+   *
+   * @returns Merged text-track metadata
+   */
+  private mergeTextTrackInfos(
+    previousTextTrackInfo: MediaTextTrackInfo,
+    nextTextTrackInfo: MediaTextTrackInfo,
+  ): MediaTextTrackInfo {
+    return {
+      id: nextTextTrackInfo.id,
+      language: previousTextTrackInfo.language ?? nextTextTrackInfo.language,
+      kind: previousTextTrackInfo.kind ?? nextTextTrackInfo.kind,
+      label: previousTextTrackInfo.label ?? nextTextTrackInfo.label,
+      codec: previousTextTrackInfo.codec ?? nextTextTrackInfo.codec,
+      isDefault: previousTextTrackInfo.isDefault || nextTextTrackInfo.isDefault,
+    };
+  }
+
+  /**
+   * @brief Score one variant entry for stable inventory ordering
+   *
+   * @param variantInfo - Shared variant metadata being ranked
+   *
+   * @returns Relative score where higher values are listed first
+   */
+  private scoreVariantInfo(variantInfo: MediaVariantInfo): number {
+    const width: number = variantInfo.width ?? 0;
+    const height: number = variantInfo.height ?? 0;
+    const bitrate: number = variantInfo.bitrate ?? 0;
+    const frameRate: number = variantInfo.frameRate ?? 0;
+    const resolutionScore: number = width * height;
+    const defaultScore: number = variantInfo.isDefault ? 50 : 0;
+    const premiumScore: number = variantInfo.isPremiumCandidate ? 100 : 0;
+
+    return resolutionScore + bitrate + frameRate + defaultScore + premiumScore;
+  }
+
+  /**
+   * @brief Score one audio-track entry for stable inventory ordering
+   *
+   * @param audioTrackInfo - Shared audio-track metadata being ranked
+   *
+   * @returns Relative score where higher values are listed first
+   */
+  private scoreAudioTrackInfo(audioTrackInfo: MediaAudioTrackInfo): number {
+    const defaultScore: number = audioTrackInfo.isDefault ? 100 : 0;
+    const premiumScore: number = audioTrackInfo.isPremiumCandidate ? 50 : 0;
+    const channelCountScore: number = audioTrackInfo.channelCount ?? 0;
+
+    return defaultScore + premiumScore + channelCountScore;
+  }
+
+  /**
+   * @brief Pick the richer numeric metadata value when merging two entries
+   *
+   * @param previousValue - Previously collected numeric metadata
+   * @param nextValue - Newly collected numeric metadata
+   *
+   * @returns Greater numeric value, or whichever side was populated
+   */
+  private selectGreaterNumber(
+    previousValue: number | null,
+    nextValue: number | null,
+  ): number | null {
+    if (previousValue === null) {
+      return nextValue;
+    }
+
+    if (nextValue === null) {
+      return previousValue;
+    }
+
+    return Math.max(previousValue, nextValue);
   }
 
   /**

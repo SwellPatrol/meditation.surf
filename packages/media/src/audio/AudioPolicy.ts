@@ -164,7 +164,7 @@ export class AudioPolicy {
 
     if (
       wantsPremiumAttempt &&
-      (inventorySnapshot === null || selectedPremiumTrack !== null) &&
+      selectedPremiumTrack !== null &&
       runtimeAudioCapabilities?.canAttemptPremiumAudio === true
     ) {
       reasons.push("premium-supported");
@@ -205,6 +205,10 @@ export class AudioPolicy {
         reasons.push("premium-track-unavailable");
         reasonDetails.push(
           "Inventory did not expose a plausible premium audio track for committed playback.",
+        );
+      } else if (selectedPremiumTrack === null) {
+        reasonDetails.push(
+          "Committed audio stayed on the default path because inventory did not explicitly confirm a premium audio track.",
         );
       } else {
         reasonDetails.push(

@@ -240,6 +240,8 @@ export class CommittedPlaybackChooser {
               premiumVideoCandidateAvailable,
               premiumAudioCandidateAvailable,
               qualitySelection,
+              runtimeCapabilities?.audioCapabilities.canAttemptPremiumAudio ===
+                true,
             ),
       reasons,
       reasonDetails,
@@ -379,6 +381,13 @@ export class CommittedPlaybackChooser {
     reasons: CommittedPlaybackDecisionReason[],
     reasonDetails: string[],
   ): CommittedPlaybackMode {
+    const runtimeCanAttemptPremiumAudio: boolean =
+      runtimeCapabilities?.audioCapabilities.canAttemptPremiumAudio === true;
+    const premiumAttemptHasUsableCandidate: boolean =
+      premiumVideoCandidateAvailable === true ||
+      (premiumAudioCandidateAvailable === true &&
+        runtimeCanAttemptPremiumAudio);
+
     if (chosenLane === null) {
       return "fallback-basic";
     }
@@ -386,14 +395,12 @@ export class CommittedPlaybackChooser {
     if (
       input.intent.intentType === "selected" &&
       capabilitySnapshot.decision.premiumPlaybackViable &&
-      this.isPremiumAttemptPlausible(
-        premiumVideoCandidateAvailable,
-        premiumAudioCandidateAvailable,
-      )
+      premiumAttemptHasUsableCandidate
     ) {
       if (
         premiumVideoCandidateAvailable === true ||
-        premiumAudioCandidateAvailable === true
+        (premiumAudioCandidateAvailable === true &&
+          runtimeCanAttemptPremiumAudio)
       ) {
         reasons.push("premium-candidate-available");
       }
@@ -402,6 +409,7 @@ export class CommittedPlaybackChooser {
         this.resolvePremiumAcceptedDetail(
           premiumVideoCandidateAvailable,
           premiumAudioCandidateAvailable,
+          runtimeCanAttemptPremiumAudio,
         ),
       );
       return "premium-attempt";
@@ -425,6 +433,7 @@ export class CommittedPlaybackChooser {
           premiumVideoCandidateAvailable,
           premiumAudioCandidateAvailable,
           qualitySelection,
+          runtimeCanAttemptPremiumAudio,
         ),
       );
     } else if (!capabilitySnapshot.decision.premiumPlaybackViable) {
@@ -517,24 +526,6 @@ export class CommittedPlaybackChooser {
   }
 
   /**
-   * @brief Determine whether a premium attempt remains plausible with inventory
-   *
-   * @param premiumVideoCandidateAvailable - Whether inventory exposed a premium video candidate
-   * @param premiumAudioCandidateAvailable - Whether inventory exposed a premium audio candidate
-   *
-   * @returns `true` when a premium attempt remains plausible
-   */
-  private static isPremiumAttemptPlausible(
-    premiumVideoCandidateAvailable: boolean | null,
-    premiumAudioCandidateAvailable: boolean | null,
-  ): boolean {
-    return (
-      premiumVideoCandidateAvailable === true ||
-      premiumAudioCandidateAvailable === true
-    );
-  }
-
-  /**
    * @brief Explain why a premium attempt could not be honored
    *
    * @param inventorySelectionReason - Stable inventory decision basis for debug state
@@ -542,6 +533,7 @@ export class CommittedPlaybackChooser {
    * @param premiumVideoCandidateAvailable - Whether inventory exposed a premium video candidate
    * @param premiumAudioCandidateAvailable - Whether inventory exposed a premium audio candidate
    * @param qualitySelection - Variant decision resolved for committed playback
+   * @param runtimeCanAttemptPremiumAudio - Whether the runtime can safely exercise premium audio
    *
    * @returns Human-readable detail string
    */
@@ -551,6 +543,7 @@ export class CommittedPlaybackChooser {
     premiumVideoCandidateAvailable: boolean | null,
     premiumAudioCandidateAvailable: boolean | null,
     qualitySelection: VariantSelectionDecision,
+    runtimeCanAttemptPremiumAudio: boolean,
   ): string {
     if (inventorySelectionReason === "policy-fallback-only") {
       return "Committed playback stayed standard-compatible because no inventory snapshot was available to confirm premium variants or tracks.";
@@ -572,6 +565,14 @@ export class CommittedPlaybackChooser {
 
     if (
       premiumVideoCandidateAvailable !== true &&
+      premiumAudioCandidateAvailable === true &&
+      !runtimeCanAttemptPremiumAudio
+    ) {
+      return "Inventory exposed a premium audio track, but the runtime cannot safely attempt premium committed audio in this phase.";
+    }
+
+    if (
+      premiumVideoCandidateAvailable !== true &&
       qualitySelection.matchedDesiredVariantIntent === false
     ) {
       return "Inventory downgraded the premium video intent to the best available standard-compatible variant.";
@@ -589,6 +590,7 @@ export class CommittedPlaybackChooser {
    * @param premiumVideoCandidateAvailable - Whether inventory exposed a premium video candidate
    * @param premiumAudioCandidateAvailable - Whether inventory exposed a premium audio candidate
    * @param qualitySelection - Variant decision resolved for committed playback
+   * @param runtimeCanAttemptPremiumAudio - Whether the runtime can safely exercise premium audio
    *
    * @returns Human-readable fallback reason, or `null` when none applies
    */
@@ -599,6 +601,7 @@ export class CommittedPlaybackChooser {
     premiumVideoCandidateAvailable: boolean | null,
     premiumAudioCandidateAvailable: boolean | null,
     qualitySelection: VariantSelectionDecision,
+    runtimeCanAttemptPremiumAudio: boolean,
   ): string | null {
     if (intentType !== "selected") {
       return "Committed playback did not request a premium attempt for the current background-active intent.";
@@ -613,6 +616,14 @@ export class CommittedPlaybackChooser {
       premiumAudioCandidateAvailable === false
     ) {
       return "Inventory did not expose a plausible premium video variant or audio track for committed playback.";
+    }
+
+    if (
+      premiumVideoCandidateAvailable !== true &&
+      premiumAudioCandidateAvailable === true &&
+      !runtimeCanAttemptPremiumAudio
+    ) {
+      return "Inventory exposed only a premium audio candidate, but the runtime cannot safely attempt premium committed audio.";
     }
 
     if (
@@ -672,16 +683,19 @@ export class CommittedPlaybackChooser {
    *
    * @param premiumVideoCandidateAvailable - Whether a premium video variant was available
    * @param premiumAudioCandidateAvailable - Whether a premium audio track was available
+   * @param runtimeCanAttemptPremiumAudio - Whether the runtime can safely exercise premium audio
    *
    * @returns Human-readable detail string
    */
   private static resolvePremiumAcceptedDetail(
     premiumVideoCandidateAvailable: boolean | null,
     premiumAudioCandidateAvailable: boolean | null,
+    runtimeCanAttemptPremiumAudio: boolean,
   ): string {
     if (
       premiumVideoCandidateAvailable === true &&
-      premiumAudioCandidateAvailable === true
+      premiumAudioCandidateAvailable === true &&
+      runtimeCanAttemptPremiumAudio
     ) {
       return "Runtime, app capabilities, and inventory exposed premium video and audio candidates for committed playback.";
     }
@@ -690,7 +704,10 @@ export class CommittedPlaybackChooser {
       return "Runtime, app capabilities, and inventory exposed a premium video variant for committed playback.";
     }
 
-    if (premiumAudioCandidateAvailable === true) {
+    if (
+      premiumAudioCandidateAvailable === true &&
+      runtimeCanAttemptPremiumAudio
+    ) {
       return "Runtime, app capabilities, and inventory exposed a premium audio track for committed playback.";
     }
 

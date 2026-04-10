@@ -288,9 +288,7 @@ export class VariantPolicy {
           !variantInfo.isPremiumCandidate,
       );
 
-    return MediaInventoryCloner.cloneVariantInfo(
-      standardVariant ?? compatibleVariants[0],
-    );
+    return MediaInventoryCloner.cloneVariantInfo(standardVariant ?? null);
   }
 
   /**
