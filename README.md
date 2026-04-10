@@ -49,13 +49,18 @@ pnpm dev:web
 Run the repository checks:
 
 ```sh
-pnpm lint
-pnpm build
+pnpm lint:prettier
+pnpm lint:eslint
+pnpm build:tsc
+pnpm build:web
+pnpm build:tv
+pnpm build:mobile
 pnpm test
 ```
 
 Auto-fix formatting and lint issues:
 
 ```sh
-pnpm format
+pnpm format:prettier
+pnpm format:eslint
 ```
