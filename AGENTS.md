@@ -7,8 +7,12 @@ This repository uses pnpm for package management.
 Before committing or opening a pull request, run the following commands and ensure they pass:
 
 ```sh
-pnpm lint
-pnpm build
+pnpm lint:prettier
+pnpm lint:eslint
+pnpm build:tsc
+pnpm build:web
+pnpm build:tv
+pnpm build:mobile
 pnpm test
 ```
 
