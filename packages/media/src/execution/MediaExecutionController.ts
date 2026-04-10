@@ -1313,6 +1313,7 @@ export class MediaExecutionController {
     return {
       sourceId: sourceDescriptor.sourceId,
       kind: sourceDescriptor.kind,
+      originType: sourceDescriptor.originType,
       url: sourceDescriptor.url,
       mimeType: sourceDescriptor.mimeType,
       posterUrl: sourceDescriptor.posterUrl,

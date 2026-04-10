@@ -7,8 +7,8 @@
  */
 
 import type {
+  MediaThumbnailExtractionResult,
   MediaThumbnailRequest,
-  MediaThumbnailResult,
   MediaThumbnailRuntimeAdapter,
   MediaThumbnailRuntimeCapabilities,
 } from "@meditation-surf/core";
@@ -22,7 +22,7 @@ type ShakaPlayer = InstanceType<ShakaModule["Player"]>;
  *
  * The implementation intentionally stays practical for this phase: one hidden
  * extraction path, strong first-frame support, optional time-hint seeking, and
- * conservative object-URL cleanup that the shared thumbnail controller can own.
+ * raw image payloads that the shared VFS layer can persist and lease.
  */
 export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAdapter {
   public static readonly RUNTIME_ID: string = "web-vite-thumbnail";
@@ -31,13 +31,12 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
     canExtractFirstFrame: true,
     canExtractNonBlackFrame: false,
     canExtractFromHiddenMedia: true,
-    canCacheObjectUrls: true,
+    canCacheObjectUrls: false,
     canPrioritizeFocusedItem: true,
   };
 
   public readonly runtimeId: string;
 
-  private readonly ownedObjectUrls: Set<string>;
   private extractionCanvasElement: HTMLCanvasElement | null;
   private extractionRootElement: HTMLDivElement | null;
   private extractionVideoElement: HTMLVideoElement | null;
@@ -48,7 +47,6 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
    */
   public constructor() {
     this.runtimeId = WebMediaThumbnailRuntimeAdapter.RUNTIME_ID;
-    this.ownedObjectUrls = new Set<string>();
     this.extractionCanvasElement = null;
     this.extractionRootElement = null;
     this.extractionVideoElement = null;
@@ -75,7 +73,7 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
    */
   public async extractThumbnail(
     request: MediaThumbnailRequest,
-  ): Promise<MediaThumbnailResult> {
+  ): Promise<MediaThumbnailExtractionResult> {
     const videoElement: HTMLVideoElement = this.ensureExtractionVideoElement();
     const canvasElement: HTMLCanvasElement =
       this.ensureExtractionCanvasElement();
@@ -92,20 +90,6 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
     } finally {
       await this.resetExtractionPath();
     }
-  }
-
-  /**
-   * @brief Release one object URL owned by a discarded thumbnail result
-   *
-   * @param result - Cached thumbnail result being invalidated
-   */
-  public releaseThumbnail(result: MediaThumbnailResult): void {
-    if (!this.ownedObjectUrls.has(result.imageUrl)) {
-      return;
-    }
-
-    URL.revokeObjectURL(result.imageUrl);
-    this.ownedObjectUrls.delete(result.imageUrl);
   }
 
   /**
@@ -272,7 +256,7 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
     request: MediaThumbnailRequest,
     videoElement: HTMLVideoElement,
     canvasElement: HTMLCanvasElement,
-  ): Promise<MediaThumbnailResult> {
+  ): Promise<MediaThumbnailExtractionResult> {
     const targetSize: { width: number; height: number } =
       this.resolveTargetSize(request, videoElement);
     const canvasContext: CanvasRenderingContext2D | null =
@@ -292,14 +276,15 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
       targetSize.height,
     );
 
-    const imageUrl: string = await this.serializeCanvas(
+    const imagePayload: Blob = await this.serializeCanvas(
       canvasElement,
       request.qualityHint,
     );
 
     return {
       sourceId: request.sourceId,
-      imageUrl,
+      imagePayload,
+      imageContentType: imagePayload.type || "image/jpeg",
       width: targetSize.width,
       height: targetSize.height,
       frameTimeMs: Math.round(videoElement.currentTime * 1000),
@@ -361,17 +346,17 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
   }
 
   /**
-   * @brief Serialize the current canvas content into a reusable image URL
+   * @brief Serialize the current canvas content into a reusable image blob
    *
    * @param canvasElement - Canvas containing the captured frame
    * @param qualityHint - Shared quality hint used to tune JPEG serialization
    *
-   * @returns Object URL or data URL that the web shell can render directly
+   * @returns JPEG blob ready for VFS-managed persistence
    */
   private async serializeCanvas(
     canvasElement: HTMLCanvasElement,
     qualityHint: MediaThumbnailRequest["qualityHint"],
-  ): Promise<string> {
+  ): Promise<Blob> {
     const jpegQuality: number = this.getJpegQuality(qualityHint);
     const encodedBlob: Blob | null = await new Promise<Blob | null>(
       (resolve: (blob: Blob | null) => void): void => {
@@ -386,14 +371,15 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
     );
 
     if (encodedBlob === null) {
-      return canvasElement.toDataURL("image/jpeg", jpegQuality);
+      const fallbackDataUrl: string = canvasElement.toDataURL(
+        "image/jpeg",
+        jpegQuality,
+      );
+
+      return this.createBlobFromDataUrl(fallbackDataUrl, "image/jpeg");
     }
 
-    const objectUrl: string = URL.createObjectURL(encodedBlob);
-
-    this.ownedObjectUrls.add(objectUrl);
-
-    return objectUrl;
+    return encodedBlob;
   }
 
   /**
@@ -416,6 +402,32 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
       case "low":
         return 0.56;
     }
+  }
+
+  /**
+   * @brief Convert a data URL fallback into a blob for VFS-managed storage
+   *
+   * @param dataUrl - Data URL emitted by the canvas fallback path
+   * @param contentType - Content type associated with the payload
+   *
+   * @returns Blob rebuilt from the data URL payload
+   */
+  private createBlobFromDataUrl(dataUrl: string, contentType: string): Blob {
+    const encodedPayload: string = dataUrl.split(",")[1] ?? "";
+    const binaryPayload: string = window.atob(encodedPayload);
+    const byteNumbers: number[] = Array.from(
+      binaryPayload,
+      (character: string): number => character.charCodeAt(0),
+    );
+    const byteArray: Uint8Array = new Uint8Array(byteNumbers);
+    const blobBuffer: ArrayBuffer = byteArray.buffer.slice(
+      byteArray.byteOffset,
+      byteArray.byteOffset + byteArray.byteLength,
+    ) as ArrayBuffer;
+
+    return new Blob([blobBuffer], {
+      type: contentType,
+    });
   }
 
   /**

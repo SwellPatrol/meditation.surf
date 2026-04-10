@@ -6,9 +6,12 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { ReadableFileDescriptor } from "@meditation-surf/vfs";
+import type { VfsNode } from "./VfsNode";
 
 /**
- * @brief Media-facing alias for the VFS readable-source descriptor
+ * @brief Immutable VFS snapshot exposed for debug and inspection
  */
-export type MediaSourceDescriptor = ReadableFileDescriptor;
+export type VfsSnapshot = {
+  nodes: VfsNode[];
+  generatedAt: number;
+};

@@ -6,11 +6,9 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { ReadableFilePlaybackSource } from "@meditation-surf/vfs";
+
 /**
- * @brief Minimal playback-source metadata needed to build a media descriptor
+ * @brief Media-facing alias for the VFS readable playback-source payload
  */
-export type MediaSourcePlaybackSource = {
-  url: string;
-  mimeType: string | null;
-  posterUrl: string | null;
-};
+export type MediaSourcePlaybackSource = ReadableFilePlaybackSource;

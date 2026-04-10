@@ -6,15 +6,16 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { CacheKey } from "@meditation-surf/vfs";
-
 /**
- * @brief Runtime thumbnail payload that can be rendered by an app shell
+ * @brief Raw thumbnail extraction payload emitted by runtime adapters
+ *
+ * The controller persists this payload through VFS so runtimes no longer own
+ * cache identity or object-URL lifecycle details.
  */
-export type MediaThumbnailResult = {
+export type MediaThumbnailExtractionResult = {
   sourceId: string;
-  artifactKey: CacheKey;
-  imageUrl: string;
+  imagePayload: Blob;
+  imageContentType: string;
   width: number;
   height: number;
   frameTimeMs: number | null;

@@ -6,11 +6,59 @@
  * See the file LICENSE.txt for more information.
  */
 
-/**
- * @brief Public entrypoint for the virtual filesystem workspace package
- *
- * The package starts by re-exporting the upstream WebTorrent client so the
- * monorepo can adopt the dependency through a single internal workspace
- * package while the higher-level VFS API takes shape.
- */
-export { default as WebTorrent } from "webtorrent";
+export { DerivedArtifactStore } from "./artifacts/DerivedArtifactStore";
+export type {
+  DerivedArtifactDescriptor,
+  DerivedArtifactEntry,
+  DerivedArtifactWrite,
+} from "./artifacts/DerivedArtifactTypes";
+export type {
+  CacheEntry,
+  CacheKey,
+  CachePolicy,
+  CacheTier,
+  PersistenceMetadata,
+  PersistenceMetadataValue,
+} from "./cache/CacheTypes";
+export { DEFAULT_CACHE_POLICY } from "./cache/CacheTypes";
+export { HttpOriginAdapter } from "./http/HttpOriginAdapter";
+export { IndexedDbPersistenceAdapter } from "./persistence/IndexedDbPersistenceAdapter";
+export { MemoryPersistenceAdapter } from "./persistence/MemoryPersistenceAdapter";
+export type {
+  PersistenceAdapter,
+  PersistenceBody,
+  PersistenceRecord,
+  PersistenceWriteRequest,
+} from "./persistence/PersistenceTypes";
+export type {
+  ByteRange,
+  RangeReadRequest,
+  RangeReadResult,
+} from "./ranges/RangeTypes";
+export {
+  ReadableFileDescriptorFactory,
+  type OriginType,
+  type ReadableFileDescriptor,
+  type ReadableFileKind,
+  type ReadableFilePlaybackSource,
+} from "./sources/ReadableFileTypes";
+export { VfsServiceWorkerCoordinator } from "./service-worker/VfsServiceWorkerCoordinator";
+export type {
+  VfsServiceWorkerEvent,
+  VfsServiceWorkerSnapshot,
+} from "./service-worker/VfsServiceWorkerCoordinator";
+export type {
+  ManifestStorageEntry,
+  RangeStorageEntry,
+} from "./startup/StorageTypes";
+export type {
+  TorrentOriginAdapter,
+  TorrentPieceStore,
+  TorrentSourceDescriptor,
+} from "./torrent/TorrentTypes";
+export { UnsupportedTorrentOriginAdapter } from "./torrent/TorrentTypes";
+export { VfsController } from "./VfsController";
+export type { VfsHandle } from "./VfsHandle";
+export type { VfsNode } from "./VfsNode";
+export { VfsPath } from "./VfsPath";
+export type { VfsSnapshot } from "./VfsSnapshot";

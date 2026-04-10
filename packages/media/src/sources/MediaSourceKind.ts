@@ -6,7 +6,9 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { ReadableFileKind } from "@meditation-surf/vfs";
+
 /**
- * @brief Broad media source families shared across app runtimes
+ * @brief Media-facing alias for the VFS readable-source kind
  */
-export type MediaSourceKind = "hls" | "mp4" | "torrent" | "unknown";
+export type MediaSourceKind = ReadableFileKind;

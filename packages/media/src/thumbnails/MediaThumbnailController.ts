@@ -6,12 +6,21 @@
  * See the file LICENSE.txt for more information.
  */
 
+import {
+  type CacheKey,
+  DEFAULT_CACHE_POLICY,
+  type DerivedArtifactDescriptor,
+  type DerivedArtifactEntry,
+  VfsController,
+} from "@meditation-surf/vfs";
+
 import type { MediaThumbnailCacheEntry } from "./MediaThumbnailCacheEntry";
 import type { MediaThumbnailDescriptor } from "./MediaThumbnailDescriptor";
 import type {
   MediaThumbnailPriority,
   MediaThumbnailQuality,
 } from "./MediaThumbnailExtractionPolicy";
+import type { MediaThumbnailExtractionResult } from "./MediaThumbnailExtractionResult";
 import type { MediaThumbnailRequest } from "./MediaThumbnailRequest";
 import type { MediaThumbnailResult } from "./MediaThumbnailResult";
 import type { MediaThumbnailRuntimeAdapter } from "./MediaThumbnailRuntimeAdapter";
@@ -40,6 +49,7 @@ export class MediaThumbnailController {
   >;
   private readonly listeners: Set<MediaThumbnailSnapshotListener>;
   private readonly pendingSourceIds: Set<string>;
+  private readonly vfsController: VfsController;
 
   private isProcessingQueue: boolean;
   private runtimeAdapter: MediaThumbnailRuntimeAdapter | null;
@@ -48,13 +58,16 @@ export class MediaThumbnailController {
    * @brief Create the shared thumbnail controller
    *
    * @param runtimeAdapter - Optional app-shell runtime adapter
+   * @param vfsController - Optional VFS controller that owns artifact storage
    */
   public constructor(
     runtimeAdapter: MediaThumbnailRuntimeAdapter | null = null,
+    vfsController: VfsController = new VfsController(),
   ) {
     this.cacheEntriesBySourceId = new Map<string, MediaThumbnailCacheEntry>();
     this.listeners = new Set<MediaThumbnailSnapshotListener>();
     this.pendingSourceIds = new Set<string>();
+    this.vfsController = vfsController;
     this.isProcessingQueue = false;
     this.runtimeAdapter = runtimeAdapter;
   }
@@ -320,6 +333,7 @@ export class MediaThumbnailController {
    */
   public destroy(): void {
     void this.invalidateAll();
+    this.vfsController.destroy();
     this.listeners.clear();
   }
 
@@ -392,8 +406,13 @@ export class MediaThumbnailController {
       try {
         const runtimeAdapter: MediaThumbnailRuntimeAdapter =
           this.requireRuntimeAdapter();
-        const thumbnailResult: MediaThumbnailResult =
+        const thumbnailExtractionResult: MediaThumbnailExtractionResult =
           await runtimeAdapter.extractThumbnail(cacheEntry.request);
+        const thumbnailResult: MediaThumbnailResult =
+          await this.persistThumbnailResult(
+            cacheEntry.request,
+            thumbnailExtractionResult,
+          );
 
         this.pendingSourceIds.delete(nextSourceId);
         this.updateCacheEntryState(
@@ -702,11 +721,13 @@ export class MediaThumbnailController {
       return;
     }
 
-    if (this.runtimeAdapter?.releaseThumbnail === undefined) {
+    const artifactKey: CacheKey = result.artifactKey;
+
+    if (artifactKey.length === 0) {
       return;
     }
 
-    await this.runtimeAdapter.releaseThumbnail(result);
+    await this.vfsController.deleteDerivedArtifact(artifactKey);
   }
 
   /**
@@ -751,6 +772,7 @@ export class MediaThumbnailController {
       sourceDescriptor: {
         sourceId: descriptor.sourceDescriptor.sourceId,
         kind: descriptor.sourceDescriptor.kind,
+        originType: descriptor.sourceDescriptor.originType,
         url: descriptor.sourceDescriptor.url,
         mimeType: descriptor.sourceDescriptor.mimeType,
         posterUrl: descriptor.sourceDescriptor.posterUrl,
@@ -771,6 +793,7 @@ export class MediaThumbnailController {
       sourceDescriptor: {
         sourceId: request.sourceDescriptor.sourceId,
         kind: request.sourceDescriptor.kind,
+        originType: request.sourceDescriptor.originType,
         url: request.sourceDescriptor.url,
         mimeType: request.sourceDescriptor.mimeType,
         posterUrl: request.sourceDescriptor.posterUrl,
@@ -813,12 +836,79 @@ export class MediaThumbnailController {
   private cloneResult(result: MediaThumbnailResult): MediaThumbnailResult {
     return {
       sourceId: result.sourceId,
+      artifactKey: result.artifactKey,
       imageUrl: result.imageUrl,
       width: result.width,
       height: result.height,
       frameTimeMs: result.frameTimeMs,
       extractedAt: result.extractedAt,
       wasApproximate: result.wasApproximate,
+    };
+  }
+
+  /**
+   * @brief Persist one extracted thumbnail payload through VFS-owned storage
+   *
+   * @param request - Shared thumbnail request associated with the payload
+   * @param extractionResult - Raw runtime extraction payload
+   *
+   * @returns Renderable thumbnail result backed by VFS storage identity
+   */
+  private async persistThumbnailResult(
+    request: MediaThumbnailRequest,
+    extractionResult: MediaThumbnailExtractionResult,
+  ): Promise<MediaThumbnailResult> {
+    const artifactVariantKey: string = [
+      request.qualityHint,
+      `${request.targetWidth ?? request.extractionPolicy.targetWidth ?? "auto"}x${request.targetHeight ?? request.extractionPolicy.targetHeight ?? "auto"}`,
+      request.extractionPolicy.strategy,
+      `${request.timeHintMs ?? "start"}`,
+    ].join(":");
+    const artifactDescriptor: DerivedArtifactDescriptor =
+      this.vfsController.createDerivedArtifactDescriptor(
+        request.sourceDescriptor,
+        "thumbnail-still",
+        artifactVariantKey,
+      );
+    const storedArtifact: DerivedArtifactEntry =
+      await this.vfsController.storeDerivedArtifact({
+        descriptor: artifactDescriptor,
+        cachePolicy: {
+          ...DEFAULT_CACHE_POLICY,
+        },
+        contentType: extractionResult.imageContentType,
+        metadata: {
+          extractedAt: extractionResult.extractedAt,
+          frameTimeMs: extractionResult.frameTimeMs,
+          height: extractionResult.height,
+          sourceId: extractionResult.sourceId,
+          targetHeight:
+            request.targetHeight ?? request.extractionPolicy.targetHeight,
+          targetWidth:
+            request.targetWidth ?? request.extractionPolicy.targetWidth,
+          wasApproximate: extractionResult.wasApproximate,
+          width: extractionResult.width,
+        },
+        payload: extractionResult.imagePayload,
+        payloadKind: "blob",
+      });
+    const viewUrl: string | null = storedArtifact.viewUrl;
+
+    if (viewUrl === null) {
+      throw new Error(
+        `VFS could not create a renderable thumbnail URL for ${request.sourceId}.`,
+      );
+    }
+
+    return {
+      sourceId: extractionResult.sourceId,
+      artifactKey: storedArtifact.descriptor.artifactKey,
+      imageUrl: viewUrl,
+      width: extractionResult.width,
+      height: extractionResult.height,
+      frameTimeMs: extractionResult.frameTimeMs,
+      extractedAt: extractionResult.extractedAt,
+      wasApproximate: extractionResult.wasApproximate,
     };
   }
 }

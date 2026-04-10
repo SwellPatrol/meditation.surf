@@ -97,6 +97,7 @@ export {
 } from "./thumbnails/MediaThumbnailController";
 export type { MediaThumbnailCacheEntry } from "./thumbnails/MediaThumbnailCacheEntry";
 export type { MediaThumbnailDescriptor } from "./thumbnails/MediaThumbnailDescriptor";
+export type { MediaThumbnailExtractionResult } from "./thumbnails/MediaThumbnailExtractionResult";
 export type {
   MediaThumbnailExtractionPolicy,
   MediaThumbnailExtractionStrategy,

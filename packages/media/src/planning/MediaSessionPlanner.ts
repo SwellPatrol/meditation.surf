@@ -354,6 +354,7 @@ export class MediaSessionPlanner {
         source: {
           sourceId: previewCandidate.source.sourceId,
           kind: previewCandidate.source.kind,
+          originType: previewCandidate.source.originType,
           url: previewCandidate.source.url,
           mimeType: previewCandidate.source.mimeType,
           posterUrl: previewCandidate.source.posterUrl,
@@ -855,6 +856,7 @@ export class MediaSessionPlanner {
           source: {
             sourceId: previewCandidate.source.sourceId,
             kind: previewCandidate.source.kind,
+            originType: previewCandidate.source.originType,
             url: previewCandidate.source.url,
             mimeType: previewCandidate.source.mimeType,
             posterUrl: previewCandidate.source.posterUrl,

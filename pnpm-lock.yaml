@@ -146,7 +146,11 @@ importers:
         specifier: workspace:*
         version: link:../player-core
 
-  packages/media: {}
+  packages/media:
+    dependencies:
+      '@meditation-surf/vfs':
+        specifier: workspace:*
+        version: link:../vfs
 
   packages/player-core: {}
 
@@ -3921,7 +3925,6 @@ packages:
 
   shaka-player@5.0.10:
     resolution: {integrity: sha512-jyS7P3NEMaIsjHG+UXzqwKxptCYIzJ/PmjdLR7y/NypBRmfaHZXgxRwpfS9xYOJuY6YfRoFOu2G+iDCz1SuiSg==}
-    engines: {node: '>=18'}
 
   shebang-command@2.0.0:
     resolution: {integrity: sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==}

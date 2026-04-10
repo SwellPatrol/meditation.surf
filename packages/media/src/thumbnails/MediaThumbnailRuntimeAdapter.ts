@@ -6,8 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { MediaThumbnailExtractionResult } from "./MediaThumbnailExtractionResult";
 import type { MediaThumbnailRequest } from "./MediaThumbnailRequest";
-import type { MediaThumbnailResult } from "./MediaThumbnailResult";
 import type { MediaThumbnailRuntimeCapabilities } from "./MediaThumbnailRuntimeCapabilities";
 
 /**
@@ -32,14 +32,5 @@ export interface MediaThumbnailRuntimeAdapter {
    */
   extractThumbnail(
     request: MediaThumbnailRequest,
-  ): MediaThumbnailResult | Promise<MediaThumbnailResult>;
-
-  /**
-   * @brief Release any runtime resources associated with one cached thumbnail
-   *
-   * @param result - Cached thumbnail result being discarded
-   *
-   * @returns Optional async cleanup promise
-   */
-  releaseThumbnail?(result: MediaThumbnailResult): void | Promise<void>;
+  ): MediaThumbnailExtractionResult | Promise<MediaThumbnailExtractionResult>;
 }

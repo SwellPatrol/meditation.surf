@@ -227,6 +227,7 @@ export class WebAppShell {
             sourceDescriptor: {
               sourceId: thumbnailEntry.descriptor.sourceDescriptor.sourceId,
               kind: thumbnailEntry.descriptor.sourceDescriptor.kind,
+              originType: thumbnailEntry.descriptor.sourceDescriptor.originType,
               url: thumbnailEntry.descriptor.sourceDescriptor.url,
               mimeType: thumbnailEntry.descriptor.sourceDescriptor.mimeType,
               posterUrl: thumbnailEntry.descriptor.sourceDescriptor.posterUrl,
@@ -246,6 +247,9 @@ export class WebAppShell {
                           .sourceId,
                       kind: thumbnailEntry.request.descriptor.sourceDescriptor
                         .kind,
+                      originType:
+                        thumbnailEntry.request.descriptor.sourceDescriptor
+                          .originType,
                       url: thumbnailEntry.request.descriptor.sourceDescriptor
                         .url,
                       mimeType:
@@ -259,6 +263,8 @@ export class WebAppShell {
                   sourceDescriptor: {
                     sourceId: thumbnailEntry.request.sourceDescriptor.sourceId,
                     kind: thumbnailEntry.request.sourceDescriptor.kind,
+                    originType:
+                      thumbnailEntry.request.sourceDescriptor.originType,
                     url: thumbnailEntry.request.sourceDescriptor.url,
                     mimeType: thumbnailEntry.request.sourceDescriptor.mimeType,
                     posterUrl:
@@ -310,6 +316,7 @@ export class WebAppShell {
               ? null
               : {
                   sourceId: thumbnailEntry.result.sourceId,
+                  artifactKey: thumbnailEntry.result.artifactKey,
                   imageUrl: thumbnailEntry.result.imageUrl,
                   width: thumbnailEntry.result.width,
                   height: thumbnailEntry.result.height,

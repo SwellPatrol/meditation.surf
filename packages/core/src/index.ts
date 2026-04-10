@@ -75,6 +75,7 @@ export {
   type MediaSourcePlaybackSource,
   type MediaThumbnailCacheEntry,
   type MediaThumbnailDescriptor,
+  type MediaThumbnailExtractionResult,
   type MediaThumbnailExtractionPolicy,
   type MediaThumbnailExtractionStrategy,
   type MediaThumbnailPriority,

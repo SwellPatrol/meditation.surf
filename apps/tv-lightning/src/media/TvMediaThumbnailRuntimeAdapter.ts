@@ -7,8 +7,8 @@
  */
 
 import type {
+  MediaThumbnailExtractionResult,
   MediaThumbnailRequest,
-  MediaThumbnailResult,
   MediaThumbnailRuntimeAdapter,
   MediaThumbnailRuntimeCapabilities,
 } from "@meditation-surf/core";
@@ -56,7 +56,7 @@ export class TvMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAdap
    */
   public extractThumbnail(
     request: MediaThumbnailRequest,
-  ): MediaThumbnailResult {
+  ): MediaThumbnailExtractionResult {
     throw new Error(
       `TV thumbnail extraction is unsupported for ${request.sourceId} in this phase.`,
     );

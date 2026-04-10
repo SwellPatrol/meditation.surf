@@ -196,6 +196,7 @@ export class MediaKernelController {
     return {
       sourceId: sourceDescriptor.sourceId,
       kind: sourceDescriptor.kind,
+      originType: sourceDescriptor.originType,
       url: sourceDescriptor.url,
       mimeType: sourceDescriptor.mimeType,
       posterUrl: sourceDescriptor.posterUrl,
@@ -1076,6 +1077,7 @@ export class MediaKernelController {
     return {
       sourceId: source.sourceId,
       kind: source.kind,
+      originType: source.originType,
       url: source.url,
       mimeType: source.mimeType,
       posterUrl: source.posterUrl,
@@ -1109,6 +1111,7 @@ export class MediaKernelController {
         source: {
           sourceId: previewCandidate.source.sourceId,
           kind: previewCandidate.source.kind,
+          originType: previewCandidate.source.originType,
           url: previewCandidate.source.url,
           mimeType: previewCandidate.source.mimeType,
           posterUrl: previewCandidate.source.posterUrl,
@@ -1430,6 +1433,7 @@ export class MediaKernelController {
     return (
       leftSource.sourceId === rightSource.sourceId &&
       leftSource.kind === rightSource.kind &&
+      leftSource.originType === rightSource.originType &&
       leftSource.url === rightSource.url &&
       leftSource.mimeType === rightSource.mimeType &&
       leftSource.posterUrl === rightSource.posterUrl
