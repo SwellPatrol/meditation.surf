@@ -10,6 +10,7 @@ import type {
   BrowseFocusState,
   BrowseScreenContent,
   MediaItem,
+  MediaThumbnailSnapshot,
   MeditationExperience,
   OverlayState,
   PlaybackSequenceState,
@@ -37,6 +38,7 @@ export class WebApp {
   private removeOverlaySubscription: (() => void) | null;
   private removePlaybackSequenceSubscription: (() => void) | null;
   private removeBrowseFocusSubscription: (() => void) | null;
+  private removeThumbnailSubscription: (() => void) | null;
 
   /**
    * @brief Assemble the runtime-specific web app around a shared experience
@@ -65,6 +67,7 @@ export class WebApp {
       this.experienceAdapter.appLayoutController,
       initialBrowseContent,
       this.experienceAdapter.previewSurfaceRegistry,
+      this.experienceAdapter.mediaThumbnailController.getState(),
     );
     this.inputAdapter = new WebBrowseInputAdapter(
       this.shell,
@@ -74,6 +77,7 @@ export class WebApp {
     this.removeOverlaySubscription = null;
     this.removePlaybackSequenceSubscription = null;
     this.removeBrowseFocusSubscription = null;
+    this.removeThumbnailSubscription = null;
     this.handleBeforeUnload = (): void => {
       this.removeLoadingSubscription?.();
       this.removeLoadingSubscription = null;
@@ -83,6 +87,8 @@ export class WebApp {
       this.removePlaybackSequenceSubscription = null;
       this.removeBrowseFocusSubscription?.();
       this.removeBrowseFocusSubscription = null;
+      this.removeThumbnailSubscription?.();
+      this.removeThumbnailSubscription = null;
       this.inputAdapter.destroy();
       this.experienceAdapter.browseInteractionController.destroy();
       void this.experienceAdapter.backgroundVideoController.destroy();
@@ -110,6 +116,9 @@ export class WebApp {
     this.shell.overlayUiElement.style.transition = `opacity ${this.experienceAdapter.overlayController.getConfig().fadeDurationMs}ms ease`;
     this.shell.renderBrowseFocusState(
       this.experienceAdapter.browseFocusController.getState(),
+    );
+    this.shell.renderThumbnailSnapshot(
+      this.experienceAdapter.mediaThumbnailController.getState(),
     );
     this.inputAdapter.attach();
     this.removeLoadingSubscription =
@@ -159,6 +168,12 @@ export class WebApp {
           this.shell.renderBrowseContent(browseContent);
           this.shell.renderBrowseFocusState(browseFocusState);
           this.inputAdapter.syncBrowseTargets();
+        },
+      );
+    this.removeThumbnailSubscription =
+      this.experienceAdapter.mediaThumbnailController.subscribe(
+        (thumbnailSnapshot: MediaThumbnailSnapshot): void => {
+          this.shell.renderThumbnailSnapshot(thumbnailSnapshot);
         },
       );
     window.addEventListener("beforeunload", this.handleBeforeUnload);

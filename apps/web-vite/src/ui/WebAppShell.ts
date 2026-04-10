@@ -14,6 +14,8 @@ import type {
   BrowseRowContent,
   BrowseScreenContent,
   BrowseThumbnailContent,
+  MediaThumbnailCacheEntry,
+  MediaThumbnailSnapshot,
 } from "@meditation-surf/core";
 
 import { WebAppLayoutController } from "../layout/WebAppLayoutController";
@@ -21,6 +23,14 @@ import {
   type WebPreviewSurfaceEntry,
   WebPreviewSurfaceRegistry,
 } from "../media/WebPreviewSurfaceRegistry";
+
+type WebThumbnailCardBinding = {
+  itemId: string;
+  cardElement: HTMLElement;
+  artworkElement: HTMLDivElement;
+  stillImageElement: HTMLImageElement;
+  previewHostElement: HTMLDivElement;
+};
 
 /**
  * @brief Own the DOM shell used by the web demo surface
@@ -39,7 +49,9 @@ export class WebAppShell {
   private browseFocusState: BrowseFocusState;
   private readonly previewSurfaceRegistry: WebPreviewSurfaceRegistry;
   private previewSurfaceEntries: WebPreviewSurfaceEntry[];
+  private thumbnailCardBindingsByItemId: Map<string, WebThumbnailCardBinding[]>;
   private thumbnailCardElements: HTMLElement[][];
+  private thumbnailSnapshot: MediaThumbnailSnapshot;
 
   /**
    * @brief Build the DOM shell for the web app
@@ -51,6 +63,7 @@ export class WebAppShell {
     appLayoutController: WebAppLayoutController,
     browseContent: BrowseScreenContent,
     previewSurfaceRegistry: WebPreviewSurfaceRegistry,
+    thumbnailSnapshot: MediaThumbnailSnapshot,
   ) {
     this.browseFocusState = {
       activeRowIndex: 0,
@@ -59,7 +72,12 @@ export class WebAppShell {
     };
     this.previewSurfaceRegistry = previewSurfaceRegistry;
     this.previewSurfaceEntries = [];
+    this.thumbnailCardBindingsByItemId = new Map<
+      string,
+      WebThumbnailCardBinding[]
+    >();
     this.thumbnailCardElements = [];
+    this.thumbnailSnapshot = thumbnailSnapshot;
     this.mountElement = this.getMountElement();
     this.backgroundVideoElement = document.createElement("video");
     this.fullscreenInteractionElement = document.createElement("button");
@@ -126,10 +144,12 @@ export class WebAppShell {
   public renderBrowseContent(browseContent: BrowseScreenContent): void {
     this.thumbnailCardElements = [];
     this.previewSurfaceEntries = [];
+    this.thumbnailCardBindingsByItemId.clear();
     this.overlayUiElement.replaceChildren(
       this.createBrowseOverlayElement(browseContent),
     );
     this.renderBrowseFocusState(this.browseFocusState);
+    this.renderThumbnailSnapshot(this.thumbnailSnapshot);
   }
 
   /**
@@ -186,6 +206,115 @@ export class WebAppShell {
    */
   public getThumbnailCardElements(): readonly (readonly HTMLElement[])[] {
     return this.thumbnailCardElements;
+  }
+
+  /**
+   * @brief Apply the latest shared thumbnail snapshot to the rendered cards
+   *
+   * @param thumbnailSnapshot - Shared thumbnail state published by the media controller
+   */
+  public renderThumbnailSnapshot(
+    thumbnailSnapshot: MediaThumbnailSnapshot,
+  ): void {
+    this.thumbnailSnapshot = {
+      entries: thumbnailSnapshot.entries.map(
+        (
+          thumbnailEntry: MediaThumbnailCacheEntry,
+        ): MediaThumbnailCacheEntry => ({
+          descriptor: {
+            itemIds: [...thumbnailEntry.descriptor.itemIds],
+            sourceId: thumbnailEntry.descriptor.sourceId,
+            sourceDescriptor: {
+              sourceId: thumbnailEntry.descriptor.sourceDescriptor.sourceId,
+              kind: thumbnailEntry.descriptor.sourceDescriptor.kind,
+              url: thumbnailEntry.descriptor.sourceDescriptor.url,
+              mimeType: thumbnailEntry.descriptor.sourceDescriptor.mimeType,
+              posterUrl: thumbnailEntry.descriptor.sourceDescriptor.posterUrl,
+            },
+          },
+          state: thumbnailEntry.state,
+          request:
+            thumbnailEntry.request === null
+              ? null
+              : {
+                  descriptor: {
+                    itemIds: [...thumbnailEntry.request.descriptor.itemIds],
+                    sourceId: thumbnailEntry.request.descriptor.sourceId,
+                    sourceDescriptor: {
+                      sourceId:
+                        thumbnailEntry.request.descriptor.sourceDescriptor
+                          .sourceId,
+                      kind: thumbnailEntry.request.descriptor.sourceDescriptor
+                        .kind,
+                      url: thumbnailEntry.request.descriptor.sourceDescriptor
+                        .url,
+                      mimeType:
+                        thumbnailEntry.request.descriptor.sourceDescriptor
+                          .mimeType,
+                      posterUrl:
+                        thumbnailEntry.request.descriptor.sourceDescriptor
+                          .posterUrl,
+                    },
+                  },
+                  sourceDescriptor: {
+                    sourceId: thumbnailEntry.request.sourceDescriptor.sourceId,
+                    kind: thumbnailEntry.request.sourceDescriptor.kind,
+                    url: thumbnailEntry.request.sourceDescriptor.url,
+                    mimeType: thumbnailEntry.request.sourceDescriptor.mimeType,
+                    posterUrl:
+                      thumbnailEntry.request.sourceDescriptor.posterUrl,
+                  },
+                  sourceId: thumbnailEntry.request.sourceId,
+                  priorityHint: thumbnailEntry.request.priorityHint,
+                  qualityHint: thumbnailEntry.request.qualityHint,
+                  targetWidth: thumbnailEntry.request.targetWidth,
+                  targetHeight: thumbnailEntry.request.targetHeight,
+                  timeHintMs: thumbnailEntry.request.timeHintMs,
+                  extractionPolicy: {
+                    strategy: thumbnailEntry.request.extractionPolicy.strategy,
+                    quality: thumbnailEntry.request.extractionPolicy.quality,
+                    timeoutMs:
+                      thumbnailEntry.request.extractionPolicy.timeoutMs,
+                    targetWidth:
+                      thumbnailEntry.request.extractionPolicy.targetWidth,
+                    targetHeight:
+                      thumbnailEntry.request.extractionPolicy.targetHeight,
+                  },
+                },
+          result:
+            thumbnailEntry.result === null
+              ? null
+              : {
+                  sourceId: thumbnailEntry.result.sourceId,
+                  imageUrl: thumbnailEntry.result.imageUrl,
+                  width: thumbnailEntry.result.width,
+                  height: thumbnailEntry.result.height,
+                  frameTimeMs: thumbnailEntry.result.frameTimeMs,
+                  extractedAt: thumbnailEntry.result.extractedAt,
+                  wasApproximate: thumbnailEntry.result.wasApproximate,
+                },
+          failureReason: thumbnailEntry.failureReason,
+          isRelevant: thumbnailEntry.isRelevant,
+          lastRequestedAt: thumbnailEntry.lastRequestedAt,
+          lastUpdatedAt: thumbnailEntry.lastUpdatedAt,
+        }),
+      ),
+      requestedSourceIds: [...thumbnailSnapshot.requestedSourceIds],
+      cachedSourceIds: [...thumbnailSnapshot.cachedSourceIds],
+      readySourceIds: [...thumbnailSnapshot.readySourceIds],
+      failedSourceIds: [...thumbnailSnapshot.failedSourceIds],
+      unsupportedSourceIds: [...thumbnailSnapshot.unsupportedSourceIds],
+    };
+
+    for (const [itemId, thumbnailBindings] of this
+      .thumbnailCardBindingsByItemId) {
+      const thumbnailEntry: MediaThumbnailCacheEntry | null =
+        this.findThumbnailEntryForItemId(itemId);
+
+      for (const thumbnailBinding of thumbnailBindings) {
+        this.applyThumbnailEntry(thumbnailBinding, thumbnailEntry);
+      }
+    }
   }
 
   /**
@@ -366,13 +495,17 @@ export class WebAppShell {
   ): HTMLElement {
     const thumbnailCardElement: HTMLElement = document.createElement("article");
     const artworkElement: HTMLDivElement = document.createElement("div");
+    const stillImageElement: HTMLImageElement = document.createElement("img");
     const previewHostElement: HTMLDivElement = document.createElement("div");
     const monogramElement: HTMLParagraphElement = document.createElement("p");
     const titleElement: HTMLParagraphElement = document.createElement("p");
     const metaElement: HTMLParagraphElement = document.createElement("p");
+    const thumbnailBindings: WebThumbnailCardBinding[] =
+      this.thumbnailCardBindingsByItemId.get(thumbnailContent.id) ?? [];
 
     thumbnailCardElement.className = "browse-thumbnail-card";
     artworkElement.className = "browse-thumbnail-artwork";
+    stillImageElement.className = "browse-thumbnail-still";
     previewHostElement.className = "browse-thumbnail-preview-slot";
     titleElement.className = "browse-thumbnail-title";
     metaElement.className = "browse-thumbnail-meta";
@@ -380,20 +513,105 @@ export class WebAppShell {
 
     artworkElement.dataset.placeholderKey =
       thumbnailContent.artwork.placeholderKey;
+    stillImageElement.alt = `${thumbnailContent.title} still`;
     previewHostElement.dataset.itemId = thumbnailContent.id;
     thumbnailCardElement.dataset.rowIndex = `${rowIndex}`;
     thumbnailCardElement.dataset.itemIndex = `${itemIndex}`;
+    thumbnailCardElement.dataset.thumbnailItemId = thumbnailContent.id;
+    thumbnailCardElement.dataset.thumbnailVisualState = "fallback";
     monogramElement.textContent = thumbnailContent.artwork.placeholderMonogram;
     titleElement.textContent = thumbnailContent.title;
     metaElement.textContent = thumbnailContent.secondaryText;
-    artworkElement.append(previewHostElement, monogramElement);
+    artworkElement.append(
+      stillImageElement,
+      previewHostElement,
+      monogramElement,
+    );
     thumbnailCardElement.append(artworkElement, titleElement, metaElement);
     this.previewSurfaceEntries.push({
       itemId: thumbnailContent.id,
       hostElement: previewHostElement,
     });
+    thumbnailBindings.push({
+      itemId: thumbnailContent.id,
+      cardElement: thumbnailCardElement,
+      artworkElement,
+      stillImageElement,
+      previewHostElement,
+    });
+    this.thumbnailCardBindingsByItemId.set(
+      thumbnailContent.id,
+      thumbnailBindings,
+    );
+    this.applyThumbnailEntry(
+      thumbnailBindings[thumbnailBindings.length - 1]!,
+      this.findThumbnailEntryForItemId(thumbnailContent.id),
+    );
 
     return thumbnailCardElement;
+  }
+
+  /**
+   * @brief Resolve one thumbnail cache entry by browse item identifier
+   *
+   * @param itemId - Stable browse item identifier
+   *
+   * @returns Matching cache entry, or `null` when the item has no still yet
+   */
+  private findThumbnailEntryForItemId(
+    itemId: string,
+  ): MediaThumbnailCacheEntry | null {
+    for (const thumbnailEntry of this.thumbnailSnapshot.entries) {
+      if (thumbnailEntry.descriptor.itemIds.includes(itemId)) {
+        return thumbnailEntry;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * @brief Apply one thumbnail cache entry to a rendered card binding
+   *
+   * @param thumbnailBinding - Rendered card DOM binding
+   * @param thumbnailEntry - Current shared thumbnail cache entry for the item
+   */
+  private applyThumbnailEntry(
+    thumbnailBinding: WebThumbnailCardBinding,
+    thumbnailEntry: MediaThumbnailCacheEntry | null,
+  ): void {
+    const readyThumbnailResult = thumbnailEntry?.result ?? null;
+    const hasReadyStill: boolean =
+      thumbnailEntry?.state === "ready" && readyThumbnailResult !== null;
+    const isPreviewActive: boolean =
+      thumbnailBinding.previewHostElement.classList.contains("is-active");
+
+    thumbnailBinding.cardElement.dataset.thumbnailState =
+      thumbnailEntry?.state ?? "idle";
+    thumbnailBinding.cardElement.dataset.thumbnailSourceId =
+      thumbnailEntry?.descriptor.sourceId ?? "";
+
+    if (hasReadyStill && readyThumbnailResult !== null) {
+      if (
+        thumbnailBinding.stillImageElement.getAttribute("src") !==
+        readyThumbnailResult.imageUrl
+      ) {
+        thumbnailBinding.stillImageElement.src = readyThumbnailResult.imageUrl;
+      }
+
+      thumbnailBinding.stillImageElement.classList.add("is-ready");
+      thumbnailBinding.artworkElement.classList.add("has-still");
+    } else {
+      thumbnailBinding.stillImageElement.removeAttribute("src");
+      thumbnailBinding.stillImageElement.classList.remove("is-ready");
+      thumbnailBinding.artworkElement.classList.remove("has-still");
+    }
+
+    thumbnailBinding.cardElement.dataset.thumbnailVisualState = isPreviewActive
+      ? "preview"
+      : hasReadyStill
+        ? "still"
+        : "fallback";
   }
 
   /**

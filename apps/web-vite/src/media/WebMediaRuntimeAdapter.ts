@@ -604,6 +604,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
 
     if (this.previewRuntimeSession.hostElement === surfaceEntry.hostElement) {
       surfaceEntry.hostElement.classList.add("is-active");
+      this.updatePreviewCardDebugState(surfaceEntry.hostElement);
       return;
     }
 
@@ -611,6 +612,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     surfaceEntry.hostElement.replaceChildren(videoElement);
     surfaceEntry.hostElement.classList.add("is-active");
     this.previewRuntimeSession.hostElement = surfaceEntry.hostElement;
+    this.updatePreviewCardDebugState(surfaceEntry.hostElement);
   }
 
   /**
@@ -624,6 +626,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
 
     if (hostElement !== null) {
       hostElement.classList.remove("is-active");
+      this.updatePreviewCardDebugState(hostElement);
 
       if (videoElement !== null && videoElement.parentElement === hostElement) {
         hostElement.replaceChildren();
@@ -631,6 +634,33 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     }
 
     this.previewRuntimeSession.hostElement = null;
+  }
+
+  /**
+   * @brief Keep the host card's debug data aligned with preview attachment state
+   *
+   * @param hostElement - Preview host that just changed active state
+   */
+  private updatePreviewCardDebugState(hostElement: HTMLDivElement): void {
+    const thumbnailCardElement: HTMLElement | null = hostElement.closest(
+      ".browse-thumbnail-card",
+    );
+    const artworkElement: HTMLElement | null = hostElement.closest(
+      ".browse-thumbnail-artwork",
+    );
+    const hasStill: boolean =
+      artworkElement?.classList.contains("has-still") === true;
+
+    if (thumbnailCardElement === null) {
+      return;
+    }
+
+    thumbnailCardElement.dataset.thumbnailVisualState =
+      hostElement.classList.contains("is-active")
+        ? "preview"
+        : hasStill
+          ? "still"
+          : "fallback";
   }
 
   /**

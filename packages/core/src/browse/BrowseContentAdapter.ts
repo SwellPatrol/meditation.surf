@@ -149,6 +149,29 @@ export class BrowseContentAdapter {
   }
 
   /**
+   * @brief Return how many browse rows currently contain content
+   *
+   * @returns Number of rows available for browse-driven thumbnail planning
+   */
+  public getRowCount(): number {
+    return this.createRowModels().length;
+  }
+
+  /**
+   * @brief Return how many thumbnail cards belong to one browse row
+   *
+   * @param rowIndex - Browse row position rendered by the adapter
+   *
+   * @returns Number of cards in that row, or `0` when the row is absent
+   */
+  public getItemCountAtRow(rowIndex: number): number {
+    const browseRowModel: BrowseRowModel | undefined =
+      this.createRowModels()[rowIndex];
+
+    return browseRowModel?.sourceItems.length ?? 0;
+  }
+
+  /**
    * @brief Resolve the item that should currently occupy the hero slot
    *
    * @param activeItem - Current playback item when available

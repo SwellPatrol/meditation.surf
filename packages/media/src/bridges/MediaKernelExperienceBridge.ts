@@ -13,6 +13,19 @@ import {
 import type { MediaIntent } from "../intent/MediaIntent";
 import type { MediaKernelController } from "../kernel/MediaKernelController";
 import type { MediaKernelItem } from "../kernel/MediaKernelItem";
+import type { MediaSourceDescriptor } from "../sources/MediaSourceDescriptor";
+import type { MediaThumbnailController } from "../thumbnails/MediaThumbnailController";
+import type {
+  MediaThumbnailPriority,
+  MediaThumbnailQuality,
+} from "../thumbnails/MediaThumbnailExtractionPolicy";
+import type { MediaThumbnailRequest } from "../thumbnails/MediaThumbnailRequest";
+
+type MediaThumbnailCandidate<TMediaItem extends MediaKernelItem> = {
+  mediaItem: TMediaItem;
+  rowIndex: number;
+  itemIndex: number;
+};
 
 /**
  * @brief Immutable focus state consumed by the shared media bridge
@@ -48,6 +61,8 @@ export interface MediaBrowseContentResolver<
   TMediaItem extends MediaKernelItem = MediaKernelItem,
 > {
   getMediaItemAt(rowIndex: number, itemIndex: number): TMediaItem | null;
+  getRowCount(): number;
+  getItemCountAtRow(rowIndex: number): number;
 }
 
 /**
@@ -87,11 +102,17 @@ export interface MediaPlaybackSequenceController<
 export class MediaKernelExperienceBridge<
   TMediaItem extends MediaKernelItem = MediaKernelItem,
 > {
+  private static readonly FOCUSED_ITEM_RADIUS: number = 2;
+  private static readonly FOCUSED_ROW_RADIUS: number = 1;
+  private static readonly UNFOCUSED_MAX_ITEMS_PER_ROW: number = 4;
+  private static readonly UNFOCUSED_MAX_ROWS: number = 2;
+
   private readonly browseContentAdapter: MediaBrowseContentResolver<TMediaItem>;
   private readonly browseFocusController: MediaBrowseFocusController;
   private readonly browseSelectionController: MediaBrowseSelectionController;
   private readonly focusDelayController: FocusDelayController;
   private readonly mediaKernelController: MediaKernelController;
+  private readonly mediaThumbnailController: MediaThumbnailController | null;
   private readonly playbackSequenceController: MediaPlaybackSequenceController<TMediaItem>;
   private readonly unsubscribeCallbacks: Array<() => void>;
 
@@ -115,12 +136,14 @@ export class MediaKernelExperienceBridge<
     browseSelectionController: MediaBrowseSelectionController,
     mediaKernelController: MediaKernelController,
     playbackSequenceController: MediaPlaybackSequenceController<TMediaItem>,
+    mediaThumbnailController: MediaThumbnailController | null = null,
   ) {
     this.browseContentAdapter = browseContentAdapter;
     this.browseFocusController = browseFocusController;
     this.browseSelectionController = browseSelectionController;
     this.focusDelayController = new FocusDelayController();
     this.mediaKernelController = mediaKernelController;
+    this.mediaThumbnailController = mediaThumbnailController;
     this.playbackSequenceController = playbackSequenceController;
     this.unsubscribeCallbacks = [];
     this.browseFocusState = this.browseFocusController.getState();
@@ -205,6 +228,7 @@ export class MediaKernelExperienceBridge<
       selectedItem,
       activeItem,
     );
+    this.syncThumbnailRequests(focusedItem);
   }
 
   /**
@@ -215,6 +239,234 @@ export class MediaKernelExperienceBridge<
 
     this.focusDelayController.setFocusedItemId(focusedItemId);
     this.syncMediaKernelPlanningContext();
+  }
+
+  /**
+   * @brief Reflect the current browse neighborhood into bounded thumbnail requests
+   *
+   * @param focusedItem - Focused media item when one exists
+   */
+  private syncThumbnailRequests(focusedItem: TMediaItem | null): void {
+    if (this.mediaThumbnailController === null) {
+      return;
+    }
+
+    const thumbnailCandidates: MediaThumbnailCandidate<TMediaItem>[] =
+      this.resolveThumbnailCandidates();
+    const thumbnailRequests: MediaThumbnailRequest[] = thumbnailCandidates.map(
+      (
+        thumbnailCandidate: MediaThumbnailCandidate<TMediaItem>,
+      ): MediaThumbnailRequest =>
+        this.createThumbnailRequest(
+          thumbnailCandidate,
+          focusedItem?.id ?? null,
+        ),
+    );
+
+    this.mediaThumbnailController.setRequests(thumbnailRequests);
+  }
+
+  /**
+   * @brief Resolve a bounded set of browse items that should own still requests
+   *
+   * @returns Deterministically ordered thumbnail candidates
+   */
+  private resolveThumbnailCandidates(): MediaThumbnailCandidate<TMediaItem>[] {
+    const thumbnailCandidates: MediaThumbnailCandidate<TMediaItem>[] = [];
+    const seenItemIds: Set<string> = new Set<string>();
+
+    if (this.browseFocusState.hasFocusedItem) {
+      this.appendFocusedThumbnailCandidates(thumbnailCandidates, seenItemIds);
+      return thumbnailCandidates;
+    }
+
+    this.appendUnfocusedThumbnailCandidates(thumbnailCandidates, seenItemIds);
+
+    return thumbnailCandidates;
+  }
+
+  /**
+   * @brief Add a focus-centered thumbnail neighborhood to the candidate list
+   *
+   * @param thumbnailCandidates - Ordered candidate list being assembled
+   * @param seenItemIds - Dedupe set keyed by item identifier
+   */
+  private appendFocusedThumbnailCandidates(
+    thumbnailCandidates: MediaThumbnailCandidate<TMediaItem>[],
+    seenItemIds: Set<string>,
+  ): void {
+    const focusedRowIndex: number = this.browseFocusState.activeRowIndex;
+    const minimumRowIndex: number = Math.max(
+      0,
+      focusedRowIndex - MediaKernelExperienceBridge.FOCUSED_ROW_RADIUS,
+    );
+    const maximumRowIndex: number = Math.min(
+      this.browseContentAdapter.getRowCount() - 1,
+      focusedRowIndex + MediaKernelExperienceBridge.FOCUSED_ROW_RADIUS,
+    );
+
+    for (
+      let rowIndex: number = minimumRowIndex;
+      rowIndex <= maximumRowIndex;
+      rowIndex += 1
+    ) {
+      const anchorItemIndex: number =
+        rowIndex === focusedRowIndex
+          ? (this.browseFocusState.activeItemIndexByRow[rowIndex] ?? 0)
+          : (this.browseFocusState.activeItemIndexByRow[rowIndex] ?? 0);
+      const itemRadius: number =
+        rowIndex === focusedRowIndex
+          ? MediaKernelExperienceBridge.FOCUSED_ITEM_RADIUS
+          : 1;
+      const itemCount: number =
+        this.browseContentAdapter.getItemCountAtRow(rowIndex);
+      const minimumItemIndex: number = Math.max(
+        0,
+        anchorItemIndex - itemRadius,
+      );
+      const maximumItemIndex: number = Math.min(
+        itemCount - 1,
+        anchorItemIndex + itemRadius,
+      );
+
+      for (
+        let itemIndex: number = minimumItemIndex;
+        itemIndex <= maximumItemIndex;
+        itemIndex += 1
+      ) {
+        this.appendThumbnailCandidate(
+          thumbnailCandidates,
+          seenItemIds,
+          rowIndex,
+          itemIndex,
+        );
+      }
+    }
+  }
+
+  /**
+   * @brief Seed initial idle browse rows with a small thumbnail request set
+   *
+   * @param thumbnailCandidates - Ordered candidate list being assembled
+   * @param seenItemIds - Dedupe set keyed by item identifier
+   */
+  private appendUnfocusedThumbnailCandidates(
+    thumbnailCandidates: MediaThumbnailCandidate<TMediaItem>[],
+    seenItemIds: Set<string>,
+  ): void {
+    const maximumRowCount: number = Math.min(
+      this.browseContentAdapter.getRowCount(),
+      MediaKernelExperienceBridge.UNFOCUSED_MAX_ROWS,
+    );
+
+    for (let rowIndex: number = 0; rowIndex < maximumRowCount; rowIndex += 1) {
+      const itemCount: number = Math.min(
+        this.browseContentAdapter.getItemCountAtRow(rowIndex),
+        MediaKernelExperienceBridge.UNFOCUSED_MAX_ITEMS_PER_ROW,
+      );
+
+      for (let itemIndex: number = 0; itemIndex < itemCount; itemIndex += 1) {
+        this.appendThumbnailCandidate(
+          thumbnailCandidates,
+          seenItemIds,
+          rowIndex,
+          itemIndex,
+        );
+      }
+    }
+  }
+
+  /**
+   * @brief Append one thumbnail candidate when the browse slot resolves cleanly
+   *
+   * @param thumbnailCandidates - Ordered candidate list being assembled
+   * @param seenItemIds - Dedupe set keyed by item identifier
+   * @param rowIndex - Browse row that owns the candidate
+   * @param itemIndex - Browse item position inside the row
+   */
+  private appendThumbnailCandidate(
+    thumbnailCandidates: MediaThumbnailCandidate<TMediaItem>[],
+    seenItemIds: Set<string>,
+    rowIndex: number,
+    itemIndex: number,
+  ): void {
+    const mediaItem: TMediaItem | null =
+      this.browseContentAdapter.getMediaItemAt(rowIndex, itemIndex);
+
+    if (mediaItem === null || seenItemIds.has(mediaItem.id)) {
+      return;
+    }
+
+    seenItemIds.add(mediaItem.id);
+    thumbnailCandidates.push({
+      mediaItem,
+      rowIndex,
+      itemIndex,
+    });
+  }
+
+  /**
+   * @brief Build one shared thumbnail request from a browse candidate
+   *
+   * @param thumbnailCandidate - Candidate item and browse position
+   * @param focusedItemId - Focused item identifier, or `null`
+   *
+   * @returns Shared request consumed by the thumbnail controller
+   */
+  private createThumbnailRequest(
+    thumbnailCandidate: MediaThumbnailCandidate<TMediaItem>,
+    focusedItemId: string | null,
+  ): MediaThumbnailRequest {
+    const sourceDescriptor: MediaSourceDescriptor =
+      this.mediaKernelController.getSourceDescriptorForItem(
+        thumbnailCandidate.mediaItem,
+      );
+    const isFocusedCandidate: boolean =
+      thumbnailCandidate.mediaItem.id === focusedItemId;
+    const isFocusedRowCandidate: boolean =
+      thumbnailCandidate.rowIndex === this.browseFocusState.activeRowIndex;
+    const priorityHint: MediaThumbnailPriority = isFocusedCandidate
+      ? "high"
+      : isFocusedRowCandidate
+        ? "medium"
+        : "low";
+    const qualityHint: MediaThumbnailQuality = isFocusedCandidate
+      ? "high"
+      : isFocusedRowCandidate
+        ? "medium"
+        : "low";
+    const targetWidth: number = isFocusedCandidate
+      ? 480
+      : isFocusedRowCandidate
+        ? 360
+        : 320;
+    const timeoutMs: number = isFocusedCandidate
+      ? 3200
+      : isFocusedRowCandidate
+        ? 2200
+        : 1800;
+
+    return {
+      descriptor: {
+        itemIds: [thumbnailCandidate.mediaItem.id],
+        sourceId: sourceDescriptor.sourceId,
+        sourceDescriptor,
+      },
+      sourceDescriptor,
+      sourceId: sourceDescriptor.sourceId,
+      priorityHint,
+      qualityHint,
+      targetWidth,
+      targetHeight: null,
+      timeHintMs: 0,
+      extractionPolicy: {
+        strategy: "first-frame",
+        quality: qualityHint,
+        timeoutMs,
+        targetWidth,
+        targetHeight: null,
+      },
+    };
   }
 
   /**

@@ -11,6 +11,7 @@ import type {
   MediaExecutionController,
   MediaKernelController,
   MediaKernelExperienceBridge,
+  MediaThumbnailController,
 } from "@meditation-surf/media";
 import type { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
@@ -43,6 +44,7 @@ export class MeditationExperience {
   public readonly mediaExecutionController: MediaExecutionController;
   public readonly mediaKernelExperienceBridge: MediaKernelExperienceBridge<MediaItem>;
   public readonly mediaKernelController: MediaKernelController;
+  public readonly mediaThumbnailController: MediaThumbnailController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
   public readonly playbackSequenceController: PlaybackSequenceController;
 
@@ -71,6 +73,7 @@ export class MeditationExperience {
     mediaExecutionController: MediaExecutionController,
     mediaKernelExperienceBridge: MediaKernelExperienceBridge<MediaItem>,
     mediaKernelController: MediaKernelController,
+    mediaThumbnailController: MediaThumbnailController,
     overlayController: OverlayController,
     overlayRevealHandoffController: OverlayRevealHandoffController,
     playbackVisualReadinessController: PlaybackVisualReadinessController,
@@ -84,6 +87,7 @@ export class MeditationExperience {
     this.mediaExecutionController = mediaExecutionController;
     this.mediaKernelExperienceBridge = mediaKernelExperienceBridge;
     this.mediaKernelController = mediaKernelController;
+    this.mediaThumbnailController = mediaThumbnailController;
     this.overlayController = overlayController;
     this.overlayRevealHandoffController = overlayRevealHandoffController;
     this.playbackVisualReadinessController = playbackVisualReadinessController;
@@ -151,6 +155,15 @@ export class MeditationExperience {
    */
   public getMediaExecutionController(): MediaExecutionController {
     return this.mediaExecutionController;
+  }
+
+  /**
+   * @brief Return the shared media thumbnail controller
+   *
+   * @returns Shared thumbnail orchestration controller
+   */
+  public getMediaThumbnailController(): MediaThumbnailController {
+    return this.mediaThumbnailController;
   }
 
   /**

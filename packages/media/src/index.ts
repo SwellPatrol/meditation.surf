@@ -63,3 +63,21 @@ export type { MediaSourceDescriptor } from "./sources/MediaSourceDescriptor";
 export { MediaSourceDescriptorFactory } from "./sources/MediaSourceDescriptorFactory";
 export type { MediaSourceKind } from "./sources/MediaSourceKind";
 export type { MediaSourcePlaybackSource } from "./sources/MediaSourcePlaybackSource";
+export {
+  MediaThumbnailController,
+  type MediaThumbnailSnapshotListener,
+} from "./thumbnails/MediaThumbnailController";
+export type { MediaThumbnailCacheEntry } from "./thumbnails/MediaThumbnailCacheEntry";
+export type { MediaThumbnailDescriptor } from "./thumbnails/MediaThumbnailDescriptor";
+export type {
+  MediaThumbnailExtractionPolicy,
+  MediaThumbnailExtractionStrategy,
+  MediaThumbnailPriority,
+  MediaThumbnailQuality,
+} from "./thumbnails/MediaThumbnailExtractionPolicy";
+export type { MediaThumbnailRequest } from "./thumbnails/MediaThumbnailRequest";
+export type { MediaThumbnailResult } from "./thumbnails/MediaThumbnailResult";
+export type { MediaThumbnailRuntimeAdapter } from "./thumbnails/MediaThumbnailRuntimeAdapter";
+export type { MediaThumbnailRuntimeCapabilities } from "./thumbnails/MediaThumbnailRuntimeCapabilities";
+export type { MediaThumbnailSnapshot } from "./thumbnails/MediaThumbnailSnapshot";
+export type { MediaThumbnailState } from "./thumbnails/MediaThumbnailState";

@@ -171,6 +171,28 @@ export class MediaKernelController {
   }
 
   /**
+   * @brief Build a shared source descriptor for one media item
+   *
+   * @param mediaItem - Shared media item that owns the source
+   *
+   * @returns Stable source descriptor for the supplied item
+   */
+  public getSourceDescriptorForItem(
+    mediaItem: MediaKernelItem,
+  ): MediaSourceDescriptor {
+    const sourceDescriptor: MediaSourceDescriptor =
+      this.createSourceDescriptor(mediaItem);
+
+    return {
+      sourceId: sourceDescriptor.sourceId,
+      kind: sourceDescriptor.kind,
+      url: sourceDescriptor.url,
+      mimeType: sourceDescriptor.mimeType,
+      posterUrl: sourceDescriptor.posterUrl,
+    };
+  }
+
+  /**
    * @brief Subscribe to media kernel state changes
    *
    * @param listener - Callback notified whenever the media kernel changes

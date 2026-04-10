@@ -14,6 +14,7 @@ import {
   type MediaCapabilityProfile,
   type MediaExecutionController,
   type MediaKernelController,
+  type MediaThumbnailController,
   type MeditationExperience,
   type OverlayController,
   type PlaybackSequenceController,
@@ -22,6 +23,7 @@ import type { PlaybackVisualReadinessController } from "@meditation-surf/player-
 
 import { WebAppLayoutController } from "../layout/WebAppLayoutController";
 import { WebMediaRuntimeAdapter } from "../media/WebMediaRuntimeAdapter";
+import { WebMediaThumbnailRuntimeAdapter } from "../media/WebMediaThumbnailRuntimeAdapter";
 import { WebPreviewSurfaceRegistry } from "../media/WebPreviewSurfaceRegistry";
 import { WebBackgroundVideoController } from "../playback/WebBackgroundVideoController";
 
@@ -36,7 +38,7 @@ export class WebExperienceAdapter {
     supportsNativePlayback: true,
     supportsShakaPlayback: true,
     supportsPreviewVideo: true,
-    supportsThumbnailExtraction: false,
+    supportsThumbnailExtraction: true,
     supportsWorkerOffload: true,
     supportsWebGPUPreferred: false,
     supportsWebGLFallback: false,
@@ -56,6 +58,7 @@ export class WebExperienceAdapter {
   public readonly playbackSequenceController: PlaybackSequenceController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
   public readonly previewSurfaceRegistry: WebPreviewSurfaceRegistry;
+  public readonly mediaThumbnailController: MediaThumbnailController;
 
   /**
    * @brief Build web runtime adapters for the shared experience
@@ -65,10 +68,14 @@ export class WebExperienceAdapter {
   public constructor(experience: MeditationExperience) {
     this.mediaKernelController = experience.getMediaKernelController();
     this.mediaExecutionController = experience.getMediaExecutionController();
+    this.mediaThumbnailController = experience.getMediaThumbnailController();
     this.previewSurfaceRegistry = new WebPreviewSurfaceRegistry();
     this.mediaKernelController.reportAppCapabilities(
       "web-vite",
       WebExperienceAdapter.MEDIA_CAPABILITY_PROFILE,
+    );
+    this.mediaThumbnailController.setRuntimeAdapter(
+      new WebMediaThumbnailRuntimeAdapter(),
     );
     this.mediaExecutionController.setRuntimeAdapter(
       new WebMediaRuntimeAdapter(

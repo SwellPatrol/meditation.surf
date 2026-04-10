@@ -14,6 +14,7 @@ import {
   type MediaCapabilityProfile,
   type MediaExecutionController,
   type MediaKernelController,
+  type MediaThumbnailController,
   type MeditationExperience,
   type OverlayController,
   type PlaybackSequenceController,
@@ -22,6 +23,7 @@ import type { PlaybackVisualReadinessController } from "@meditation-surf/player-
 
 import { TvAppLayoutController } from "../layout/TvAppLayoutController";
 import { TvMediaRuntimeAdapter } from "../media/TvMediaRuntimeAdapter";
+import { TvMediaThumbnailRuntimeAdapter } from "../media/TvMediaThumbnailRuntimeAdapter";
 import lightningPlaybackAdapter from "../playback/LightningPlaybackAdapter";
 import { TvBackgroundVideoController } from "../playback/TvBackgroundVideoController";
 
@@ -52,6 +54,7 @@ export class TvExperienceAdapter {
   public readonly browseSelectionController: BrowseSelectionController;
   public readonly mediaKernelController: MediaKernelController;
   public readonly mediaExecutionController: MediaExecutionController;
+  public readonly mediaThumbnailController: MediaThumbnailController;
   public readonly overlayController: OverlayController;
   public readonly playbackSequenceController: PlaybackSequenceController;
   public readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
@@ -67,6 +70,10 @@ export class TvExperienceAdapter {
 
     this.mediaKernelController = experience.getMediaKernelController();
     this.mediaExecutionController = experience.getMediaExecutionController();
+    this.mediaThumbnailController = experience.getMediaThumbnailController();
+    this.mediaThumbnailController.setRuntimeAdapter(
+      new TvMediaThumbnailRuntimeAdapter(),
+    );
     this.mediaKernelController.reportAppCapabilities(
       "tv-lightning",
       TvExperienceAdapter.MEDIA_CAPABILITY_PROFILE,
