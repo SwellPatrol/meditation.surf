@@ -8,6 +8,9 @@
 
 import { VfsController } from "@meditation-surf/vfs";
 
+import type { AudioExecutionSnapshot } from "../audio/AudioExecutionSnapshot";
+import { AudioPolicy } from "../audio/AudioPolicy";
+import type { AudioPolicyDecision } from "../audio/AudioPolicyDecision";
 import type { MediaCapabilityProfile } from "../capabilities/MediaCapabilityProfile";
 import { CommittedPlaybackChooser } from "../committed/CommittedPlaybackChooser";
 import type { CommittedPlaybackDecision } from "../committed/CommittedPlaybackDecision";
@@ -238,6 +241,12 @@ export class MediaExecutionController {
           currentMediaKernelState,
           previousExecutionSnapshot,
         );
+      const requestedAudioExecution: AudioExecutionSnapshot | null =
+        this.resolveRequestedAudioExecution(
+          plannedSession,
+          runtimeCapabilities,
+          committedPlaybackDecision,
+        );
       const committedPlaybackSnapshot: CommittedPlaybackSnapshot | null =
         this.createCommittedPlaybackSnapshot(
           plannedSession,
@@ -265,6 +274,7 @@ export class MediaExecutionController {
           previousExecutionSnapshot?.state ?? "inactive",
           previousExecutionSnapshot?.previewSessionAssignment ?? null,
           committedPlaybackSnapshot,
+          requestedAudioExecution,
           previousExecutionSnapshot?.startupDebugState ?? null,
           previousExecutionSnapshot?.lastCommandType ?? null,
           previousExecutionSnapshot?.failureReason ?? null,
@@ -328,6 +338,8 @@ export class MediaExecutionController {
       snapshot: null,
       runtimeSessionHandle: null,
       committedPlaybackDecision: null,
+      audioExecution: null,
+      audioPolicyDecision: null,
     };
 
     try {
@@ -485,6 +497,7 @@ export class MediaExecutionController {
         null,
         null,
         null,
+        null,
       );
     const runtimeCapabilities: MediaRuntimeCapabilities =
       runtimeAdapter.getCapabilities();
@@ -522,6 +535,9 @@ export class MediaExecutionController {
               "activating-background",
             )
           : currentSnapshot.committedPlayback,
+      audioExecution: this.cloneAudioExecutionSnapshot(
+        currentSnapshot.audioExecution,
+      ),
       startupDebugState: currentSnapshot.startupDebugState,
       lastCommandType: commandType,
       failureReason: null,
@@ -535,6 +551,11 @@ export class MediaExecutionController {
       runtimeSessionHandle: currentSnapshot.runtimeSessionHandle,
       committedPlaybackDecision:
         currentSnapshot.committedPlayback?.decision ?? null,
+      audioExecution: this.cloneAudioExecutionSnapshot(
+        currentSnapshot.audioExecution,
+      ),
+      audioPolicyDecision:
+        currentSnapshot.audioExecution?.policyDecision ?? null,
     };
     const commandResult: MediaExecutionResult =
       await this.executeRuntimeCommand(runtimeAdapter, command, plannedSession);
@@ -562,6 +583,11 @@ export class MediaExecutionController {
       runtimeSessionHandle: executionSnapshot.runtimeSessionHandle,
       committedPlaybackDecision:
         executionSnapshot.committedPlayback?.decision ?? null,
+      audioExecution: this.cloneAudioExecutionSnapshot(
+        executionSnapshot.audioExecution,
+      ),
+      audioPolicyDecision:
+        executionSnapshot.audioExecution?.policyDecision ?? null,
     };
 
     try {
@@ -597,6 +623,7 @@ export class MediaExecutionController {
         state: "failed",
         runtimeSessionHandle: command.runtimeSessionHandle,
         committedPlaybackDecision: command.committedPlaybackDecision,
+        audioExecution: command.audioExecution,
         failureReason: `${plannedSession.sessionId}: ${failureReason}`,
         startupDebugState: null,
       };
@@ -640,6 +667,9 @@ export class MediaExecutionController {
               "selected",
           ),
         ),
+        commandResult.audioExecution ??
+          currentExecutionSnapshot?.audioExecution ??
+          null,
         commandResult.startupDebugState,
         commandType,
         commandResult.failureReason,
@@ -895,6 +925,7 @@ export class MediaExecutionController {
     state: MediaExecutionState,
     previewSessionAssignment: PreviewSessionAssignment | null,
     committedPlayback: CommittedPlaybackSnapshot | null,
+    audioExecution: AudioExecutionSnapshot | null,
     startupDebugState: MediaStartupDebugState | null,
     lastCommandType: MediaExecutionCommandType | null,
     failureReason: string | null,
@@ -909,6 +940,7 @@ export class MediaExecutionController {
         previewSessionAssignment,
       ),
       committedPlayback: this.cloneCommittedPlaybackSnapshot(committedPlayback),
+      audioExecution: this.cloneAudioExecutionSnapshot(audioExecution),
       startupDebugState: this.cloneStartupDebugState(startupDebugState),
       lastCommandType,
       failureReason,
@@ -966,11 +998,87 @@ export class MediaExecutionController {
       committedPlayback: this.cloneCommittedPlaybackSnapshot(
         executionSnapshot.committedPlayback,
       ),
+      audioExecution: this.cloneAudioExecutionSnapshot(
+        executionSnapshot.audioExecution,
+      ),
       startupDebugState: this.cloneStartupDebugState(
         executionSnapshot.startupDebugState,
       ),
       lastCommandType: executionSnapshot.lastCommandType,
       failureReason: executionSnapshot.failureReason,
+    };
+  }
+
+  /**
+   * @brief Clone one requested-or-actual audio execution snapshot
+   *
+   * @param audioExecution - Audio execution snapshot to clone
+   *
+   * @returns Cloned audio execution snapshot, or `null` when absent
+   */
+  private cloneAudioExecutionSnapshot(
+    audioExecution: AudioExecutionSnapshot | null,
+  ): AudioExecutionSnapshot | null {
+    if (audioExecution === null) {
+      return null;
+    }
+
+    return {
+      requestedAudioMode: audioExecution.requestedAudioMode,
+      actualAudioMode: audioExecution.actualAudioMode,
+      fallbackMode: audioExecution.fallbackMode,
+      premiumAttemptRequested: audioExecution.premiumAttemptRequested,
+      usedFallback: audioExecution.usedFallback,
+      runtimeAcceptedRequestedMode: audioExecution.runtimeAcceptedRequestedMode,
+      policyDecision: this.cloneAudioPolicyDecision(
+        audioExecution.policyDecision,
+      ),
+      runtimeReason: audioExecution.runtimeReason,
+    };
+  }
+
+  /**
+   * @brief Clone one shared audio-policy decision
+   *
+   * @param audioPolicyDecision - Audio-policy decision to clone
+   *
+   * @returns Cloned audio-policy decision
+   */
+  private cloneAudioPolicyDecision(
+    audioPolicyDecision: AudioPolicyDecision,
+  ): AudioPolicyDecision {
+    return {
+      audioMode: audioPolicyDecision.audioMode,
+      fallbackMode: audioPolicyDecision.fallbackMode,
+      requestedPremiumAttempt: audioPolicyDecision.requestedPremiumAttempt,
+      usedFallback: audioPolicyDecision.usedFallback,
+      trackPolicy: {
+        preferPremiumAudio: audioPolicyDecision.trackPolicy.preferPremiumAudio,
+        preferDefaultTrack: audioPolicyDecision.trackPolicy.preferDefaultTrack,
+        preferredLanguage: audioPolicyDecision.trackPolicy.preferredLanguage,
+        preferredChannelLayout:
+          audioPolicyDecision.trackPolicy.preferredChannelLayout,
+        allowFallbackStereo:
+          audioPolicyDecision.trackPolicy.allowFallbackStereo,
+      },
+      capabilityProfile:
+        audioPolicyDecision.capabilityProfile === null
+          ? null
+          : {
+              canPlayCommittedAudio:
+                audioPolicyDecision.capabilityProfile.canPlayCommittedAudio,
+              canAttemptPremiumAudio:
+                audioPolicyDecision.capabilityProfile.canAttemptPremiumAudio,
+              canFallbackStereo:
+                audioPolicyDecision.capabilityProfile.canFallbackStereo,
+              canKeepPreviewMuted:
+                audioPolicyDecision.capabilityProfile.canKeepPreviewMuted,
+              canKeepExtractionSilent:
+                audioPolicyDecision.capabilityProfile.canKeepExtractionSilent,
+            },
+      committedPlaybackLane: audioPolicyDecision.committedPlaybackLane,
+      reasons: [...audioPolicyDecision.reasons],
+      reasonDetails: [...audioPolicyDecision.reasonDetails],
     };
   }
 
@@ -1238,18 +1346,9 @@ export class MediaExecutionController {
                     supportsCommittedPlayback:
                       committedPlayback.decision.capabilitySnapshot.request
                         .runtimeCapabilities.supportsCommittedPlayback,
-                    supportsCommittedPlaybackAudio:
-                      committedPlayback.decision.capabilitySnapshot.request
-                        .runtimeCapabilities.supportsCommittedPlaybackAudio,
-                    supportsFallbackStereoAudio:
-                      committedPlayback.decision.capabilitySnapshot.request
-                        .runtimeCapabilities.supportsFallbackStereoAudio,
                     supportsPremiumCommittedPlayback:
                       committedPlayback.decision.capabilitySnapshot.request
                         .runtimeCapabilities.supportsPremiumCommittedPlayback,
-                    supportsPremiumAudioActivation:
-                      committedPlayback.decision.capabilitySnapshot.request
-                        .runtimeCapabilities.supportsPremiumAudioActivation,
                     committedPlaybackLanePreference:
                       committedPlayback.decision.capabilitySnapshot.request
                         .runtimeCapabilities.committedPlaybackLanePreference,
@@ -1285,6 +1384,28 @@ export class MediaExecutionController {
                         committedPlayback.decision.capabilitySnapshot.request
                           .runtimeCapabilities.previewSchedulerBudget
                           .keepWarmAfterBlurMs,
+                    },
+                    audioCapabilities: {
+                      canPlayCommittedAudio:
+                        committedPlayback.decision.capabilitySnapshot.request
+                          .runtimeCapabilities.audioCapabilities
+                          .canPlayCommittedAudio,
+                      canAttemptPremiumAudio:
+                        committedPlayback.decision.capabilitySnapshot.request
+                          .runtimeCapabilities.audioCapabilities
+                          .canAttemptPremiumAudio,
+                      canFallbackStereo:
+                        committedPlayback.decision.capabilitySnapshot.request
+                          .runtimeCapabilities.audioCapabilities
+                          .canFallbackStereo,
+                      canKeepPreviewMuted:
+                        committedPlayback.decision.capabilitySnapshot.request
+                          .runtimeCapabilities.audioCapabilities
+                          .canKeepPreviewMuted,
+                      canKeepExtractionSilent:
+                        committedPlayback.decision.capabilitySnapshot.request
+                          .runtimeCapabilities.audioCapabilities
+                          .canKeepExtractionSilent,
                     },
                   },
             preferredLaneHint:
@@ -1384,6 +1505,21 @@ export class MediaExecutionController {
         premiumPlaybackViable: committedPlayback.decision.premiumPlaybackViable,
         reasons: [...committedPlayback.decision.reasons],
         reasonDetails: [...committedPlayback.decision.reasonDetails],
+        audioPolicyDecision: this.cloneAudioPolicyDecision(
+          committedPlayback.decision.audioPolicyDecision,
+        ),
+        audioTrackPolicy: {
+          preferPremiumAudio:
+            committedPlayback.decision.audioTrackPolicy.preferPremiumAudio,
+          preferDefaultTrack:
+            committedPlayback.decision.audioTrackPolicy.preferDefaultTrack,
+          preferredLanguage:
+            committedPlayback.decision.audioTrackPolicy.preferredLanguage,
+          preferredChannelLayout:
+            committedPlayback.decision.audioTrackPolicy.preferredChannelLayout,
+          allowFallbackStereo:
+            committedPlayback.decision.audioTrackPolicy.allowFallbackStereo,
+        },
         audioActivationMode: committedPlayback.decision.audioActivationMode,
         usedPreferredLane: committedPlayback.decision.usedPreferredLane,
         usedFallbackLane: committedPlayback.decision.usedFallbackLane,
@@ -1547,7 +1683,61 @@ export class MediaExecutionController {
       currentExecutionSnapshot: currentExecutionSnapshot ?? null,
       preferredLaneHint: plannedSession.desiredPlaybackLane,
       preferredRendererKindHint: plannedSession.desiredRendererKind,
+      audioTrackPolicy: AudioPolicy.createDefaultTrackPolicy("background"),
     });
+  }
+
+  /**
+   * @brief Resolve the shared requested audio state for one planned session
+   *
+   * @param plannedSession - Planned session being prepared for execution
+   * @param runtimeCapabilities - Runtime capabilities owned by the active adapter
+   * @param committedPlaybackDecision - Chosen committed playback decision, when available
+   *
+   * @returns Requested audio execution snapshot, or `null` when the session has no audio policy
+   */
+  private resolveRequestedAudioExecution(
+    plannedSession: MediaPlanSession,
+    runtimeCapabilities: MediaRuntimeCapabilities,
+    committedPlaybackDecision: CommittedPlaybackDecision | null,
+  ): AudioExecutionSnapshot | null {
+    let audioPolicyDecision: AudioPolicyDecision | null = null;
+
+    if (
+      plannedSession.role === "background" &&
+      committedPlaybackDecision !== null
+    ) {
+      audioPolicyDecision = this.cloneAudioPolicyDecision(
+        committedPlaybackDecision.audioPolicyDecision,
+      );
+    } else if (plannedSession.role === "preview") {
+      audioPolicyDecision = AudioPolicy.decide({
+        activationIntent: {
+          sessionRole: "preview",
+          committedPlaybackIntentType: null,
+          committedPlaybackMode: null,
+          committedPlaybackLane: plannedSession.desiredPlaybackLane,
+          sourceDescriptor: plannedSession.source,
+        },
+        runtimeAudioCapabilities: runtimeCapabilities.audioCapabilities,
+        audioTrackPolicy: AudioPolicy.createDefaultTrackPolicy("preview"),
+      });
+    }
+
+    if (audioPolicyDecision === null) {
+      return null;
+    }
+
+    return {
+      requestedAudioMode: audioPolicyDecision.audioMode,
+      actualAudioMode: audioPolicyDecision.audioMode,
+      fallbackMode: audioPolicyDecision.fallbackMode,
+      premiumAttemptRequested: audioPolicyDecision.requestedPremiumAttempt,
+      usedFallback: audioPolicyDecision.usedFallback,
+      runtimeAcceptedRequestedMode: null,
+      policyDecision: audioPolicyDecision,
+      runtimeReason: null,
+    };
   }
 
   /**
@@ -1719,6 +1909,10 @@ export class MediaExecutionController {
         rightCommittedPlaybackDecision.chosenLane &&
       leftCommittedPlaybackDecision.preferredRendererKind ===
         rightCommittedPlaybackDecision.preferredRendererKind &&
+      JSON.stringify(leftCommittedPlaybackDecision.audioPolicyDecision) ===
+        JSON.stringify(rightCommittedPlaybackDecision.audioPolicyDecision) &&
+      JSON.stringify(leftCommittedPlaybackDecision.audioTrackPolicy) ===
+        JSON.stringify(rightCommittedPlaybackDecision.audioTrackPolicy) &&
       leftCommittedPlaybackDecision.audioActivationMode ===
         rightCommittedPlaybackDecision.audioActivationMode &&
       leftCommittedPlaybackDecision.usedPreferredLane ===

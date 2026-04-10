@@ -6,6 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { AudioExecutionSnapshot } from "../audio/AudioExecutionSnapshot";
+import type { AudioPolicyDecision } from "../audio/AudioPolicyDecision";
 import type { CommittedPlaybackDecision } from "../committed/CommittedPlaybackDecision";
 import type { MediaPlan } from "../planning/MediaPlan";
 import type { MediaPlanSession } from "../planning/MediaPlanSession";
@@ -23,4 +25,6 @@ export type MediaExecutionCommand = {
   snapshot: MediaExecutionSnapshot | null;
   runtimeSessionHandle: MediaRuntimeSessionHandle | null;
   committedPlaybackDecision: CommittedPlaybackDecision | null;
+  audioExecution: AudioExecutionSnapshot | null;
+  audioPolicyDecision: AudioPolicyDecision | null;
 };

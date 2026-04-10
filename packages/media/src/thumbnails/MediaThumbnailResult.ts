@@ -12,6 +12,8 @@ import type {
   VfsCacheLookupStep,
 } from "@meditation-surf/vfs";
 
+import type { AudioPolicyDecision } from "../audio/AudioPolicyDecision";
+
 /**
  * @brief Runtime thumbnail payload that can be rendered by an app shell
  */
@@ -29,5 +31,6 @@ export type MediaThumbnailResult = {
     lookupSteps: VfsCacheLookupStep[];
     reusedFromVfs: boolean;
     fallbackReason: string | null;
+    audioPolicyDecision: AudioPolicyDecision;
   };
 };

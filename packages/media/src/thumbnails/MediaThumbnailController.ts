@@ -14,6 +14,7 @@ import {
   VfsController,
 } from "@meditation-surf/vfs";
 
+import type { AudioPolicyDecision } from "../audio/AudioPolicyDecision";
 import type { MediaThumbnailCacheEntry } from "./MediaThumbnailCacheEntry";
 import type { MediaThumbnailDescriptor } from "./MediaThumbnailDescriptor";
 import type {
@@ -848,6 +849,9 @@ export class MediaThumbnailController {
         targetWidth: request.extractionPolicy.targetWidth,
         targetHeight: request.extractionPolicy.targetHeight,
       },
+      audioPolicyDecision: this.cloneAudioPolicyDecision(
+        request.audioPolicyDecision,
+      ),
     };
   }
 
@@ -883,6 +887,9 @@ export class MediaThumbnailController {
         ),
         reusedFromVfs: result.debug.reusedFromVfs,
         fallbackReason: result.debug.fallbackReason,
+        audioPolicyDecision: this.cloneAudioPolicyDecision(
+          result.debug.audioPolicyDecision,
+        ),
       },
     };
   }
@@ -935,6 +942,9 @@ export class MediaThumbnailController {
         ),
         reusedFromVfs: true,
         fallbackReason: derivedArtifactResult.fallbackReason,
+        audioPolicyDecision: this.cloneAudioPolicyDecision(
+          request.audioPolicyDecision,
+        ),
       },
     };
   }
@@ -997,7 +1007,55 @@ export class MediaThumbnailController {
         lookupSteps: [],
         reusedFromVfs: false,
         fallbackReason: null,
+        audioPolicyDecision: this.cloneAudioPolicyDecision(
+          request.audioPolicyDecision,
+        ),
       },
+    };
+  }
+
+  /**
+   * @brief Clone one shared audio-policy decision for thumbnail debug state
+   *
+   * @param audioPolicyDecision - Audio-policy decision to clone
+   *
+   * @returns Cloned audio-policy decision
+   */
+  private cloneAudioPolicyDecision(
+    audioPolicyDecision: AudioPolicyDecision,
+  ): AudioPolicyDecision {
+    return {
+      audioMode: audioPolicyDecision.audioMode,
+      fallbackMode: audioPolicyDecision.fallbackMode,
+      requestedPremiumAttempt: audioPolicyDecision.requestedPremiumAttempt,
+      usedFallback: audioPolicyDecision.usedFallback,
+      trackPolicy: {
+        preferPremiumAudio: audioPolicyDecision.trackPolicy.preferPremiumAudio,
+        preferDefaultTrack: audioPolicyDecision.trackPolicy.preferDefaultTrack,
+        preferredLanguage: audioPolicyDecision.trackPolicy.preferredLanguage,
+        preferredChannelLayout:
+          audioPolicyDecision.trackPolicy.preferredChannelLayout,
+        allowFallbackStereo:
+          audioPolicyDecision.trackPolicy.allowFallbackStereo,
+      },
+      capabilityProfile:
+        audioPolicyDecision.capabilityProfile === null
+          ? null
+          : {
+              canPlayCommittedAudio:
+                audioPolicyDecision.capabilityProfile.canPlayCommittedAudio,
+              canAttemptPremiumAudio:
+                audioPolicyDecision.capabilityProfile.canAttemptPremiumAudio,
+              canFallbackStereo:
+                audioPolicyDecision.capabilityProfile.canFallbackStereo,
+              canKeepPreviewMuted:
+                audioPolicyDecision.capabilityProfile.canKeepPreviewMuted,
+              canKeepExtractionSilent:
+                audioPolicyDecision.capabilityProfile.canKeepExtractionSilent,
+            },
+      committedPlaybackLane: audioPolicyDecision.committedPlaybackLane,
+      reasons: [...audioPolicyDecision.reasons],
+      reasonDetails: [...audioPolicyDecision.reasonDetails],
     };
   }
 

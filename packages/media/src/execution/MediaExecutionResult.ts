@@ -6,6 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { AudioExecutionSnapshot } from "../audio/AudioExecutionSnapshot";
 import type { CommittedPlaybackDecision } from "../committed/CommittedPlaybackDecision";
 import type { MediaExecutionState } from "./MediaExecutionState";
 import type { MediaRuntimeSessionHandle } from "./MediaRuntimeSessionHandle";
@@ -18,6 +19,7 @@ export type MediaExecutionResult = {
   state: MediaExecutionState;
   runtimeSessionHandle: MediaRuntimeSessionHandle | null;
   committedPlaybackDecision: CommittedPlaybackDecision | null;
+  audioExecution: AudioExecutionSnapshot | null;
   failureReason: string | null;
   startupDebugState: MediaStartupDebugState | null;
 };

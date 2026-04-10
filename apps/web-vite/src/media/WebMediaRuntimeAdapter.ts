@@ -68,10 +68,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     canPromoteWarmSession: false,
     canRunMultipleWarmSessions: true,
     supportsCommittedPlayback: true,
-    supportsCommittedPlaybackAudio: true,
-    supportsFallbackStereoAudio: true,
     supportsPremiumCommittedPlayback: true,
-    supportsPremiumAudioActivation: false,
     committedPlaybackLanePreference: "prefer-native",
     committedPlaybackLanes: ["native", "shaka"],
     existingBackgroundPlaybackLane: "native",
@@ -82,6 +79,13 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       maxPreviewReuseMs: 5000,
       maxPreviewOverlapMs: 0,
       keepWarmAfterBlurMs: 2500,
+    },
+    audioCapabilities: {
+      canPlayCommittedAudio: true,
+      canAttemptPremiumAudio: false,
+      canFallbackStereo: true,
+      canKeepPreviewMuted: true,
+      canKeepExtractionSilent: true,
     },
   };
 
@@ -159,6 +163,23 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
           WebMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
             .keepWarmAfterBlurMs,
       },
+      audioCapabilities: {
+        canPlayCommittedAudio:
+          WebMediaRuntimeAdapter.CAPABILITIES.audioCapabilities
+            .canPlayCommittedAudio,
+        canAttemptPremiumAudio:
+          WebMediaRuntimeAdapter.CAPABILITIES.audioCapabilities
+            .canAttemptPremiumAudio,
+        canFallbackStereo:
+          WebMediaRuntimeAdapter.CAPABILITIES.audioCapabilities
+            .canFallbackStereo,
+        canKeepPreviewMuted:
+          WebMediaRuntimeAdapter.CAPABILITIES.audioCapabilities
+            .canKeepPreviewMuted,
+        canKeepExtractionSilent:
+          WebMediaRuntimeAdapter.CAPABILITIES.audioCapabilities
+            .canKeepExtractionSilent,
+      },
     };
   }
 
@@ -177,6 +198,8 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         return this.createResult(
           "inactive",
           command.runtimeSessionHandle,
+          null,
+          null,
           null,
           null,
         );
@@ -209,6 +232,8 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         command.runtimeSessionHandle,
         null,
         "Web runtime warm command was missing a planned session.",
+        null,
+        this.createAcceptedAudioExecution(command, false),
       );
     }
 
@@ -218,6 +243,8 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         command.runtimeSessionHandle,
         null,
         "Web runtime only warms preview sessions in this phase.",
+        null,
+        this.createAcceptedAudioExecution(command, false),
       );
     }
 
@@ -227,6 +254,8 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         command.runtimeSessionHandle,
         null,
         `Web runtime could not warm preview session ${plannedSession.sessionId} without a source descriptor.`,
+        null,
+        this.createAcceptedAudioExecution(command, false),
       );
     }
 
@@ -239,6 +268,8 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         command.runtimeSessionHandle,
         null,
         `Web runtime could not allocate a preview slot for ${plannedSession.sessionId}.`,
+        null,
+        this.createAcceptedAudioExecution(command, false),
       );
     }
 
@@ -253,6 +284,8 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         previewRuntimeSession.runtimeSessionHandle,
         null,
         null,
+        null,
+        this.createAcceptedAudioExecution(command, true),
       );
     }
 
@@ -268,6 +301,10 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       );
       await this.loadPreviewSource(previewRuntimeSession, plannedSession);
       previewRuntimeSession.videoElement?.pause();
+      this.applyRequestedPreviewAudioState(
+        previewRuntimeSession.videoElement,
+        command.audioExecution,
+      );
       previewRuntimeSession.state = "ready-first-frame";
 
       return this.createResult(
@@ -276,6 +313,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         null,
         null,
         startupDebugState,
+        this.createAcceptedAudioExecution(command, true),
       );
     } catch (error: unknown) {
       const failureReason: string = this.describeRuntimeError(
@@ -295,6 +333,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
           plannedSession.source,
           failureReason,
         ),
+        this.createAcceptedAudioExecution(command, false),
       );
     }
   }
@@ -386,6 +425,8 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         command.runtimeSessionHandle,
         null,
         "Web preview activation requires a preview session.",
+        null,
+        this.createAcceptedAudioExecution(command, false),
       );
     }
 
@@ -398,6 +439,8 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         command.runtimeSessionHandle,
         null,
         `Web preview activation could not resolve slot ${plannedSession.sessionId}.`,
+        null,
+        this.createAcceptedAudioExecution(command, false),
       );
     }
 
@@ -407,11 +450,17 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         previewRuntimeSession.runtimeSessionHandle,
         null,
         `Web preview session ${plannedSession.sessionId} has no warmed video element.`,
+        null,
+        this.createAcceptedAudioExecution(command, false),
       );
     }
 
     this.deactivateOtherActivePreviewSessions(plannedSession.sessionId);
     this.attachPreviewSurface(previewRuntimeSession, plannedSession.itemId);
+    this.applyRequestedPreviewAudioState(
+      previewRuntimeSession.videoElement,
+      command.audioExecution,
+    );
 
     try {
       await previewRuntimeSession.videoElement.play();
@@ -422,6 +471,8 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         previewRuntimeSession.runtimeSessionHandle,
         null,
         null,
+        null,
+        this.createAcceptedAudioExecution(command, true),
       );
     } catch (error: unknown) {
       const failureReason: string = this.describeRuntimeError(
@@ -437,6 +488,8 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         previewRuntimeSession.runtimeSessionHandle,
         null,
         failureReason,
+        null,
+        this.createAcceptedAudioExecution(command, false),
       );
     }
   }
@@ -465,6 +518,8 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         runtimeSessionHandle,
         committedPlaybackDecision,
         "Web activation is only wired for preview and background sessions.",
+        null,
+        this.createAcceptedAudioExecution(command, false),
       );
     }
 
@@ -474,6 +529,8 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         runtimeSessionHandle,
         committedPlaybackDecision,
         `Web runtime could not resolve media item ${targetItemId ?? "null"}.`,
+        null,
+        this.createAcceptedAudioExecution(command, false),
       );
     }
 
@@ -494,6 +551,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         "committed-playback-startup",
         plannedSession.source,
       ),
+      this.createAcceptedAudioExecution(command, true),
     );
   }
 
@@ -1221,6 +1279,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     committedPlaybackDecision: CommittedPlaybackDecision | null,
     failureReason: string | null,
     startupDebugState: MediaStartupDebugState | null = null,
+    audioExecution: MediaExecutionResult["audioExecution"] = null,
   ): MediaExecutionResult {
     return {
       state,
@@ -1233,6 +1292,66 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
               fallbackOrder: [...committedPlaybackDecision.fallbackOrder],
               reasons: [...committedPlaybackDecision.reasons],
               reasonDetails: [...committedPlaybackDecision.reasonDetails],
+            },
+      audioExecution:
+        audioExecution === null
+          ? null
+          : {
+              requestedAudioMode: audioExecution.requestedAudioMode,
+              actualAudioMode: audioExecution.actualAudioMode,
+              fallbackMode: audioExecution.fallbackMode,
+              premiumAttemptRequested: audioExecution.premiumAttemptRequested,
+              usedFallback: audioExecution.usedFallback,
+              runtimeAcceptedRequestedMode:
+                audioExecution.runtimeAcceptedRequestedMode,
+              policyDecision: {
+                audioMode: audioExecution.policyDecision.audioMode,
+                fallbackMode: audioExecution.policyDecision.fallbackMode,
+                requestedPremiumAttempt:
+                  audioExecution.policyDecision.requestedPremiumAttempt,
+                usedFallback: audioExecution.policyDecision.usedFallback,
+                trackPolicy: {
+                  preferPremiumAudio:
+                    audioExecution.policyDecision.trackPolicy
+                      .preferPremiumAudio,
+                  preferDefaultTrack:
+                    audioExecution.policyDecision.trackPolicy
+                      .preferDefaultTrack,
+                  preferredLanguage:
+                    audioExecution.policyDecision.trackPolicy.preferredLanguage,
+                  preferredChannelLayout:
+                    audioExecution.policyDecision.trackPolicy
+                      .preferredChannelLayout,
+                  allowFallbackStereo:
+                    audioExecution.policyDecision.trackPolicy
+                      .allowFallbackStereo,
+                },
+                capabilityProfile:
+                  audioExecution.policyDecision.capabilityProfile === null
+                    ? null
+                    : {
+                        canPlayCommittedAudio:
+                          audioExecution.policyDecision.capabilityProfile
+                            .canPlayCommittedAudio,
+                        canAttemptPremiumAudio:
+                          audioExecution.policyDecision.capabilityProfile
+                            .canAttemptPremiumAudio,
+                        canFallbackStereo:
+                          audioExecution.policyDecision.capabilityProfile
+                            .canFallbackStereo,
+                        canKeepPreviewMuted:
+                          audioExecution.policyDecision.capabilityProfile
+                            .canKeepPreviewMuted,
+                        canKeepExtractionSilent:
+                          audioExecution.policyDecision.capabilityProfile
+                            .canKeepExtractionSilent,
+                      },
+                committedPlaybackLane:
+                  audioExecution.policyDecision.committedPlaybackLane,
+                reasons: [...audioExecution.policyDecision.reasons],
+                reasonDetails: [...audioExecution.policyDecision.reasonDetails],
+              },
+              runtimeReason: audioExecution.runtimeReason,
             },
       failureReason,
       startupDebugState:
@@ -1254,6 +1373,63 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
               directRuntimeFallbackReason:
                 startupDebugState.directRuntimeFallbackReason,
             },
+    };
+  }
+
+  /**
+   * @brief Enforce the shared muted-preview rule on one preview element
+   *
+   * @param videoElement - Preview element that should stay muted
+   * @param audioExecution - Requested audio execution snapshot for the session
+   */
+  private applyRequestedPreviewAudioState(
+    videoElement: HTMLVideoElement | null,
+    audioExecution: MediaExecutionCommand["audioExecution"],
+  ): void {
+    if (videoElement === null || audioExecution === null) {
+      return;
+    }
+
+    if (audioExecution.requestedAudioMode !== "muted-preview") {
+      return;
+    }
+
+    videoElement.defaultMuted = true;
+    videoElement.muted = true;
+    videoElement.volume = 0;
+  }
+
+  /**
+   * @brief Reflect whether the browser accepted the requested shared audio mode
+   *
+   * @param command - Shared execution command carrying the requested audio state
+   * @param runtimeAcceptedRequestedMode - Whether the browser honored the request
+   *
+   * @returns Cloned audio execution snapshot, or `null` when absent
+   */
+  private createAcceptedAudioExecution(
+    command: MediaExecutionCommand,
+    runtimeAcceptedRequestedMode: boolean,
+  ): MediaExecutionResult["audioExecution"] {
+    const requestedAudioExecution: MediaExecutionCommand["audioExecution"] =
+      command.audioExecution;
+
+    if (requestedAudioExecution === null) {
+      return null;
+    }
+
+    return {
+      requestedAudioMode: requestedAudioExecution.requestedAudioMode,
+      actualAudioMode: requestedAudioExecution.requestedAudioMode,
+      fallbackMode: requestedAudioExecution.fallbackMode,
+      premiumAttemptRequested: requestedAudioExecution.premiumAttemptRequested,
+      usedFallback: requestedAudioExecution.usedFallback,
+      runtimeAcceptedRequestedMode,
+      policyDecision: requestedAudioExecution.policyDecision,
+      runtimeReason:
+        runtimeAcceptedRequestedMode === true
+          ? null
+          : "The web runtime did not complete the requested shared audio mode for this command.",
     };
   }
 

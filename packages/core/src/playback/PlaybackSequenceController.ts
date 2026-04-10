@@ -196,6 +196,71 @@ export class PlaybackSequenceController {
       premiumPlaybackViable: committedPlaybackDecision.premiumPlaybackViable,
       reasons: [...committedPlaybackDecision.reasons],
       reasonDetails: [...committedPlaybackDecision.reasonDetails],
+      audioPolicyDecision: {
+        audioMode: committedPlaybackDecision.audioPolicyDecision.audioMode,
+        fallbackMode:
+          committedPlaybackDecision.audioPolicyDecision.fallbackMode,
+        requestedPremiumAttempt:
+          committedPlaybackDecision.audioPolicyDecision.requestedPremiumAttempt,
+        usedFallback:
+          committedPlaybackDecision.audioPolicyDecision.usedFallback,
+        trackPolicy: {
+          preferPremiumAudio:
+            committedPlaybackDecision.audioPolicyDecision.trackPolicy
+              .preferPremiumAudio,
+          preferDefaultTrack:
+            committedPlaybackDecision.audioPolicyDecision.trackPolicy
+              .preferDefaultTrack,
+          preferredLanguage:
+            committedPlaybackDecision.audioPolicyDecision.trackPolicy
+              .preferredLanguage,
+          preferredChannelLayout:
+            committedPlaybackDecision.audioPolicyDecision.trackPolicy
+              .preferredChannelLayout,
+          allowFallbackStereo:
+            committedPlaybackDecision.audioPolicyDecision.trackPolicy
+              .allowFallbackStereo,
+        },
+        capabilityProfile:
+          committedPlaybackDecision.audioPolicyDecision.capabilityProfile ===
+          null
+            ? null
+            : {
+                canPlayCommittedAudio:
+                  committedPlaybackDecision.audioPolicyDecision
+                    .capabilityProfile.canPlayCommittedAudio,
+                canAttemptPremiumAudio:
+                  committedPlaybackDecision.audioPolicyDecision
+                    .capabilityProfile.canAttemptPremiumAudio,
+                canFallbackStereo:
+                  committedPlaybackDecision.audioPolicyDecision
+                    .capabilityProfile.canFallbackStereo,
+                canKeepPreviewMuted:
+                  committedPlaybackDecision.audioPolicyDecision
+                    .capabilityProfile.canKeepPreviewMuted,
+                canKeepExtractionSilent:
+                  committedPlaybackDecision.audioPolicyDecision
+                    .capabilityProfile.canKeepExtractionSilent,
+              },
+        committedPlaybackLane:
+          committedPlaybackDecision.audioPolicyDecision.committedPlaybackLane,
+        reasons: [...committedPlaybackDecision.audioPolicyDecision.reasons],
+        reasonDetails: [
+          ...committedPlaybackDecision.audioPolicyDecision.reasonDetails,
+        ],
+      },
+      audioTrackPolicy: {
+        preferPremiumAudio:
+          committedPlaybackDecision.audioTrackPolicy.preferPremiumAudio,
+        preferDefaultTrack:
+          committedPlaybackDecision.audioTrackPolicy.preferDefaultTrack,
+        preferredLanguage:
+          committedPlaybackDecision.audioTrackPolicy.preferredLanguage,
+        preferredChannelLayout:
+          committedPlaybackDecision.audioTrackPolicy.preferredChannelLayout,
+        allowFallbackStereo:
+          committedPlaybackDecision.audioTrackPolicy.allowFallbackStereo,
+      },
       audioActivationMode: committedPlaybackDecision.audioActivationMode,
       usedPreferredLane: committedPlaybackDecision.usedPreferredLane,
       usedFallbackLane: committedPlaybackDecision.usedFallbackLane,
@@ -238,6 +303,10 @@ export class PlaybackSequenceController {
         rightCommittedPlaybackDecision.chosenLane &&
       leftCommittedPlaybackDecision.preferredRendererKind ===
         rightCommittedPlaybackDecision.preferredRendererKind &&
+      JSON.stringify(leftCommittedPlaybackDecision.audioPolicyDecision) ===
+        JSON.stringify(rightCommittedPlaybackDecision.audioPolicyDecision) &&
+      JSON.stringify(leftCommittedPlaybackDecision.audioTrackPolicy) ===
+        JSON.stringify(rightCommittedPlaybackDecision.audioTrackPolicy) &&
       leftCommittedPlaybackDecision.audioActivationMode ===
         rightCommittedPlaybackDecision.audioActivationMode &&
       leftCommittedPlaybackDecision.usedPreferredLane ===

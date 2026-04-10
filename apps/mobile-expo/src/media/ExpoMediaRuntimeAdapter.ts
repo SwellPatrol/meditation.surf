@@ -35,10 +35,7 @@ export class ExpoMediaRuntimeAdapter implements MediaRuntimeAdapter {
     canPromoteWarmSession: false,
     canRunMultipleWarmSessions: false,
     supportsCommittedPlayback: true,
-    supportsCommittedPlaybackAudio: true,
-    supportsFallbackStereoAudio: true,
     supportsPremiumCommittedPlayback: false,
-    supportsPremiumAudioActivation: false,
     committedPlaybackLanePreference: "prefer-native",
     committedPlaybackLanes: ["native"],
     existingBackgroundPlaybackLane: "native",
@@ -49,6 +46,13 @@ export class ExpoMediaRuntimeAdapter implements MediaRuntimeAdapter {
       maxPreviewReuseMs: 2000,
       maxPreviewOverlapMs: 0,
       keepWarmAfterBlurMs: 0,
+    },
+    audioCapabilities: {
+      canPlayCommittedAudio: true,
+      canAttemptPremiumAudio: false,
+      canFallbackStereo: true,
+      canKeepPreviewMuted: true,
+      canKeepExtractionSilent: true,
     },
   };
 
@@ -103,6 +107,23 @@ export class ExpoMediaRuntimeAdapter implements MediaRuntimeAdapter {
           ExpoMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
             .keepWarmAfterBlurMs,
       },
+      audioCapabilities: {
+        canPlayCommittedAudio:
+          ExpoMediaRuntimeAdapter.CAPABILITIES.audioCapabilities
+            .canPlayCommittedAudio,
+        canAttemptPremiumAudio:
+          ExpoMediaRuntimeAdapter.CAPABILITIES.audioCapabilities
+            .canAttemptPremiumAudio,
+        canFallbackStereo:
+          ExpoMediaRuntimeAdapter.CAPABILITIES.audioCapabilities
+            .canFallbackStereo,
+        canKeepPreviewMuted:
+          ExpoMediaRuntimeAdapter.CAPABILITIES.audioCapabilities
+            .canKeepPreviewMuted,
+        canKeepExtractionSilent:
+          ExpoMediaRuntimeAdapter.CAPABILITIES.audioCapabilities
+            .canKeepExtractionSilent,
+      },
     };
   }
 
@@ -121,6 +142,7 @@ export class ExpoMediaRuntimeAdapter implements MediaRuntimeAdapter {
           command.runtimeSessionHandle,
           null,
           null,
+          null,
         );
       case "warm-session":
         return this.createResult(
@@ -128,6 +150,7 @@ export class ExpoMediaRuntimeAdapter implements MediaRuntimeAdapter {
           this.createRuntimeSessionHandle(command),
           null,
           "Expo preview warming is not implemented in this phase.",
+          this.createAcceptedAudioExecution(command, false),
         );
       case "activate-session":
         return this.handleActivateSession(command);
@@ -165,6 +188,7 @@ export class ExpoMediaRuntimeAdapter implements MediaRuntimeAdapter {
         runtimeSessionHandle,
         committedPlaybackDecision,
         "Expo activation is only wired for background sessions in this phase.",
+        this.createAcceptedAudioExecution(command, false),
       );
     }
 
@@ -174,6 +198,7 @@ export class ExpoMediaRuntimeAdapter implements MediaRuntimeAdapter {
         runtimeSessionHandle,
         committedPlaybackDecision,
         `Expo runtime could not resolve media item ${targetItemId ?? "null"}.`,
+        this.createAcceptedAudioExecution(command, false),
       );
     }
 
@@ -187,6 +212,7 @@ export class ExpoMediaRuntimeAdapter implements MediaRuntimeAdapter {
       runtimeSessionHandle,
       committedPlaybackDecision,
       null,
+      this.createAcceptedAudioExecution(command, true),
     );
   }
 
@@ -255,6 +281,7 @@ export class ExpoMediaRuntimeAdapter implements MediaRuntimeAdapter {
     runtimeSessionHandle: MediaRuntimeSessionHandle | null,
     committedPlaybackDecision: CommittedPlaybackDecision | null,
     failureReason: string | null,
+    audioExecution: MediaExecutionResult["audioExecution"] = null,
   ): MediaExecutionResult {
     return {
       state,
@@ -268,8 +295,102 @@ export class ExpoMediaRuntimeAdapter implements MediaRuntimeAdapter {
               reasons: [...committedPlaybackDecision.reasons],
               reasonDetails: [...committedPlaybackDecision.reasonDetails],
             },
+      audioExecution:
+        audioExecution === null
+          ? null
+          : {
+              requestedAudioMode: audioExecution.requestedAudioMode,
+              actualAudioMode: audioExecution.actualAudioMode,
+              fallbackMode: audioExecution.fallbackMode,
+              premiumAttemptRequested: audioExecution.premiumAttemptRequested,
+              usedFallback: audioExecution.usedFallback,
+              runtimeAcceptedRequestedMode:
+                audioExecution.runtimeAcceptedRequestedMode,
+              policyDecision: {
+                audioMode: audioExecution.policyDecision.audioMode,
+                fallbackMode: audioExecution.policyDecision.fallbackMode,
+                requestedPremiumAttempt:
+                  audioExecution.policyDecision.requestedPremiumAttempt,
+                usedFallback: audioExecution.policyDecision.usedFallback,
+                trackPolicy: {
+                  preferPremiumAudio:
+                    audioExecution.policyDecision.trackPolicy
+                      .preferPremiumAudio,
+                  preferDefaultTrack:
+                    audioExecution.policyDecision.trackPolicy
+                      .preferDefaultTrack,
+                  preferredLanguage:
+                    audioExecution.policyDecision.trackPolicy.preferredLanguage,
+                  preferredChannelLayout:
+                    audioExecution.policyDecision.trackPolicy
+                      .preferredChannelLayout,
+                  allowFallbackStereo:
+                    audioExecution.policyDecision.trackPolicy
+                      .allowFallbackStereo,
+                },
+                capabilityProfile:
+                  audioExecution.policyDecision.capabilityProfile === null
+                    ? null
+                    : {
+                        canPlayCommittedAudio:
+                          audioExecution.policyDecision.capabilityProfile
+                            .canPlayCommittedAudio,
+                        canAttemptPremiumAudio:
+                          audioExecution.policyDecision.capabilityProfile
+                            .canAttemptPremiumAudio,
+                        canFallbackStereo:
+                          audioExecution.policyDecision.capabilityProfile
+                            .canFallbackStereo,
+                        canKeepPreviewMuted:
+                          audioExecution.policyDecision.capabilityProfile
+                            .canKeepPreviewMuted,
+                        canKeepExtractionSilent:
+                          audioExecution.policyDecision.capabilityProfile
+                            .canKeepExtractionSilent,
+                      },
+                committedPlaybackLane:
+                  audioExecution.policyDecision.committedPlaybackLane,
+                reasons: [...audioExecution.policyDecision.reasons],
+                reasonDetails: [...audioExecution.policyDecision.reasonDetails],
+              },
+              runtimeReason: audioExecution.runtimeReason,
+            },
       failureReason,
       startupDebugState: null,
+    };
+  }
+
+  /**
+   * @brief Reflect whether Expo accepted the requested shared audio mode
+   *
+   * @param command - Shared execution command carrying the requested audio state
+   * @param runtimeAcceptedRequestedMode - Whether Expo honored the request
+   *
+   * @returns Cloned audio execution snapshot, or `null` when absent
+   */
+  private createAcceptedAudioExecution(
+    command: MediaExecutionCommand,
+    runtimeAcceptedRequestedMode: boolean,
+  ): MediaExecutionResult["audioExecution"] {
+    const requestedAudioExecution: MediaExecutionCommand["audioExecution"] =
+      command.audioExecution;
+
+    if (requestedAudioExecution === null) {
+      return null;
+    }
+
+    return {
+      requestedAudioMode: requestedAudioExecution.requestedAudioMode,
+      actualAudioMode: requestedAudioExecution.requestedAudioMode,
+      fallbackMode: requestedAudioExecution.fallbackMode,
+      premiumAttemptRequested: requestedAudioExecution.premiumAttemptRequested,
+      usedFallback: requestedAudioExecution.usedFallback,
+      runtimeAcceptedRequestedMode,
+      policyDecision: requestedAudioExecution.policyDecision,
+      runtimeReason:
+        runtimeAcceptedRequestedMode === true
+          ? null
+          : "Expo did not execute the requested shared audio mode for this command.",
     };
   }
 }

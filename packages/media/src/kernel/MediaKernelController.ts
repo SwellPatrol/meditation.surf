@@ -818,19 +818,10 @@ export class MediaKernelController {
                         supportsCommittedPlayback:
                           mediaPlanSession.capabilitySnapshot.request
                             .runtimeCapabilities.supportsCommittedPlayback,
-                        supportsCommittedPlaybackAudio:
-                          mediaPlanSession.capabilitySnapshot.request
-                            .runtimeCapabilities.supportsCommittedPlaybackAudio,
-                        supportsFallbackStereoAudio:
-                          mediaPlanSession.capabilitySnapshot.request
-                            .runtimeCapabilities.supportsFallbackStereoAudio,
                         supportsPremiumCommittedPlayback:
                           mediaPlanSession.capabilitySnapshot.request
                             .runtimeCapabilities
                             .supportsPremiumCommittedPlayback,
-                        supportsPremiumAudioActivation:
-                          mediaPlanSession.capabilitySnapshot.request
-                            .runtimeCapabilities.supportsPremiumAudioActivation,
                         committedPlaybackLanePreference:
                           mediaPlanSession.capabilitySnapshot.request
                             .runtimeCapabilities
@@ -867,6 +858,28 @@ export class MediaKernelController {
                             mediaPlanSession.capabilitySnapshot.request
                               .runtimeCapabilities.previewSchedulerBudget
                               .keepWarmAfterBlurMs,
+                        },
+                        audioCapabilities: {
+                          canPlayCommittedAudio:
+                            mediaPlanSession.capabilitySnapshot.request
+                              .runtimeCapabilities.audioCapabilities
+                              .canPlayCommittedAudio,
+                          canAttemptPremiumAudio:
+                            mediaPlanSession.capabilitySnapshot.request
+                              .runtimeCapabilities.audioCapabilities
+                              .canAttemptPremiumAudio,
+                          canFallbackStereo:
+                            mediaPlanSession.capabilitySnapshot.request
+                              .runtimeCapabilities.audioCapabilities
+                              .canFallbackStereo,
+                          canKeepPreviewMuted:
+                            mediaPlanSession.capabilitySnapshot.request
+                              .runtimeCapabilities.audioCapabilities
+                              .canKeepPreviewMuted,
+                          canKeepExtractionSilent:
+                            mediaPlanSession.capabilitySnapshot.request
+                              .runtimeCapabilities.audioCapabilities
+                              .canKeepExtractionSilent,
                         },
                       },
                 preferredLaneHint:

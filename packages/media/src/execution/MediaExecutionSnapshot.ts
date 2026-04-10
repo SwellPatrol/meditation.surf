@@ -6,6 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { AudioExecutionSnapshot } from "../audio/AudioExecutionSnapshot";
 import type { CommittedPlaybackSnapshot } from "../committed/CommittedPlaybackSnapshot";
 import type { MediaPlanSession } from "../planning/MediaPlanSession";
 import type { PreviewSessionAssignment } from "../preview/PreviewSessionAssignment";
@@ -24,6 +25,7 @@ export type MediaExecutionSnapshot = {
   runtimeSessionHandle: MediaRuntimeSessionHandle | null;
   previewSessionAssignment: PreviewSessionAssignment | null;
   committedPlayback: CommittedPlaybackSnapshot | null;
+  audioExecution: AudioExecutionSnapshot | null;
   startupDebugState: MediaStartupDebugState | null;
   lastCommandType: MediaExecutionCommandType | null;
   failureReason: string | null;

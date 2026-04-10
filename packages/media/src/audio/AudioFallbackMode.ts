@@ -6,9 +6,10 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { AudioMode } from "../audio/AudioMode";
-
 /**
- * @brief Backward-compatible alias for shared audio modes
+ * @brief Shared fallback markers published by audio policy and runtime adapters
  */
-export type AudioActivationMode = AudioMode;
+export type AudioFallbackMode =
+  | "fallback-stereo"
+  | "fallback-default"
+  | "unsupported";

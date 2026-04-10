@@ -6,6 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { AudioPolicyDecision } from "../audio/AudioPolicyDecision";
+import type { AudioTrackPolicy } from "../audio/AudioTrackPolicy";
 import type { MediaRoleCapabilitySnapshot } from "../capability-oracle/MediaRoleCapabilitySnapshot";
 import type { MediaPlaybackLane } from "../sessions/MediaPlaybackLane";
 import type { MediaRendererKind } from "../sessions/MediaRendererKind";
@@ -30,6 +32,8 @@ export type CommittedPlaybackDecision = {
   premiumPlaybackViable: boolean;
   reasons: CommittedPlaybackDecisionReason[];
   reasonDetails: string[];
+  audioPolicyDecision: AudioPolicyDecision;
+  audioTrackPolicy: AudioTrackPolicy;
   audioActivationMode: AudioActivationMode;
   usedPreferredLane: boolean;
   usedFallbackLane: boolean;

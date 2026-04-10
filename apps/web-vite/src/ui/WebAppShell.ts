@@ -310,6 +310,65 @@ export class WebAppShell {
                     targetHeight:
                       thumbnailEntry.request.extractionPolicy.targetHeight,
                   },
+                  audioPolicyDecision: {
+                    audioMode:
+                      thumbnailEntry.request.audioPolicyDecision.audioMode,
+                    fallbackMode:
+                      thumbnailEntry.request.audioPolicyDecision.fallbackMode,
+                    requestedPremiumAttempt:
+                      thumbnailEntry.request.audioPolicyDecision
+                        .requestedPremiumAttempt,
+                    usedFallback:
+                      thumbnailEntry.request.audioPolicyDecision.usedFallback,
+                    trackPolicy: {
+                      preferPremiumAudio:
+                        thumbnailEntry.request.audioPolicyDecision.trackPolicy
+                          .preferPremiumAudio,
+                      preferDefaultTrack:
+                        thumbnailEntry.request.audioPolicyDecision.trackPolicy
+                          .preferDefaultTrack,
+                      preferredLanguage:
+                        thumbnailEntry.request.audioPolicyDecision.trackPolicy
+                          .preferredLanguage,
+                      preferredChannelLayout:
+                        thumbnailEntry.request.audioPolicyDecision.trackPolicy
+                          .preferredChannelLayout,
+                      allowFallbackStereo:
+                        thumbnailEntry.request.audioPolicyDecision.trackPolicy
+                          .allowFallbackStereo,
+                    },
+                    capabilityProfile:
+                      thumbnailEntry.request.audioPolicyDecision
+                        .capabilityProfile === null
+                        ? null
+                        : {
+                            canPlayCommittedAudio:
+                              thumbnailEntry.request.audioPolicyDecision
+                                .capabilityProfile.canPlayCommittedAudio,
+                            canAttemptPremiumAudio:
+                              thumbnailEntry.request.audioPolicyDecision
+                                .capabilityProfile.canAttemptPremiumAudio,
+                            canFallbackStereo:
+                              thumbnailEntry.request.audioPolicyDecision
+                                .capabilityProfile.canFallbackStereo,
+                            canKeepPreviewMuted:
+                              thumbnailEntry.request.audioPolicyDecision
+                                .capabilityProfile.canKeepPreviewMuted,
+                            canKeepExtractionSilent:
+                              thumbnailEntry.request.audioPolicyDecision
+                                .capabilityProfile.canKeepExtractionSilent,
+                          },
+                    committedPlaybackLane:
+                      thumbnailEntry.request.audioPolicyDecision
+                        .committedPlaybackLane,
+                    reasons: [
+                      ...thumbnailEntry.request.audioPolicyDecision.reasons,
+                    ],
+                    reasonDetails: [
+                      ...thumbnailEntry.request.audioPolicyDecision
+                        .reasonDetails,
+                    ],
+                  },
                 },
           result:
             thumbnailEntry.result === null
@@ -341,6 +400,69 @@ export class WebAppShell {
                     ),
                     reusedFromVfs: thumbnailEntry.result.debug.reusedFromVfs,
                     fallbackReason: thumbnailEntry.result.debug.fallbackReason,
+                    audioPolicyDecision: {
+                      audioMode:
+                        thumbnailEntry.result.debug.audioPolicyDecision
+                          .audioMode,
+                      fallbackMode:
+                        thumbnailEntry.result.debug.audioPolicyDecision
+                          .fallbackMode,
+                      requestedPremiumAttempt:
+                        thumbnailEntry.result.debug.audioPolicyDecision
+                          .requestedPremiumAttempt,
+                      usedFallback:
+                        thumbnailEntry.result.debug.audioPolicyDecision
+                          .usedFallback,
+                      trackPolicy: {
+                        preferPremiumAudio:
+                          thumbnailEntry.result.debug.audioPolicyDecision
+                            .trackPolicy.preferPremiumAudio,
+                        preferDefaultTrack:
+                          thumbnailEntry.result.debug.audioPolicyDecision
+                            .trackPolicy.preferDefaultTrack,
+                        preferredLanguage:
+                          thumbnailEntry.result.debug.audioPolicyDecision
+                            .trackPolicy.preferredLanguage,
+                        preferredChannelLayout:
+                          thumbnailEntry.result.debug.audioPolicyDecision
+                            .trackPolicy.preferredChannelLayout,
+                        allowFallbackStereo:
+                          thumbnailEntry.result.debug.audioPolicyDecision
+                            .trackPolicy.allowFallbackStereo,
+                      },
+                      capabilityProfile:
+                        thumbnailEntry.result.debug.audioPolicyDecision
+                          .capabilityProfile === null
+                          ? null
+                          : {
+                              canPlayCommittedAudio:
+                                thumbnailEntry.result.debug.audioPolicyDecision
+                                  .capabilityProfile.canPlayCommittedAudio,
+                              canAttemptPremiumAudio:
+                                thumbnailEntry.result.debug.audioPolicyDecision
+                                  .capabilityProfile.canAttemptPremiumAudio,
+                              canFallbackStereo:
+                                thumbnailEntry.result.debug.audioPolicyDecision
+                                  .capabilityProfile.canFallbackStereo,
+                              canKeepPreviewMuted:
+                                thumbnailEntry.result.debug.audioPolicyDecision
+                                  .capabilityProfile.canKeepPreviewMuted,
+                              canKeepExtractionSilent:
+                                thumbnailEntry.result.debug.audioPolicyDecision
+                                  .capabilityProfile.canKeepExtractionSilent,
+                            },
+                      committedPlaybackLane:
+                        thumbnailEntry.result.debug.audioPolicyDecision
+                          .committedPlaybackLane,
+                      reasons: [
+                        ...thumbnailEntry.result.debug.audioPolicyDecision
+                          .reasons,
+                      ],
+                      reasonDetails: [
+                        ...thumbnailEntry.result.debug.audioPolicyDecision
+                          .reasonDetails,
+                      ],
+                    },
                   },
                 },
           failureReason: thumbnailEntry.failureReason,

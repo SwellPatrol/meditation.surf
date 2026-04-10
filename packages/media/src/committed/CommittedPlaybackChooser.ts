@@ -6,6 +6,9 @@
  * See the file LICENSE.txt for more information.
  */
 
+import { AudioPolicy } from "../audio/AudioPolicy";
+import type { AudioPolicyDecision } from "../audio/AudioPolicyDecision";
+import type { AudioTrackPolicy } from "../audio/AudioTrackPolicy";
 import type { MediaCapabilityProfile } from "../capabilities/MediaCapabilityProfile";
 import { CapabilityOracle } from "../capability-oracle/CapabilityOracle";
 import type { MediaRoleCapabilitySnapshot } from "../capability-oracle/MediaRoleCapabilitySnapshot";
@@ -34,10 +37,11 @@ export type CommittedPlaybackChooserInput = {
   currentExecutionSnapshot: MediaExecutionSnapshot | null;
   preferredLaneHint: MediaPlaybackLane | null;
   preferredRendererKindHint: MediaRendererKind | null;
+  audioTrackPolicy: AudioTrackPolicy | null;
 };
 
 /**
- * @brief Pure chooser for committed playback lane and audio activation policy
+ * @brief Pure chooser for committed playback lane and committed audio policy
  */
 export class CommittedPlaybackChooser {
   /**
@@ -54,6 +58,9 @@ export class CommittedPlaybackChooser {
       input.runtimeCapabilities;
     const appCapabilityProfile: MediaCapabilityProfile | null =
       input.appCapabilityProfile;
+    const audioTrackPolicy: AudioTrackPolicy =
+      input.audioTrackPolicy ??
+      AudioPolicy.createDefaultTrackPolicy("background");
     const lanePreference: CommittedPlaybackLanePreference | null =
       runtimeCapabilities?.committedPlaybackLanePreference ?? null;
     const existingChosenLane: MediaPlaybackLane | null =
@@ -111,9 +118,22 @@ export class CommittedPlaybackChooser {
       reasons,
       reasonDetails,
     );
-    const audioActivationMode: AudioActivationMode = this.selectAudioMode(
-      input.intent,
-      runtimeCapabilities,
+    const audioPolicyDecision: AudioPolicyDecision = AudioPolicy.decide({
+      activationIntent: {
+        sessionRole: "background",
+        committedPlaybackIntentType: input.intent.intentType,
+        committedPlaybackMode: mode,
+        committedPlaybackLane: chosenLane,
+        sourceDescriptor: input.sourceDescriptor,
+      },
+      runtimeAudioCapabilities: runtimeCapabilities?.audioCapabilities ?? null,
+      audioTrackPolicy,
+    });
+    const audioActivationMode: AudioActivationMode =
+      audioPolicyDecision.audioMode;
+
+    this.foldAudioPolicyReasons(
+      audioPolicyDecision,
       mode,
       reasons,
       reasonDetails,
@@ -162,16 +182,6 @@ export class CommittedPlaybackChooser {
       );
     }
 
-    if (
-      input.intent.intentType === "background-active" &&
-      audioActivationMode === "muted-preview"
-    ) {
-      reasons.push("background-only-path");
-      reasonDetails.push(
-        "Existing background playback remains on its muted compatibility path.",
-      );
-    }
-
     return {
       mode,
       capabilitySnapshot,
@@ -190,6 +200,8 @@ export class CommittedPlaybackChooser {
       premiumPlaybackViable: capabilitySnapshot.decision.premiumPlaybackViable,
       reasons,
       reasonDetails,
+      audioPolicyDecision,
+      audioTrackPolicy,
       audioActivationMode,
       usedPreferredLane: preferredLane !== null && preferredLane === chosenLane,
       usedFallbackLane,
@@ -347,46 +359,39 @@ export class CommittedPlaybackChooser {
   }
 
   /**
-   * @brief Choose the audio policy associated with one committed playback decision
+   * @brief Fold shared audio-policy reasons into committed playback debug output
    *
-   * @param intent - Committed playback intent
-   * @param runtimeCapabilities - Runtime execution capabilities
+   * @param audioPolicyDecision - Resolved shared audio-policy decision
    * @param mode - Previously chosen playback mode
    * @param reasons - Mutable reason collection
    * @param reasonDetails - Mutable human-readable detail collection
-   *
-   * @returns Chosen audio activation mode
    */
-  private static selectAudioMode(
-    intent: CommittedPlaybackIntent,
-    runtimeCapabilities: MediaRuntimeCapabilities | null,
+  private static foldAudioPolicyReasons(
+    audioPolicyDecision: AudioPolicyDecision,
     mode: CommittedPlaybackMode,
     reasons: CommittedPlaybackDecisionReason[],
     reasonDetails: string[],
-  ): AudioActivationMode {
-    if (intent.intentType !== "selected") {
-      return "muted-preview";
+  ): void {
+    if (audioPolicyDecision.audioMode === "premium-attempt") {
+      if (!reasons.includes("premium-supported")) {
+        reasons.push("premium-supported");
+      }
+    } else if (mode === "premium-attempt") {
+      if (!reasons.includes("premium-unsupported")) {
+        reasons.push("premium-unsupported");
+      }
+      if (
+        audioPolicyDecision.usedFallback &&
+        !reasons.includes("runtime-limited")
+      ) {
+        reasons.push("runtime-limited");
+      }
     }
 
-    if (
-      mode === "premium-attempt" &&
-      runtimeCapabilities?.supportsPremiumAudioActivation === true
-    ) {
-      return "premium-attempt";
+    for (const reasonDetail of audioPolicyDecision.reasonDetails) {
+      if (!reasonDetails.includes(reasonDetail)) {
+        reasonDetails.push(reasonDetail);
+      }
     }
-
-    if (runtimeCapabilities?.supportsCommittedPlaybackAudio === true) {
-      return "committed-playback";
-    }
-
-    if (runtimeCapabilities?.supportsFallbackStereoAudio === true) {
-      return "fallback-stereo";
-    }
-
-    reasons.push("runtime-limited");
-    reasonDetails.push(
-      "Committed playback audio fell back because the runtime exposes no richer audio activation path.",
-    );
-    return "muted-preview";
   }
 }

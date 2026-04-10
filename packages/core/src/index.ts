@@ -9,6 +9,7 @@
 export { DemoExperienceFactory } from "./bootstrap/DemoExperienceFactory";
 export { MeditationExperience } from "./experience/MeditationExperience";
 export {
+  AudioPolicy,
   CapabilityOracle,
   CommittedPlaybackChooser,
   FocusDelayController,
@@ -19,6 +20,15 @@ export {
   MediaSessionPlanner,
   VariantPolicy,
   type AudioActivationMode,
+  type AudioActivationIntent,
+  type AudioCapabilityProfile,
+  type AudioExecutionSnapshot,
+  type AudioFallbackMode,
+  type AudioMode,
+  type AudioPolicyDecision,
+  type AudioPolicyDecisionReason,
+  type AudioPolicyInput,
+  type AudioTrackPolicy,
   type AppMediaCapabilities,
   type CapabilityDecision,
   type CapabilityDecisionReason,

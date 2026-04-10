@@ -6,6 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { AudioCapabilityProfile } from "../audio/AudioCapabilityProfile";
 import type { CommittedPlaybackLanePreference } from "../committed/CommittedPlaybackLanePreference";
 import type { PreviewSchedulerBudget } from "../preview/PreviewSchedulerBudget";
 import type { MediaPlaybackLane } from "../sessions/MediaPlaybackLane";
@@ -21,12 +22,10 @@ export type MediaRuntimeCapabilities = {
   canPromoteWarmSession: boolean;
   canRunMultipleWarmSessions: boolean;
   supportsCommittedPlayback: boolean;
-  supportsCommittedPlaybackAudio: boolean;
-  supportsFallbackStereoAudio: boolean;
   supportsPremiumCommittedPlayback: boolean;
-  supportsPremiumAudioActivation: boolean;
   committedPlaybackLanePreference: CommittedPlaybackLanePreference;
   committedPlaybackLanes: MediaPlaybackLane[];
   existingBackgroundPlaybackLane: MediaPlaybackLane | null;
   previewSchedulerBudget: PreviewSchedulerBudget;
+  audioCapabilities: AudioCapabilityProfile;
 };

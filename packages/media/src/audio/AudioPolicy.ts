@@ -1,0 +1,259 @@
+/*
+ * Copyright (C) 2026 Garrett Brown
+ * This file is part of meditation.surf - https://github.com/SwellPatrol/meditation.surf
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ * See the file LICENSE.txt for more information.
+ */
+
+import type { AudioActivationIntent } from "./AudioActivationIntent";
+import type { AudioCapabilityProfile } from "./AudioCapabilityProfile";
+import type { AudioPolicyDecision } from "./AudioPolicyDecision";
+import type { AudioPolicyDecisionReason } from "./AudioPolicyDecisionReason";
+import type { AudioTrackPolicy } from "./AudioTrackPolicy";
+
+/**
+ * @brief Immutable input consumed by the pure shared audio policy
+ */
+export type AudioPolicyInput = {
+  activationIntent: AudioActivationIntent;
+  runtimeAudioCapabilities: AudioCapabilityProfile | null;
+  audioTrackPolicy: AudioTrackPolicy | null;
+};
+
+/**
+ * @brief Pure audio-policy subsystem for preview, extraction, and committed playback
+ *
+ * The current phase stays intentionally conservative. It keeps preview and
+ * extraction silent while making committed playback audio explicit and
+ * inspectable for every runtime adapter.
+ */
+export class AudioPolicy {
+  /**
+   * @brief Build the conservative default track policy for one session role
+   *
+   * @param sessionRole - Shared media session role
+   *
+   * @returns Default track-policy preferences for the role
+   */
+  public static createDefaultTrackPolicy(
+    sessionRole: AudioActivationIntent["sessionRole"],
+  ): AudioTrackPolicy {
+    return {
+      preferPremiumAudio: sessionRole === "background",
+      preferDefaultTrack: true,
+      preferredLanguage: null,
+      preferredChannelLayout: null,
+      allowFallbackStereo: sessionRole === "background",
+    };
+  }
+
+  /**
+   * @brief Resolve one deterministic audio-policy decision
+   *
+   * @param input - Immutable audio policy inputs
+   *
+   * @returns Inspectable audio-policy decision
+   */
+  public static decide(input: AudioPolicyInput): AudioPolicyDecision {
+    const activationIntent: AudioActivationIntent = input.activationIntent;
+    const runtimeAudioCapabilities: AudioCapabilityProfile | null =
+      input.runtimeAudioCapabilities;
+    const audioTrackPolicy: AudioTrackPolicy =
+      input.audioTrackPolicy ??
+      this.createDefaultTrackPolicy(activationIntent.sessionRole);
+    const reasons: AudioPolicyDecisionReason[] = [];
+    const reasonDetails: string[] = [];
+    const committedPlaybackLane = activationIntent.committedPlaybackLane;
+
+    if (activationIntent.sessionRole === "extractor") {
+      reasons.push("extract-must-be-silent");
+      reasonDetails.push(
+        "Thumbnail extraction stays silent so hidden extraction media never emits audible playback.",
+      );
+
+      if (runtimeAudioCapabilities?.canKeepExtractionSilent === false) {
+        reasons.push("adapter-limited");
+        reasonDetails.push(
+          "The runtime did not explicitly report a stable silent-extraction path, so the policy still requested silent extraction.",
+        );
+      }
+
+      return {
+        audioMode: "silent-extract",
+        fallbackMode: null,
+        requestedPremiumAttempt: false,
+        usedFallback: false,
+        trackPolicy: audioTrackPolicy,
+        capabilityProfile: this.cloneCapabilityProfile(
+          runtimeAudioCapabilities,
+        ),
+        committedPlaybackLane,
+        reasons,
+        reasonDetails,
+      };
+    }
+
+    if (activationIntent.sessionRole === "preview") {
+      reasons.push("preview-must-be-muted");
+      reasonDetails.push(
+        "Preview sessions stay muted so focus-driven browse media never leaks into committed playback audio.",
+      );
+
+      if (runtimeAudioCapabilities?.canKeepPreviewMuted === false) {
+        reasons.push("adapter-limited");
+        reasonDetails.push(
+          "The runtime did not explicitly report a stable muted-preview path, so the policy still requested a muted preview.",
+        );
+      }
+
+      return {
+        audioMode: "muted-preview",
+        fallbackMode: null,
+        requestedPremiumAttempt: false,
+        usedFallback: false,
+        trackPolicy: audioTrackPolicy,
+        capabilityProfile: this.cloneCapabilityProfile(
+          runtimeAudioCapabilities,
+        ),
+        committedPlaybackLane,
+        reasons,
+        reasonDetails,
+      };
+    }
+
+    const wantsPremiumAttempt: boolean =
+      activationIntent.committedPlaybackMode === "premium-attempt" &&
+      audioTrackPolicy.preferPremiumAudio;
+
+    reasons.push("committed-playback");
+    reasonDetails.push(
+      "Committed playback is the only shared media path allowed to activate audible playback.",
+    );
+
+    if (
+      wantsPremiumAttempt &&
+      runtimeAudioCapabilities?.canAttemptPremiumAudio === true
+    ) {
+      reasons.push("premium-supported");
+      reasonDetails.push(
+        "The runtime reported that it can safely attempt the premium committed-audio path.",
+      );
+
+      return {
+        audioMode: "premium-attempt",
+        fallbackMode: null,
+        requestedPremiumAttempt: true,
+        usedFallback: false,
+        trackPolicy: audioTrackPolicy,
+        capabilityProfile: this.cloneCapabilityProfile(
+          runtimeAudioCapabilities,
+        ),
+        committedPlaybackLane,
+        reasons,
+        reasonDetails,
+      };
+    }
+
+    if (wantsPremiumAttempt) {
+      reasons.push("premium-unsupported");
+      reasonDetails.push(
+        "The runtime did not report premium committed-audio support for this phase.",
+      );
+    }
+
+    if (runtimeAudioCapabilities?.canPlayCommittedAudio === true) {
+      if (!reasons.includes("default-runtime-audio")) {
+        reasons.push("default-runtime-audio");
+      }
+
+      if (wantsPremiumAttempt) {
+        reasons.push("fallback-from-premium");
+        reasonDetails.push(
+          "The shared policy downgraded the premium request to the runtime's default committed audio path.",
+        );
+      }
+
+      return {
+        audioMode: "committed-playback",
+        fallbackMode: wantsPremiumAttempt ? "fallback-default" : null,
+        requestedPremiumAttempt: wantsPremiumAttempt,
+        usedFallback: wantsPremiumAttempt,
+        trackPolicy: audioTrackPolicy,
+        capabilityProfile: this.cloneCapabilityProfile(
+          runtimeAudioCapabilities,
+        ),
+        committedPlaybackLane,
+        reasons,
+        reasonDetails,
+      };
+    }
+
+    if (
+      runtimeAudioCapabilities?.canFallbackStereo === true &&
+      audioTrackPolicy.allowFallbackStereo
+    ) {
+      reasons.push("runtime-limited");
+      if (wantsPremiumAttempt) {
+        reasons.push("fallback-from-premium");
+      }
+      reasonDetails.push(
+        "The runtime could not honor the preferred committed audio path, so the policy selected a stereo fallback.",
+      );
+
+      return {
+        audioMode: "fallback-stereo",
+        fallbackMode: "fallback-stereo",
+        requestedPremiumAttempt: wantsPremiumAttempt,
+        usedFallback: true,
+        trackPolicy: audioTrackPolicy,
+        capabilityProfile: this.cloneCapabilityProfile(
+          runtimeAudioCapabilities,
+        ),
+        committedPlaybackLane,
+        reasons,
+        reasonDetails,
+      };
+    }
+
+    reasons.push("no-audio-path");
+    reasonDetails.push(
+      "The runtime did not report any committed playback audio path for this phase.",
+    );
+
+    return {
+      audioMode: "committed-playback",
+      fallbackMode: "unsupported",
+      requestedPremiumAttempt: wantsPremiumAttempt,
+      usedFallback: true,
+      trackPolicy: audioTrackPolicy,
+      capabilityProfile: this.cloneCapabilityProfile(runtimeAudioCapabilities),
+      committedPlaybackLane,
+      reasons,
+      reasonDetails,
+    };
+  }
+
+  /**
+   * @brief Clone one runtime audio-capability profile for read-only snapshots
+   *
+   * @param runtimeAudioCapabilities - Runtime audio-capability profile
+   *
+   * @returns Cloned capability profile, or `null` when absent
+   */
+  private static cloneCapabilityProfile(
+    runtimeAudioCapabilities: AudioCapabilityProfile | null,
+  ): AudioCapabilityProfile | null {
+    if (runtimeAudioCapabilities === null) {
+      return null;
+    }
+
+    return {
+      canPlayCommittedAudio: runtimeAudioCapabilities.canPlayCommittedAudio,
+      canAttemptPremiumAudio: runtimeAudioCapabilities.canAttemptPremiumAudio,
+      canFallbackStereo: runtimeAudioCapabilities.canFallbackStereo,
+      canKeepPreviewMuted: runtimeAudioCapabilities.canKeepPreviewMuted,
+      canKeepExtractionSilent: runtimeAudioCapabilities.canKeepExtractionSilent,
+    };
+  }
+}

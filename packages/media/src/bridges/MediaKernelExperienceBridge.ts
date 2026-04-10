@@ -6,6 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
+import { AudioPolicy } from "../audio/AudioPolicy";
+import type { AudioPolicyDecision } from "../audio/AudioPolicyDecision";
 import type { MediaCapabilityProfile } from "../capabilities/MediaCapabilityProfile";
 import { CapabilityOracle } from "../capability-oracle/CapabilityOracle";
 import type { MediaRoleCapabilitySnapshot } from "../capability-oracle/MediaRoleCapabilitySnapshot";
@@ -512,6 +514,17 @@ export class MediaKernelExperienceBridge<
       : isFocusedRowCandidate
         ? 2200
         : 1800;
+    const audioPolicyDecision: AudioPolicyDecision = AudioPolicy.decide({
+      activationIntent: {
+        sessionRole: "extractor",
+        committedPlaybackIntentType: null,
+        committedPlaybackMode: null,
+        committedPlaybackLane: null,
+        sourceDescriptor,
+      },
+      runtimeAudioCapabilities: null,
+      audioTrackPolicy: AudioPolicy.createDefaultTrackPolicy("extractor"),
+    });
 
     return {
       descriptor: {
@@ -534,6 +547,7 @@ export class MediaKernelExperienceBridge<
         targetWidth,
         targetHeight: null,
       },
+      audioPolicyDecision,
     };
   }
 

@@ -892,14 +892,8 @@ export class CapabilityOracle {
                 request.runtimeCapabilities.canRunMultipleWarmSessions,
               supportsCommittedPlayback:
                 request.runtimeCapabilities.supportsCommittedPlayback,
-              supportsCommittedPlaybackAudio:
-                request.runtimeCapabilities.supportsCommittedPlaybackAudio,
-              supportsFallbackStereoAudio:
-                request.runtimeCapabilities.supportsFallbackStereoAudio,
               supportsPremiumCommittedPlayback:
                 request.runtimeCapabilities.supportsPremiumCommittedPlayback,
-              supportsPremiumAudioActivation:
-                request.runtimeCapabilities.supportsPremiumAudioActivation,
               committedPlaybackLanePreference:
                 request.runtimeCapabilities.committedPlaybackLanePreference,
               committedPlaybackLanes: [
@@ -926,6 +920,23 @@ export class CapabilityOracle {
                 keepWarmAfterBlurMs:
                   request.runtimeCapabilities.previewSchedulerBudget
                     .keepWarmAfterBlurMs,
+              },
+              audioCapabilities: {
+                canPlayCommittedAudio:
+                  request.runtimeCapabilities.audioCapabilities
+                    .canPlayCommittedAudio,
+                canAttemptPremiumAudio:
+                  request.runtimeCapabilities.audioCapabilities
+                    .canAttemptPremiumAudio,
+                canFallbackStereo:
+                  request.runtimeCapabilities.audioCapabilities
+                    .canFallbackStereo,
+                canKeepPreviewMuted:
+                  request.runtimeCapabilities.audioCapabilities
+                    .canKeepPreviewMuted,
+                canKeepExtractionSilent:
+                  request.runtimeCapabilities.audioCapabilities
+                    .canKeepExtractionSilent,
               },
             },
       preferredLaneHint: request.preferredLaneHint,

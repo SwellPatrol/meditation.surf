@@ -8,6 +8,16 @@
 
 export type { AppMediaCapabilities } from "./capabilities/AppMediaCapabilities";
 export type { MediaCapabilityProfile } from "./capabilities/MediaCapabilityProfile";
+export { AudioPolicy } from "./audio/AudioPolicy";
+export type { AudioPolicyInput } from "./audio/AudioPolicy";
+export type { AudioActivationIntent } from "./audio/AudioActivationIntent";
+export type { AudioCapabilityProfile } from "./audio/AudioCapabilityProfile";
+export type { AudioExecutionSnapshot } from "./audio/AudioExecutionSnapshot";
+export type { AudioFallbackMode } from "./audio/AudioFallbackMode";
+export type { AudioMode } from "./audio/AudioMode";
+export type { AudioPolicyDecision } from "./audio/AudioPolicyDecision";
+export type { AudioPolicyDecisionReason } from "./audio/AudioPolicyDecisionReason";
+export type { AudioTrackPolicy } from "./audio/AudioTrackPolicy";
 export { CapabilityOracle } from "./capability-oracle/CapabilityOracle";
 export type { CapabilityDecision } from "./capability-oracle/CapabilityDecision";
 export type { CapabilityDecisionReason } from "./capability-oracle/CapabilityDecisionReason";
