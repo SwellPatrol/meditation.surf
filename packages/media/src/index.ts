@@ -8,6 +8,16 @@
 
 export type { AppMediaCapabilities } from "./capabilities/AppMediaCapabilities";
 export type { MediaCapabilityProfile } from "./capabilities/MediaCapabilityProfile";
+export type { AudioActivationMode } from "./committed/AudioActivationMode";
+export { CommittedPlaybackChooser } from "./committed/CommittedPlaybackChooser";
+export type { CommittedPlaybackChooserInput } from "./committed/CommittedPlaybackChooser";
+export type { CommittedPlaybackDecision } from "./committed/CommittedPlaybackDecision";
+export type { CommittedPlaybackDecisionReason } from "./committed/CommittedPlaybackDecisionReason";
+export type { CommittedPlaybackIntent } from "./committed/CommittedPlaybackIntent";
+export type { CommittedPlaybackLanePreference } from "./committed/CommittedPlaybackLanePreference";
+export type { CommittedPlaybackLifecycleState } from "./committed/CommittedPlaybackLifecycleState";
+export type { CommittedPlaybackMode } from "./committed/CommittedPlaybackMode";
+export type { CommittedPlaybackSnapshot } from "./committed/CommittedPlaybackSnapshot";
 export {
   MediaKernelExperienceBridge,
   type MediaBrowseContentResolver,

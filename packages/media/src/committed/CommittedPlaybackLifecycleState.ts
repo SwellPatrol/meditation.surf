@@ -7,17 +7,10 @@
  */
 
 /**
- * @brief Runtime execution phases tracked for one planned media session
+ * @brief Explicit lifecycle phases for committed background playback
  */
-export type MediaExecutionState =
-  | "inactive"
+export type CommittedPlaybackLifecycleState =
+  | "selected"
   | "activating-background"
-  | "warming-metadata"
-  | "warming-first-frame"
-  | "ready-first-frame"
-  | "preview-active"
   | "waiting-first-frame"
-  | "background-active"
-  | "disposed"
-  | "failed"
-  | "unsupported";
+  | "background-active";

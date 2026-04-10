@@ -9,13 +9,23 @@
 export { DemoExperienceFactory } from "./bootstrap/DemoExperienceFactory";
 export { MeditationExperience } from "./experience/MeditationExperience";
 export {
+  CommittedPlaybackChooser,
   FocusDelayController,
   MediaExecutionController,
   MediaKernelController,
   MediaKernelExperienceBridge,
   MediaThumbnailController,
   MediaSessionPlanner,
+  type AudioActivationMode,
   type AppMediaCapabilities,
+  type CommittedPlaybackChooserInput,
+  type CommittedPlaybackDecision,
+  type CommittedPlaybackDecisionReason,
+  type CommittedPlaybackIntent,
+  type CommittedPlaybackLanePreference,
+  type CommittedPlaybackLifecycleState,
+  type CommittedPlaybackMode,
+  type CommittedPlaybackSnapshot,
   type FocusDelayState,
   type FocusDelayStateListener,
   type MediaExecutionCommand,

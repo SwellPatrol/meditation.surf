@@ -8,6 +8,7 @@
 
 import type {
   BackgroundLayerLayout,
+  CommittedPlaybackDecision,
   MediaItem,
   MeditationExperience,
   PlaybackSequenceController,
@@ -38,6 +39,7 @@ export class TvBackgroundVideoController {
     ): void;
   };
   private readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
+  private currentSourceUrl: string | null;
   private removePlaybackSequenceSubscription: (() => void) | null;
 
   /**
@@ -66,6 +68,7 @@ export class TvBackgroundVideoController {
     this.playbackSequenceController = playbackSequenceController;
     this.playbackController = playbackController;
     this.playbackVisualReadinessController = playbackVisualReadinessController;
+    this.currentSourceUrl = null;
     this.removePlaybackSequenceSubscription = null;
   }
 
@@ -141,11 +144,39 @@ export class TvBackgroundVideoController {
     playbackSequenceState: PlaybackSequenceState,
   ): Promise<void> {
     const activeItem: MediaItem | null = playbackSequenceState.activeItem;
+    const committedPlaybackDecision: CommittedPlaybackDecision | null =
+      playbackSequenceState.committedPlaybackDecision;
     const playbackSource: PlaybackSource =
       activeItem?.getPlaybackSource() ?? this.getPlaybackSource();
+    const shouldMute: boolean = this.resolveMutedState(
+      committedPlaybackDecision,
+    );
 
+    if (this.currentSourceUrl === playbackSource.url) {
+      this.playbackController.setMuted(shouldMute);
+      return;
+    }
+
+    this.currentSourceUrl = playbackSource.url;
     this.playbackVisualReadinessController.beginLoading();
     await this.playbackController.load(playbackSource);
     await this.playbackController.play();
+    this.playbackController.setMuted(shouldMute);
+  }
+
+  /**
+   * @brief Resolve whether committed background playback should be muted
+   *
+   * @param committedPlaybackDecision - Current committed playback decision
+   *
+   * @returns `true` when TV background playback should remain muted
+   */
+  private resolveMutedState(
+    committedPlaybackDecision: CommittedPlaybackDecision | null,
+  ): boolean {
+    return (
+      committedPlaybackDecision?.audioActivationMode === undefined ||
+      committedPlaybackDecision.audioActivationMode === "muted-preview"
+    );
   }
 }

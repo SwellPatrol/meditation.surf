@@ -8,6 +8,7 @@
 
 import type {
   Catalog,
+  CommittedPlaybackDecision,
   MediaExecutionCommand,
   MediaExecutionResult,
   MediaItem,
@@ -33,6 +34,14 @@ export class TvMediaRuntimeAdapter implements MediaRuntimeAdapter {
     canKeepHiddenWarmSession: false,
     canPromoteWarmSession: false,
     canRunMultipleWarmSessions: false,
+    supportsCommittedPlayback: true,
+    supportsCommittedPlaybackAudio: true,
+    supportsFallbackStereoAudio: true,
+    supportsPremiumCommittedPlayback: false,
+    supportsPremiumAudioActivation: false,
+    committedPlaybackLanePreference: "prefer-existing-runtime",
+    committedPlaybackLanes: ["custom"],
+    existingBackgroundPlaybackLane: "custom",
     previewSchedulerBudget: {
       maxWarmSessions: 0,
       maxActivePreviewSessions: 0,
@@ -71,6 +80,9 @@ export class TvMediaRuntimeAdapter implements MediaRuntimeAdapter {
   public getCapabilities(): MediaRuntimeCapabilities {
     return {
       ...TvMediaRuntimeAdapter.CAPABILITIES,
+      committedPlaybackLanes: [
+        ...TvMediaRuntimeAdapter.CAPABILITIES.committedPlaybackLanes,
+      ],
       previewSchedulerBudget: {
         maxWarmSessions:
           TvMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
@@ -108,11 +120,13 @@ export class TvMediaRuntimeAdapter implements MediaRuntimeAdapter {
           "inactive",
           command.runtimeSessionHandle,
           null,
+          null,
         );
       case "warm-session":
         return this.createResult(
           "unsupported",
           this.createRuntimeSessionHandle(command),
+          null,
           "TV preview warming is not implemented in this phase.",
         );
       case "activate-session":
@@ -122,6 +136,7 @@ export class TvMediaRuntimeAdapter implements MediaRuntimeAdapter {
         return this.createResult(
           "inactive",
           command.runtimeSessionHandle,
+          null,
           null,
         );
     }
@@ -141,11 +156,14 @@ export class TvMediaRuntimeAdapter implements MediaRuntimeAdapter {
       this.createRuntimeSessionHandle(command);
     const targetItemId: string | null = command.session?.itemId ?? null;
     const mediaItem: MediaItem | null = this.resolveMediaItem(targetItemId);
+    const committedPlaybackDecision: CommittedPlaybackDecision | null =
+      command.committedPlaybackDecision;
 
     if (command.session?.role !== "background") {
       return this.createResult(
         "unsupported",
         runtimeSessionHandle,
+        committedPlaybackDecision,
         "TV activation is only wired for background sessions in this phase.",
       );
     }
@@ -154,15 +172,22 @@ export class TvMediaRuntimeAdapter implements MediaRuntimeAdapter {
       return this.createResult(
         "failed",
         runtimeSessionHandle,
+        committedPlaybackDecision,
         `TV runtime could not resolve media item ${targetItemId ?? "null"}.`,
       );
     }
 
-    if (this.playbackSequenceController.getActiveItem()?.id !== mediaItem.id) {
-      this.playbackSequenceController.setActiveItem(mediaItem);
-    }
+    this.playbackSequenceController.setCommittedPlayback(
+      mediaItem,
+      committedPlaybackDecision,
+    );
 
-    return this.createResult("background-active", runtimeSessionHandle, null);
+    return this.createResult(
+      "waiting-first-frame",
+      runtimeSessionHandle,
+      committedPlaybackDecision,
+      null,
+    );
   }
 
   /**
@@ -228,11 +253,21 @@ export class TvMediaRuntimeAdapter implements MediaRuntimeAdapter {
   private createResult(
     state: MediaExecutionResult["state"],
     runtimeSessionHandle: MediaRuntimeSessionHandle | null,
+    committedPlaybackDecision: CommittedPlaybackDecision | null,
     failureReason: string | null,
   ): MediaExecutionResult {
     return {
       state,
       runtimeSessionHandle,
+      committedPlaybackDecision:
+        committedPlaybackDecision === null
+          ? null
+          : {
+              ...committedPlaybackDecision,
+              fallbackOrder: [...committedPlaybackDecision.fallbackOrder],
+              reasons: [...committedPlaybackDecision.reasons],
+              reasonDetails: [...committedPlaybackDecision.reasonDetails],
+            },
       failureReason,
     };
   }

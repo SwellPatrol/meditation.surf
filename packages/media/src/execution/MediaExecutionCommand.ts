@@ -6,6 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { CommittedPlaybackDecision } from "../committed/CommittedPlaybackDecision";
 import type { MediaPlan } from "../planning/MediaPlan";
 import type { MediaPlanSession } from "../planning/MediaPlanSession";
 import type { MediaExecutionCommandType } from "./MediaExecutionCommandType";
@@ -21,4 +22,5 @@ export type MediaExecutionCommand = {
   session: MediaPlanSession | null;
   snapshot: MediaExecutionSnapshot | null;
   runtimeSessionHandle: MediaRuntimeSessionHandle | null;
+  committedPlaybackDecision: CommittedPlaybackDecision | null;
 };

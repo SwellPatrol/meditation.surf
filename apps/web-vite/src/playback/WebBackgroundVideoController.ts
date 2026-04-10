@@ -9,6 +9,7 @@
 import type {
   BackgroundLayerLayout,
   BackgroundVideoPlaybackPolicy,
+  CommittedPlaybackDecision,
   MediaItem,
   PlaybackSequenceController,
   PlaybackSequenceState,
@@ -33,6 +34,9 @@ export class WebBackgroundVideoController {
   private readonly playbackSequenceController: PlaybackSequenceController;
   private readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
   private activeShakaPlayer: ShakaPlayer | null;
+  private currentAudioActivationMode: string | null;
+  private currentCommittedLane: string | null;
+  private currentSourceUrl: string | null;
   private removePlaybackSequenceSubscription: (() => void) | null;
 
   /**
@@ -49,6 +53,9 @@ export class WebBackgroundVideoController {
     this.playbackSequenceController = playbackSequenceController;
     this.playbackVisualReadinessController = playbackVisualReadinessController;
     this.activeShakaPlayer = null;
+    this.currentAudioActivationMode = null;
+    this.currentCommittedLane = null;
+    this.currentSourceUrl = null;
     this.removePlaybackSequenceSubscription = null;
   }
 
@@ -61,12 +68,17 @@ export class WebBackgroundVideoController {
     const playbackPolicy: BackgroundVideoPlaybackPolicy = this.backgroundLayer
       .getBackgroundVideo()
       .getPlaybackPolicy();
+    const committedPlaybackDecision: CommittedPlaybackDecision | null =
+      this.playbackSequenceController.getCommittedPlaybackDecision();
 
     videoElement.autoplay = playbackPolicy.autoplay;
     videoElement.controls = false;
     videoElement.crossOrigin = "anonymous";
     videoElement.loop = playbackPolicy.loop;
-    videoElement.muted = playbackPolicy.muted;
+    videoElement.muted = this.resolveMutedState(
+      playbackPolicy,
+      committedPlaybackDecision,
+    );
     videoElement.preload = "auto";
     videoElement.playsInline = playbackPolicy.playsInline;
     videoElement.style.objectFit = playbackPolicy.objectFit;
@@ -125,8 +137,12 @@ export class WebBackgroundVideoController {
   private async attemptAutoplay(
     videoElement: HTMLVideoElement,
     playbackPolicy: BackgroundVideoPlaybackPolicy,
+    committedPlaybackDecision: CommittedPlaybackDecision | null,
   ): Promise<void> {
-    videoElement.muted = playbackPolicy.muted;
+    videoElement.muted = this.resolveMutedState(
+      playbackPolicy,
+      committedPlaybackDecision,
+    );
     videoElement.autoplay = playbackPolicy.autoplay;
     videoElement.loop = playbackPolicy.loop;
     videoElement.playsInline = playbackPolicy.playsInline;
@@ -152,16 +168,50 @@ export class WebBackgroundVideoController {
     playbackSequenceState: PlaybackSequenceState,
   ): Promise<void> {
     const activeItem: MediaItem | null = playbackSequenceState.activeItem;
+    const committedPlaybackDecision: CommittedPlaybackDecision | null =
+      playbackSequenceState.committedPlaybackDecision;
 
     if (activeItem === null) {
+      this.currentAudioActivationMode = null;
+      this.currentCommittedLane = null;
+      this.currentSourceUrl = null;
       return;
     }
 
+    const nextSourceUrl: string = activeItem.getPlaybackSource().url;
+    const nextCommittedLane: string =
+      committedPlaybackDecision?.chosenLane ?? "native";
+    const nextAudioActivationMode: string =
+      committedPlaybackDecision?.audioActivationMode ?? "muted-preview";
+
+    if (
+      this.currentSourceUrl === nextSourceUrl &&
+      this.currentCommittedLane === nextCommittedLane
+    ) {
+      if (this.currentAudioActivationMode !== nextAudioActivationMode) {
+        const playbackPolicy: BackgroundVideoPlaybackPolicy =
+          this.backgroundLayer.getBackgroundVideo().getPlaybackPolicy();
+
+        videoElement.muted = this.resolveMutedState(
+          playbackPolicy,
+          committedPlaybackDecision,
+        );
+      }
+
+      this.currentAudioActivationMode = nextAudioActivationMode;
+      return;
+    }
+
+    this.currentSourceUrl = nextSourceUrl;
+    this.currentCommittedLane = nextCommittedLane;
+    this.currentAudioActivationMode = nextAudioActivationMode;
     this.playbackVisualReadinessController.beginLoading();
     this.installFirstRenderedFrameObserver(videoElement);
+    await this.destroyActiveShakaPlayer();
     this.activeShakaPlayer = await this.load(
       videoElement,
       activeItem.getPlaybackSource(),
+      committedPlaybackDecision,
     );
   }
 
@@ -218,6 +268,7 @@ export class WebBackgroundVideoController {
   private async load(
     videoElement: HTMLVideoElement,
     playbackSource: PlaybackSource,
+    committedPlaybackDecision: CommittedPlaybackDecision | null,
   ): Promise<ShakaPlayer | null> {
     const playbackPolicy: BackgroundVideoPlaybackPolicy = this.backgroundLayer
       .getBackgroundVideo()
@@ -226,13 +277,22 @@ export class WebBackgroundVideoController {
       playbackSource.mimeType ?? "application/x-mpegURL";
     const canUseNativeHlsPlayback: boolean =
       videoElement.canPlayType(playbackMimeType) !== "";
+    const preferredCommittedLane: string | null =
+      committedPlaybackDecision?.chosenLane ?? null;
+    const shouldUseShaka: boolean =
+      preferredCommittedLane === "shaka" ||
+      (preferredCommittedLane !== "native" && !canUseNativeHlsPlayback);
 
-    if (canUseNativeHlsPlayback) {
+    if (!shouldUseShaka && canUseNativeHlsPlayback) {
       videoElement.src = playbackSource.url;
       videoElement.addEventListener(
         "loadedmetadata",
         (): void => {
-          void this.attemptAutoplay(videoElement, playbackPolicy);
+          void this.attemptAutoplay(
+            videoElement,
+            playbackPolicy,
+            committedPlaybackDecision,
+          );
         },
         { once: true },
       );
@@ -257,11 +317,47 @@ export class WebBackgroundVideoController {
 
     try {
       await shakaPlayer.load(playbackSource.url);
-      await this.attemptAutoplay(videoElement, playbackPolicy);
+      await this.attemptAutoplay(
+        videoElement,
+        playbackPolicy,
+        committedPlaybackDecision,
+      );
     } catch (error: unknown) {
       console.error("Failed to load the shared demo stream.", error);
     }
 
     return shakaPlayer;
+  }
+
+  /**
+   * @brief Destroy the active Shaka player before switching background lanes
+   */
+  private async destroyActiveShakaPlayer(): Promise<void> {
+    if (this.activeShakaPlayer === null) {
+      return;
+    }
+
+    const shakaPlayer: ShakaPlayer = this.activeShakaPlayer;
+
+    this.activeShakaPlayer = null;
+    await shakaPlayer.destroy();
+  }
+
+  /**
+   * @brief Resolve whether committed background playback should be muted
+   *
+   * @param playbackPolicy - Shared background playback policy
+   * @param committedPlaybackDecision - Current committed playback decision
+   *
+   * @returns `true` when the background player should be muted
+   */
+  private resolveMutedState(
+    playbackPolicy: BackgroundVideoPlaybackPolicy,
+    committedPlaybackDecision: CommittedPlaybackDecision | null,
+  ): boolean {
+    return committedPlaybackDecision?.audioActivationMode === undefined ||
+      committedPlaybackDecision.audioActivationMode === "muted-preview"
+      ? playbackPolicy.muted
+      : false;
   }
 }

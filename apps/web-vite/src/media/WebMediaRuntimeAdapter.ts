@@ -8,6 +8,7 @@
 
 import type {
   Catalog,
+  CommittedPlaybackDecision,
   MediaExecutionCommand,
   MediaExecutionResult,
   MediaItem,
@@ -63,6 +64,14 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     canKeepHiddenWarmSession: true,
     canPromoteWarmSession: false,
     canRunMultipleWarmSessions: true,
+    supportsCommittedPlayback: true,
+    supportsCommittedPlaybackAudio: true,
+    supportsFallbackStereoAudio: true,
+    supportsPremiumCommittedPlayback: true,
+    supportsPremiumAudioActivation: false,
+    committedPlaybackLanePreference: "prefer-native",
+    committedPlaybackLanes: ["native", "shaka"],
+    existingBackgroundPlaybackLane: "native",
     previewSchedulerBudget: {
       maxWarmSessions: 3,
       maxActivePreviewSessions: 1,
@@ -120,6 +129,9 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
   public getCapabilities(): MediaRuntimeCapabilities {
     return {
       ...WebMediaRuntimeAdapter.CAPABILITIES,
+      committedPlaybackLanes: [
+        ...WebMediaRuntimeAdapter.CAPABILITIES.committedPlaybackLanes,
+      ],
       previewSchedulerBudget: {
         maxWarmSessions:
           WebMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
@@ -159,6 +171,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
           "inactive",
           command.runtimeSessionHandle,
           null,
+          null,
         );
       case "warm-session":
         return this.handleWarmSession(command);
@@ -187,6 +200,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       return this.createResult(
         "unsupported",
         command.runtimeSessionHandle,
+        null,
         "Web runtime warm command was missing a planned session.",
       );
     }
@@ -195,6 +209,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       return this.createResult(
         "unsupported",
         command.runtimeSessionHandle,
+        null,
         "Web runtime only warms preview sessions in this phase.",
       );
     }
@@ -203,6 +218,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       return this.createResult(
         "failed",
         command.runtimeSessionHandle,
+        null,
         `Web runtime could not warm preview session ${plannedSession.sessionId} without a source descriptor.`,
       );
     }
@@ -214,6 +230,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       return this.createResult(
         "failed",
         command.runtimeSessionHandle,
+        null,
         `Web runtime could not allocate a preview slot for ${plannedSession.sessionId}.`,
       );
     }
@@ -227,6 +244,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       return this.createResult(
         previewRuntimeSession.state,
         previewRuntimeSession.runtimeSessionHandle,
+        null,
         null,
       );
     }
@@ -247,6 +265,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         "ready-first-frame",
         previewRuntimeSession.runtimeSessionHandle,
         null,
+        null,
       );
     } catch (error: unknown) {
       const failureReason: string = this.describeRuntimeError(
@@ -259,6 +278,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       return this.createResult(
         "failed",
         previewRuntimeSession.runtimeSessionHandle,
+        null,
         failureReason,
       );
     }
@@ -299,7 +319,12 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       return this.deactivateBackgroundSession(command);
     }
 
-    return this.createResult("inactive", command.runtimeSessionHandle, null);
+    return this.createResult(
+      "inactive",
+      command.runtimeSessionHandle,
+      null,
+      null,
+    );
   }
 
   /**
@@ -320,7 +345,12 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       return this.disposeBackgroundSession(command);
     }
 
-    return this.createResult("disposed", command.runtimeSessionHandle, null);
+    return this.createResult(
+      "disposed",
+      command.runtimeSessionHandle,
+      null,
+      null,
+    );
   }
 
   /**
@@ -339,6 +369,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       return this.createResult(
         "unsupported",
         command.runtimeSessionHandle,
+        null,
         "Web preview activation requires a preview session.",
       );
     }
@@ -350,6 +381,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       return this.createResult(
         "failed",
         command.runtimeSessionHandle,
+        null,
         `Web preview activation could not resolve slot ${plannedSession.sessionId}.`,
       );
     }
@@ -358,6 +390,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       return this.createResult(
         "failed",
         previewRuntimeSession.runtimeSessionHandle,
+        null,
         `Web preview session ${plannedSession.sessionId} has no warmed video element.`,
       );
     }
@@ -373,6 +406,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         "preview-active",
         previewRuntimeSession.runtimeSessionHandle,
         null,
+        null,
       );
     } catch (error: unknown) {
       const failureReason: string = this.describeRuntimeError(
@@ -386,6 +420,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       return this.createResult(
         "failed",
         previewRuntimeSession.runtimeSessionHandle,
+        null,
         failureReason,
       );
     }
@@ -406,11 +441,14 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       this.backgroundRuntimeSession.runtimeSessionHandle;
     const targetItemId: string | null = plannedSession?.itemId ?? null;
     const mediaItem: MediaItem | null = this.resolveMediaItem(targetItemId);
+    const committedPlaybackDecision: CommittedPlaybackDecision | null =
+      this.resolveCommittedPlaybackDecision(command);
 
     if (plannedSession?.role !== "background") {
       return this.createResult(
         "unsupported",
         runtimeSessionHandle,
+        committedPlaybackDecision,
         "Web activation is only wired for preview and background sessions.",
       );
     }
@@ -419,19 +457,25 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       return this.createResult(
         "failed",
         runtimeSessionHandle,
+        committedPlaybackDecision,
         `Web runtime could not resolve media item ${targetItemId ?? "null"}.`,
       );
     }
 
     this.backgroundRuntimeSession.plannedSessionId = plannedSession.sessionId;
     this.backgroundRuntimeSession.itemId = mediaItem.id;
-    this.backgroundRuntimeSession.state = "background-active";
+    this.backgroundRuntimeSession.state = "waiting-first-frame";
+    this.playbackSequenceController.setCommittedPlayback(
+      mediaItem,
+      committedPlaybackDecision,
+    );
 
-    if (this.playbackSequenceController.getActiveItem()?.id !== mediaItem.id) {
-      this.playbackSequenceController.setActiveItem(mediaItem);
-    }
-
-    return this.createResult("background-active", runtimeSessionHandle, null);
+    return this.createResult(
+      "waiting-first-frame",
+      runtimeSessionHandle,
+      committedPlaybackDecision,
+      null,
+    );
   }
 
   /**
@@ -451,7 +495,12 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       );
 
     if (previewRuntimeSession === null) {
-      return this.createResult("inactive", command.runtimeSessionHandle, null);
+      return this.createResult(
+        "inactive",
+        command.runtimeSessionHandle,
+        null,
+        null,
+      );
     }
 
     previewRuntimeSession.videoElement?.pause();
@@ -465,6 +514,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     return this.createResult(
       previewRuntimeSession.state,
       previewRuntimeSession.runtimeSessionHandle,
+      null,
       null,
     );
   }
@@ -487,6 +537,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         "inactive",
         this.backgroundRuntimeSession.runtimeSessionHandle,
         null,
+        null,
       );
     }
 
@@ -495,6 +546,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     return this.createResult(
       "inactive",
       this.backgroundRuntimeSession.runtimeSessionHandle,
+      null,
       null,
     );
   }
@@ -516,7 +568,12 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       );
 
     if (previewRuntimeSession === null) {
-      return this.createResult("inactive", command.runtimeSessionHandle, null);
+      return this.createResult(
+        "inactive",
+        command.runtimeSessionHandle,
+        null,
+        null,
+      );
     }
 
     await this.resetPreviewRuntimeSession(previewRuntimeSession);
@@ -525,6 +582,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     return this.createResult(
       "disposed",
       previewRuntimeSession.runtimeSessionHandle,
+      null,
       null,
     );
   }
@@ -547,6 +605,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         "inactive",
         this.backgroundRuntimeSession.runtimeSessionHandle,
         null,
+        null,
       );
     }
 
@@ -558,7 +617,65 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       "disposed",
       this.backgroundRuntimeSession.runtimeSessionHandle,
       null,
+      null,
     );
+  }
+
+  /**
+   * @brief Resolve the actual committed background lane supported by the browser
+   *
+   * @param command - Shared activate command carrying the chosen decision
+   *
+   * @returns Runtime-adjusted committed playback decision, or `null` when absent
+   */
+  private resolveCommittedPlaybackDecision(
+    command: MediaExecutionCommand,
+  ): CommittedPlaybackDecision | null {
+    const committedPlaybackDecision: CommittedPlaybackDecision | null =
+      command.committedPlaybackDecision;
+    const sourceDescriptor: MediaSourceDescriptor | null =
+      command.session?.source ?? null;
+
+    if (
+      committedPlaybackDecision === null ||
+      sourceDescriptor === null ||
+      committedPlaybackDecision.chosenLane !== "native"
+    ) {
+      return committedPlaybackDecision;
+    }
+
+    const videoElement: HTMLVideoElement = document.createElement("video");
+    const playbackMimeType: string =
+      sourceDescriptor.mimeType ?? "application/x-mpegURL";
+    const canUseNativeHlsPlayback: boolean =
+      videoElement.canPlayType(playbackMimeType) !== "";
+
+    if (canUseNativeHlsPlayback) {
+      return committedPlaybackDecision;
+    }
+
+    if (!committedPlaybackDecision.fallbackOrder.includes("shaka")) {
+      return committedPlaybackDecision;
+    }
+
+    return {
+      ...committedPlaybackDecision,
+      chosenLane: "shaka",
+      reasons: committedPlaybackDecision.reasons.includes(
+        "fallback-from-preferred-lane",
+      )
+        ? [...committedPlaybackDecision.reasons]
+        : [
+            ...committedPlaybackDecision.reasons,
+            "fallback-from-preferred-lane",
+          ],
+      reasonDetails: [
+        ...committedPlaybackDecision.reasonDetails,
+        "Browser-native playback was unavailable for this source, so the web runtime fell back to Shaka.",
+      ],
+      usedPreferredLane: false,
+      usedFallbackLane: true,
+    };
   }
 
   /**
@@ -1060,11 +1177,21 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
   private createResult(
     state: MediaExecutionResult["state"],
     runtimeSessionHandle: MediaRuntimeSessionHandle | null,
+    committedPlaybackDecision: CommittedPlaybackDecision | null,
     failureReason: string | null,
   ): MediaExecutionResult {
     return {
       state,
       runtimeSessionHandle,
+      committedPlaybackDecision:
+        committedPlaybackDecision === null
+          ? null
+          : {
+              ...committedPlaybackDecision,
+              fallbackOrder: [...committedPlaybackDecision.fallbackOrder],
+              reasons: [...committedPlaybackDecision.reasons],
+              reasonDetails: [...committedPlaybackDecision.reasonDetails],
+            },
       failureReason,
     };
   }

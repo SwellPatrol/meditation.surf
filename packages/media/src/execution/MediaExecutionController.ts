@@ -6,6 +6,12 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { MediaCapabilityProfile } from "../capabilities/MediaCapabilityProfile";
+import { CommittedPlaybackChooser } from "../committed/CommittedPlaybackChooser";
+import type { CommittedPlaybackDecision } from "../committed/CommittedPlaybackDecision";
+import type { CommittedPlaybackIntent } from "../committed/CommittedPlaybackIntent";
+import type { CommittedPlaybackLifecycleState } from "../committed/CommittedPlaybackLifecycleState";
+import type { CommittedPlaybackSnapshot } from "../committed/CommittedPlaybackSnapshot";
 import type { MediaKernelController } from "../kernel/MediaKernelController";
 import type { MediaKernelState } from "../kernel/MediaKernelState";
 import type { MediaPlan } from "../planning/MediaPlan";
@@ -193,6 +199,10 @@ export class MediaExecutionController {
     }
 
     const currentPlan: MediaPlan = this.currentPlan;
+    const currentMediaKernelState: MediaKernelState =
+      this.mediaKernelController.getState();
+    const runtimeCapabilities: MediaRuntimeCapabilities =
+      runtimeAdapter.getCapabilities();
     const plannedSessionIds: Set<string> = new Set<string>(
       currentPlan.sessions.map(
         (plannedSession: MediaPlanSession): string => plannedSession.sessionId,
@@ -202,21 +212,45 @@ export class MediaExecutionController {
     await this.executeGlobalCommand("sync-plan", runtimeAdapter, currentPlan);
 
     for (const plannedSession of currentPlan.sessions) {
-      this.ensureKernelSession(plannedSession);
+      const previousExecutionSnapshot: MediaExecutionSnapshot | undefined =
+        this.executionSnapshotsBySessionId.get(plannedSession.sessionId);
+      const committedPlaybackDecision: CommittedPlaybackDecision | null =
+        this.resolveCommittedPlaybackDecision(
+          plannedSession,
+          runtimeAdapter.runtimeId,
+          runtimeCapabilities,
+          currentMediaKernelState,
+          previousExecutionSnapshot,
+        );
+      const committedPlaybackSnapshot: CommittedPlaybackSnapshot | null =
+        this.createCommittedPlaybackSnapshot(
+          plannedSession,
+          currentMediaKernelState,
+          committedPlaybackDecision,
+          committedPlaybackDecision !== null &&
+            !this.areCommittedPlaybackDecisionsEqual(
+              previousExecutionSnapshot?.committedPlayback?.decision ?? null,
+              committedPlaybackDecision,
+            )
+            ? "selected"
+            : this.resolveCommittedPlaybackLifecycleState(
+                previousExecutionSnapshot?.state ?? "inactive",
+                previousExecutionSnapshot?.committedPlayback?.lifecycleState ??
+                  "selected",
+              ),
+        );
+      this.ensureKernelSession(plannedSession, committedPlaybackDecision);
+
       this.upsertExecutionSnapshot(
         this.createExecutionSnapshot(
           plannedSession.sessionId,
           plannedSession,
-          this.executionSnapshotsBySessionId.get(plannedSession.sessionId)
-            ?.runtimeSessionHandle ?? null,
-          this.executionSnapshotsBySessionId.get(plannedSession.sessionId)
-            ?.state ?? "inactive",
-          this.executionSnapshotsBySessionId.get(plannedSession.sessionId)
-            ?.previewSessionAssignment ?? null,
-          this.executionSnapshotsBySessionId.get(plannedSession.sessionId)
-            ?.lastCommandType ?? null,
-          this.executionSnapshotsBySessionId.get(plannedSession.sessionId)
-            ?.failureReason ?? null,
+          previousExecutionSnapshot?.runtimeSessionHandle ?? null,
+          previousExecutionSnapshot?.state ?? "inactive",
+          previousExecutionSnapshot?.previewSessionAssignment ?? null,
+          committedPlaybackSnapshot,
+          previousExecutionSnapshot?.lastCommandType ?? null,
+          previousExecutionSnapshot?.failureReason ?? null,
         ),
       );
     }
@@ -276,6 +310,7 @@ export class MediaExecutionController {
       session: null,
       snapshot: null,
       runtimeSessionHandle: null,
+      committedPlaybackDecision: null,
     };
 
     try {
@@ -361,7 +396,17 @@ export class MediaExecutionController {
       plannedSession.role === "background" &&
       plannedSession.desiredWarmth === "active"
     ) {
-      return executionSnapshot?.state !== "background-active";
+      if (
+        executionSnapshot?.state === "activating-background" ||
+        executionSnapshot?.state === "waiting-first-frame"
+      ) {
+        return false;
+      }
+
+      return (
+        executionSnapshot?.state !== "background-active" ||
+        executionSnapshot.committedPlayback?.lifecycleState === "selected"
+      );
     }
 
     return false;
@@ -421,6 +466,7 @@ export class MediaExecutionController {
         null,
         null,
         null,
+        null,
       );
     const runtimeCapabilities: MediaRuntimeCapabilities =
       runtimeAdapter.getCapabilities();
@@ -450,6 +496,13 @@ export class MediaExecutionController {
       ...currentSnapshot,
       planSession: this.clonePlanSession(plannedSession),
       state: nextTransientState ?? currentSnapshot.state,
+      committedPlayback:
+        plannedSession.role === "background"
+          ? this.transitionCommittedPlaybackSnapshot(
+              currentSnapshot.committedPlayback,
+              "activating-background",
+            )
+          : currentSnapshot.committedPlayback,
       lastCommandType: commandType,
       failureReason: null,
     });
@@ -460,6 +513,8 @@ export class MediaExecutionController {
       session: this.clonePlanSession(plannedSession),
       snapshot: this.cloneExecutionSnapshot(currentSnapshot),
       runtimeSessionHandle: currentSnapshot.runtimeSessionHandle,
+      committedPlaybackDecision:
+        currentSnapshot.committedPlayback?.decision ?? null,
     };
     const commandResult: MediaExecutionResult =
       await this.executeRuntimeCommand(runtimeAdapter, command, plannedSession);
@@ -485,6 +540,8 @@ export class MediaExecutionController {
       session: this.clonePlanSession(executionSnapshot.planSession),
       snapshot: this.cloneExecutionSnapshot(executionSnapshot),
       runtimeSessionHandle: executionSnapshot.runtimeSessionHandle,
+      committedPlaybackDecision:
+        executionSnapshot.committedPlayback?.decision ?? null,
     };
 
     try {
@@ -519,6 +576,7 @@ export class MediaExecutionController {
       return {
         state: "failed",
         runtimeSessionHandle: command.runtimeSessionHandle,
+        committedPlaybackDecision: command.committedPlaybackDecision,
         failureReason: `${plannedSession.sessionId}: ${failureReason}`,
       };
     }
@@ -536,6 +594,8 @@ export class MediaExecutionController {
     plannedSession: MediaPlanSession,
     commandResult: MediaExecutionResult,
   ): void {
+    const currentExecutionSnapshot: MediaExecutionSnapshot | undefined =
+      this.executionSnapshotsBySessionId.get(plannedSession.sessionId);
     const nextExecutionSnapshot: MediaExecutionSnapshot =
       this.createExecutionSnapshot(
         plannedSession.sessionId,
@@ -546,6 +606,18 @@ export class MediaExecutionController {
           plannedSession,
           commandResult.runtimeSessionHandle,
           commandResult.state,
+        ),
+        this.createCommittedPlaybackSnapshot(
+          plannedSession,
+          this.mediaKernelController.getState(),
+          commandResult.committedPlaybackDecision ??
+            currentExecutionSnapshot?.committedPlayback?.decision ??
+            null,
+          this.resolveCommittedPlaybackLifecycleState(
+            commandResult.state,
+            currentExecutionSnapshot?.committedPlayback?.lifecycleState ??
+              "selected",
+          ),
         ),
         commandType,
         commandResult.failureReason,
@@ -580,7 +652,9 @@ export class MediaExecutionController {
           "loading",
         );
         return;
+      case "activating-background":
       case "warming-first-frame":
+      case "waiting-first-frame":
         this.mediaKernelController.markSessionWarmth(
           executionSnapshot.sessionId,
           "first-frame",
@@ -645,15 +719,27 @@ export class MediaExecutionController {
    * @brief Ensure the older kernel session model has a matching logical session
    *
    * @param plannedSession - Planned session that should exist in the kernel
+   * @param committedPlaybackDecision - Resolved committed playback decision, when one exists
    */
-  private ensureKernelSession(plannedSession: MediaPlanSession): void {
+  private ensureKernelSession(
+    plannedSession: MediaPlanSession,
+    committedPlaybackDecision: CommittedPlaybackDecision | null = null,
+  ): void {
     const descriptor: MediaSessionDescriptor = {
       sessionId: plannedSession.sessionId,
       role: plannedSession.role,
       itemId: plannedSession.itemId,
       source: this.cloneSourceDescriptor(plannedSession.source),
-      playbackLane: plannedSession.desiredPlaybackLane,
-      rendererKind: plannedSession.desiredRendererKind,
+      playbackLane:
+        plannedSession.role === "background"
+          ? (committedPlaybackDecision?.chosenLane ??
+            plannedSession.desiredPlaybackLane)
+          : plannedSession.desiredPlaybackLane,
+      rendererKind:
+        plannedSession.role === "background"
+          ? (committedPlaybackDecision?.preferredRendererKind ??
+            plannedSession.desiredRendererKind)
+          : plannedSession.desiredRendererKind,
     };
 
     this.mediaKernelController.registerSession(descriptor);
@@ -785,6 +871,7 @@ export class MediaExecutionController {
     runtimeSessionHandle: MediaRuntimeSessionHandle | null,
     state: MediaExecutionState,
     previewSessionAssignment: PreviewSessionAssignment | null,
+    committedPlayback: CommittedPlaybackSnapshot | null,
     lastCommandType: MediaExecutionCommandType | null,
     failureReason: string | null,
   ): MediaExecutionSnapshot {
@@ -797,6 +884,7 @@ export class MediaExecutionController {
       previewSessionAssignment: this.clonePreviewSessionAssignment(
         previewSessionAssignment,
       ),
+      committedPlayback: this.cloneCommittedPlaybackSnapshot(committedPlayback),
       lastCommandType,
       failureReason,
     };
@@ -818,6 +906,13 @@ export class MediaExecutionController {
       return plannedSession.desiredWarmth === "metadata"
         ? "warming-metadata"
         : "warming-first-frame";
+    }
+
+    if (
+      commandType === "activate-session" &&
+      plannedSession.role === "background"
+    ) {
+      return "activating-background";
     }
 
     return null;
@@ -842,6 +937,9 @@ export class MediaExecutionController {
       ),
       previewSessionAssignment: this.clonePreviewSessionAssignment(
         executionSnapshot.previewSessionAssignment,
+      ),
+      committedPlayback: this.cloneCommittedPlaybackSnapshot(
+        executionSnapshot.committedPlayback,
       ),
       lastCommandType: executionSnapshot.lastCommandType,
       failureReason: executionSnapshot.failureReason,
@@ -868,6 +966,49 @@ export class MediaExecutionController {
       slotId: previewSessionAssignment.slotId,
       warmState: previewSessionAssignment.warmState,
       isActive: previewSessionAssignment.isActive,
+    };
+  }
+
+  /**
+   * @brief Clone committed playback state for read-only execution snapshots
+   *
+   * @param committedPlayback - Committed playback state to clone
+   *
+   * @returns Cloned committed playback state, or `null` when absent
+   */
+  private cloneCommittedPlaybackSnapshot(
+    committedPlayback: CommittedPlaybackSnapshot | null,
+  ): CommittedPlaybackSnapshot | null {
+    if (committedPlayback === null) {
+      return null;
+    }
+
+    return {
+      itemId: committedPlayback.itemId,
+      selectedItemId: committedPlayback.selectedItemId,
+      activeItemId: committedPlayback.activeItemId,
+      lifecycleState: committedPlayback.lifecycleState,
+      intent: {
+        intentType: committedPlayback.intent.intentType,
+        selectedItemId: committedPlayback.intent.selectedItemId,
+        activeItemId: committedPlayback.intent.activeItemId,
+        targetItemId: committedPlayback.intent.targetItemId,
+        startPositionSeconds: committedPlayback.intent.startPositionSeconds,
+      },
+      decision: {
+        mode: committedPlayback.decision.mode,
+        preferredLane: committedPlayback.decision.preferredLane,
+        chosenLane: committedPlayback.decision.chosenLane,
+        preferredRendererKind: committedPlayback.decision.preferredRendererKind,
+        fallbackOrder: [...committedPlayback.decision.fallbackOrder],
+        reasons: [...committedPlayback.decision.reasons],
+        reasonDetails: [...committedPlayback.decision.reasonDetails],
+        audioActivationMode: committedPlayback.decision.audioActivationMode,
+        usedPreferredLane: committedPlayback.decision.usedPreferredLane,
+        usedFallbackLane: committedPlayback.decision.usedFallbackLane,
+        lanePreference: committedPlayback.decision.lanePreference,
+        startPositionSeconds: committedPlayback.decision.startPositionSeconds,
+      },
     };
   }
 
@@ -944,6 +1085,266 @@ export class MediaExecutionController {
       mimeType: sourceDescriptor.mimeType,
       posterUrl: sourceDescriptor.posterUrl,
     };
+  }
+
+  /**
+   * @brief Publish that committed playback reached its first visual-ready frame
+   */
+  public markCommittedPlaybackVisualReady(): void {
+    let didUpdateCommittedPlayback: boolean = false;
+
+    for (const executionSnapshot of this.executionSnapshotsBySessionId.values()) {
+      if (
+        executionSnapshot.planSession?.role !== "background" ||
+        executionSnapshot.state !== "waiting-first-frame"
+      ) {
+        continue;
+      }
+
+      const nextExecutionSnapshot: MediaExecutionSnapshot = {
+        ...this.cloneExecutionSnapshot(executionSnapshot),
+        state: "background-active",
+        committedPlayback: this.transitionCommittedPlaybackSnapshot(
+          executionSnapshot.committedPlayback,
+          "background-active",
+        ),
+      };
+
+      this.executionSnapshotsBySessionId.set(
+        executionSnapshot.sessionId,
+        nextExecutionSnapshot,
+      );
+      this.syncKernelSessionState(nextExecutionSnapshot);
+      didUpdateCommittedPlayback = true;
+    }
+
+    if (didUpdateCommittedPlayback) {
+      this.notifyStateListeners();
+    }
+  }
+
+  /**
+   * @brief Build one committed playback decision for a background session
+   *
+   * @param plannedSession - Planned session being prepared for execution
+   * @param runtimeId - Runtime identifier owned by the current adapter
+   * @param runtimeCapabilities - Runtime capabilities owned by the adapter
+   * @param currentMediaKernelState - Current immutable media kernel state
+   * @param currentExecutionSnapshot - Existing execution snapshot, when one exists
+   *
+   * @returns Committed playback decision, or `null` when the session is not background-backed
+   */
+  private resolveCommittedPlaybackDecision(
+    plannedSession: MediaPlanSession,
+    runtimeId: string,
+    runtimeCapabilities: MediaRuntimeCapabilities,
+    currentMediaKernelState: MediaKernelState,
+    currentExecutionSnapshot: MediaExecutionSnapshot | undefined,
+  ): CommittedPlaybackDecision | null {
+    if (plannedSession.role !== "background") {
+      return null;
+    }
+
+    const committedPlaybackIntent: CommittedPlaybackIntent =
+      this.createCommittedPlaybackIntent(
+        plannedSession,
+        currentMediaKernelState,
+      );
+
+    return CommittedPlaybackChooser.choose({
+      intent: committedPlaybackIntent,
+      sourceDescriptor: plannedSession.source,
+      appCapabilityProfile: this.resolveAppCapabilityProfile(
+        currentMediaKernelState,
+        runtimeId,
+      ),
+      runtimeCapabilities,
+      currentExecutionSnapshot: currentExecutionSnapshot ?? null,
+      preferredLaneHint: plannedSession.desiredPlaybackLane,
+      preferredRendererKindHint: plannedSession.desiredRendererKind,
+    });
+  }
+
+  /**
+   * @brief Build committed playback debug state for one background session
+   *
+   * @param plannedSession - Planned session being described
+   * @param currentMediaKernelState - Current immutable media kernel state
+   * @param committedPlaybackDecision - Chosen committed playback decision
+   * @param lifecycleState - Lifecycle state to publish
+   *
+   * @returns Committed playback snapshot, or `null` when the session is not background-backed
+   */
+  private createCommittedPlaybackSnapshot(
+    plannedSession: MediaPlanSession | null,
+    currentMediaKernelState: MediaKernelState,
+    committedPlaybackDecision: CommittedPlaybackDecision | null,
+    lifecycleState: CommittedPlaybackLifecycleState,
+  ): CommittedPlaybackSnapshot | null {
+    if (
+      plannedSession?.role !== "background" ||
+      committedPlaybackDecision === null
+    ) {
+      return null;
+    }
+
+    const committedPlaybackIntent: CommittedPlaybackIntent =
+      this.createCommittedPlaybackIntent(
+        plannedSession,
+        currentMediaKernelState,
+      );
+
+    return {
+      itemId: plannedSession.itemId,
+      selectedItemId: currentMediaKernelState.selectedItemId,
+      activeItemId: currentMediaKernelState.activeItemId,
+      lifecycleState,
+      intent: committedPlaybackIntent,
+      decision: committedPlaybackDecision,
+    };
+  }
+
+  /**
+   * @brief Build a committed playback intent from the current plan and kernel state
+   *
+   * @param plannedSession - Planned background session
+   * @param currentMediaKernelState - Current immutable media kernel state
+   *
+   * @returns Committed playback intent used by the chooser
+   */
+  private createCommittedPlaybackIntent(
+    plannedSession: MediaPlanSession,
+    currentMediaKernelState: MediaKernelState,
+  ): CommittedPlaybackIntent {
+    return {
+      intentType:
+        plannedSession.reason.intentType === "selected"
+          ? "selected"
+          : "background-active",
+      selectedItemId: currentMediaKernelState.selectedItemId,
+      activeItemId: currentMediaKernelState.activeItemId,
+      targetItemId: plannedSession.itemId,
+      startPositionSeconds: 0,
+    };
+  }
+
+  /**
+   * @brief Resolve the app capability profile reported by the active runtime
+   *
+   * @param currentMediaKernelState - Current immutable media kernel state
+   * @param runtimeId - Runtime identifier to resolve
+   *
+   * @returns Matching app capability profile, or `null` when none was reported
+   */
+  private resolveAppCapabilityProfile(
+    currentMediaKernelState: MediaKernelState,
+    runtimeId: string,
+  ): MediaCapabilityProfile | null {
+    const appMediaCapabilities:
+      | MediaKernelState["appCapabilities"][number]
+      | undefined = currentMediaKernelState.appCapabilities.find(
+      (candidateAppMediaCapabilities): boolean =>
+        candidateAppMediaCapabilities.appId === runtimeId,
+    );
+
+    return appMediaCapabilities?.profile ?? null;
+  }
+
+  /**
+   * @brief Convert execution state into a committed playback lifecycle state
+   *
+   * @param executionState - Shared execution state
+   * @param fallbackLifecycleState - Existing lifecycle state when no mapping applies
+   *
+   * @returns Lifecycle state aligned with committed playback semantics
+   */
+  private resolveCommittedPlaybackLifecycleState(
+    executionState: MediaExecutionState,
+    fallbackLifecycleState: CommittedPlaybackLifecycleState,
+  ): CommittedPlaybackLifecycleState {
+    switch (executionState) {
+      case "activating-background":
+        return "activating-background";
+      case "waiting-first-frame":
+        return "waiting-first-frame";
+      case "background-active":
+        return "background-active";
+      default:
+        return fallbackLifecycleState;
+    }
+  }
+
+  /**
+   * @brief Replace the lifecycle state published by a committed playback snapshot
+   *
+   * @param committedPlaybackSnapshot - Existing committed playback snapshot
+   * @param lifecycleState - Next lifecycle state
+   *
+   * @returns Updated committed playback snapshot, or `null` when absent
+   */
+  private transitionCommittedPlaybackSnapshot(
+    committedPlaybackSnapshot: CommittedPlaybackSnapshot | null,
+    lifecycleState: CommittedPlaybackLifecycleState,
+  ): CommittedPlaybackSnapshot | null {
+    if (committedPlaybackSnapshot === null) {
+      return null;
+    }
+
+    const clonedCommittedPlaybackSnapshot: CommittedPlaybackSnapshot =
+      this.cloneCommittedPlaybackSnapshot(committedPlaybackSnapshot) ??
+      committedPlaybackSnapshot;
+
+    return {
+      ...clonedCommittedPlaybackSnapshot,
+      lifecycleState,
+    };
+  }
+
+  /**
+   * @brief Compare two committed playback decisions for change detection
+   *
+   * @param leftCommittedPlaybackDecision - Previous committed playback decision
+   * @param rightCommittedPlaybackDecision - Next committed playback decision
+   *
+   * @returns `true` when both decisions are equivalent
+   */
+  private areCommittedPlaybackDecisionsEqual(
+    leftCommittedPlaybackDecision: CommittedPlaybackDecision | null,
+    rightCommittedPlaybackDecision: CommittedPlaybackDecision | null,
+  ): boolean {
+    if (
+      leftCommittedPlaybackDecision === null ||
+      rightCommittedPlaybackDecision === null
+    ) {
+      return leftCommittedPlaybackDecision === rightCommittedPlaybackDecision;
+    }
+
+    return (
+      leftCommittedPlaybackDecision.mode ===
+        rightCommittedPlaybackDecision.mode &&
+      leftCommittedPlaybackDecision.preferredLane ===
+        rightCommittedPlaybackDecision.preferredLane &&
+      leftCommittedPlaybackDecision.chosenLane ===
+        rightCommittedPlaybackDecision.chosenLane &&
+      leftCommittedPlaybackDecision.preferredRendererKind ===
+        rightCommittedPlaybackDecision.preferredRendererKind &&
+      leftCommittedPlaybackDecision.audioActivationMode ===
+        rightCommittedPlaybackDecision.audioActivationMode &&
+      leftCommittedPlaybackDecision.usedPreferredLane ===
+        rightCommittedPlaybackDecision.usedPreferredLane &&
+      leftCommittedPlaybackDecision.usedFallbackLane ===
+        rightCommittedPlaybackDecision.usedFallbackLane &&
+      leftCommittedPlaybackDecision.lanePreference ===
+        rightCommittedPlaybackDecision.lanePreference &&
+      leftCommittedPlaybackDecision.startPositionSeconds ===
+        rightCommittedPlaybackDecision.startPositionSeconds &&
+      JSON.stringify(leftCommittedPlaybackDecision.fallbackOrder) ===
+        JSON.stringify(rightCommittedPlaybackDecision.fallbackOrder) &&
+      JSON.stringify(leftCommittedPlaybackDecision.reasons) ===
+        JSON.stringify(rightCommittedPlaybackDecision.reasons) &&
+      JSON.stringify(leftCommittedPlaybackDecision.reasonDetails) ===
+        JSON.stringify(rightCommittedPlaybackDecision.reasonDetails)
+    );
   }
 
   /**

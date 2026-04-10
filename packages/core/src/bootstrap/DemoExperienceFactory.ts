@@ -14,7 +14,10 @@ import {
   type MediaSourceDescriptor,
   MediaThumbnailController,
 } from "@meditation-surf/media";
-import { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
+import {
+  PlaybackVisualReadinessController,
+  type PlaybackVisualReadinessState,
+} from "@meditation-surf/player-core";
 
 import {
   BrowseContentAdapter,
@@ -103,6 +106,16 @@ export class DemoExperienceFactory {
       );
     const mediaExecutionController: MediaExecutionController =
       new MediaExecutionController(mediaKernelController);
+
+    playbackVisualReadinessController.subscribe(
+      (playbackVisualReadinessState: PlaybackVisualReadinessState): void => {
+        if (playbackVisualReadinessState.readiness !== "visualReady") {
+          return;
+        }
+
+        mediaExecutionController.markCommittedPlaybackVisualReady();
+      },
+    );
 
     return new MeditationExperience(
       appLayout,

@@ -6,7 +6,9 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { CommittedPlaybackLanePreference } from "../committed/CommittedPlaybackLanePreference";
 import type { PreviewSchedulerBudget } from "../preview/PreviewSchedulerBudget";
+import type { MediaPlaybackLane } from "../sessions/MediaPlaybackLane";
 
 /**
  * @brief Runtime execution features currently available in one app shell
@@ -18,5 +20,13 @@ export type MediaRuntimeCapabilities = {
   canKeepHiddenWarmSession: boolean;
   canPromoteWarmSession: boolean;
   canRunMultipleWarmSessions: boolean;
+  supportsCommittedPlayback: boolean;
+  supportsCommittedPlaybackAudio: boolean;
+  supportsFallbackStereoAudio: boolean;
+  supportsPremiumCommittedPlayback: boolean;
+  supportsPremiumAudioActivation: boolean;
+  committedPlaybackLanePreference: CommittedPlaybackLanePreference;
+  committedPlaybackLanes: MediaPlaybackLane[];
+  existingBackgroundPlaybackLane: MediaPlaybackLane | null;
   previewSchedulerBudget: PreviewSchedulerBudget;
 };

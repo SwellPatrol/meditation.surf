@@ -6,6 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { CommittedPlaybackDecision } from "../committed/CommittedPlaybackDecision";
 import type { MediaExecutionState } from "./MediaExecutionState";
 import type { MediaRuntimeSessionHandle } from "./MediaRuntimeSessionHandle";
 
@@ -15,5 +16,6 @@ import type { MediaRuntimeSessionHandle } from "./MediaRuntimeSessionHandle";
 export type MediaExecutionResult = {
   state: MediaExecutionState;
   runtimeSessionHandle: MediaRuntimeSessionHandle | null;
+  committedPlaybackDecision: CommittedPlaybackDecision | null;
   failureReason: string | null;
 };

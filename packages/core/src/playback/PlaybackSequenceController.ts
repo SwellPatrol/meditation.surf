@@ -6,6 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { CommittedPlaybackDecision } from "@meditation-surf/media";
+
 import type { Catalog } from "../catalog/Catalog";
 import type { CatalogSection } from "../catalog/CatalogSection";
 import type { MediaItem } from "../catalog/MediaItem";
@@ -15,6 +17,7 @@ import type { MediaItem } from "../catalog/MediaItem";
  */
 export type PlaybackSequenceState = {
   activeItem: MediaItem | null;
+  committedPlaybackDecision: CommittedPlaybackDecision | null;
 };
 
 /**
@@ -31,6 +34,7 @@ export type PlaybackSequenceListener = (state: PlaybackSequenceState) => void;
 export class PlaybackSequenceController {
   private readonly stateListeners: Set<PlaybackSequenceListener>;
   private activeItem: MediaItem | null;
+  private committedPlaybackDecision: CommittedPlaybackDecision | null;
 
   /**
    * @brief Create the playback sequence controller for the featured demo item
@@ -42,6 +46,7 @@ export class PlaybackSequenceController {
     const featuredItems: MediaItem[] = featuredSection?.getItems() ?? [];
 
     this.activeItem = featuredItems[0] ?? null;
+    this.committedPlaybackDecision = null;
     this.stateListeners = new Set<PlaybackSequenceListener>();
   }
 
@@ -53,6 +58,9 @@ export class PlaybackSequenceController {
   public getState(): PlaybackSequenceState {
     return {
       activeItem: this.activeItem,
+      committedPlaybackDecision: this.cloneCommittedPlaybackDecision(
+        this.committedPlaybackDecision,
+      ),
     };
   }
 
@@ -63,6 +71,15 @@ export class PlaybackSequenceController {
    */
   public getActiveItem(): MediaItem | null {
     return this.activeItem;
+  }
+
+  /**
+   * @brief Return the current committed playback decision, when one exists
+   *
+   * @returns Current committed playback decision, or `null` when unset
+   */
+  public getCommittedPlaybackDecision(): CommittedPlaybackDecision | null {
+    return this.cloneCommittedPlaybackDecision(this.committedPlaybackDecision);
   }
 
   /**
@@ -103,11 +120,42 @@ export class PlaybackSequenceController {
    * @param activeItem - Media item that should become active
    */
   public setActiveItem(activeItem: MediaItem | null): void {
-    if (this.activeItem === activeItem) {
+    if (
+      this.activeItem === activeItem &&
+      this.committedPlaybackDecision === null
+    ) {
       return;
     }
 
     this.activeItem = activeItem;
+    this.committedPlaybackDecision = null;
+    this.notifyStateListeners();
+  }
+
+  /**
+   * @brief Replace the active item together with its committed playback policy
+   *
+   * @param activeItem - Media item that should become active
+   * @param committedPlaybackDecision - Committed playback decision for that item
+   */
+  public setCommittedPlayback(
+    activeItem: MediaItem | null,
+    committedPlaybackDecision: CommittedPlaybackDecision | null,
+  ): void {
+    if (
+      this.activeItem === activeItem &&
+      this.areCommittedPlaybackDecisionsEqual(
+        this.committedPlaybackDecision,
+        committedPlaybackDecision,
+      )
+    ) {
+      return;
+    }
+
+    this.activeItem = activeItem;
+    this.committedPlaybackDecision = this.cloneCommittedPlaybackDecision(
+      committedPlaybackDecision,
+    );
     this.notifyStateListeners();
   }
 
@@ -120,5 +168,82 @@ export class PlaybackSequenceController {
     for (const stateListener of this.stateListeners) {
       stateListener(playbackSequenceState);
     }
+  }
+
+  /**
+   * @brief Clone one committed playback decision for read-only consumers
+   *
+   * @param committedPlaybackDecision - Decision to clone
+   *
+   * @returns Cloned decision, or `null` when absent
+   */
+  private cloneCommittedPlaybackDecision(
+    committedPlaybackDecision: CommittedPlaybackDecision | null,
+  ): CommittedPlaybackDecision | null {
+    if (committedPlaybackDecision === null) {
+      return null;
+    }
+
+    return {
+      mode: committedPlaybackDecision.mode,
+      preferredLane: committedPlaybackDecision.preferredLane,
+      chosenLane: committedPlaybackDecision.chosenLane,
+      preferredRendererKind: committedPlaybackDecision.preferredRendererKind,
+      fallbackOrder: [...committedPlaybackDecision.fallbackOrder],
+      reasons: [...committedPlaybackDecision.reasons],
+      reasonDetails: [...committedPlaybackDecision.reasonDetails],
+      audioActivationMode: committedPlaybackDecision.audioActivationMode,
+      usedPreferredLane: committedPlaybackDecision.usedPreferredLane,
+      usedFallbackLane: committedPlaybackDecision.usedFallbackLane,
+      lanePreference: committedPlaybackDecision.lanePreference,
+      startPositionSeconds: committedPlaybackDecision.startPositionSeconds,
+    };
+  }
+
+  /**
+   * @brief Compare two committed playback decisions for state-change detection
+   *
+   * @param leftCommittedPlaybackDecision - Previous decision
+   * @param rightCommittedPlaybackDecision - Next decision
+   *
+   * @returns `true` when both decisions are effectively identical
+   */
+  private areCommittedPlaybackDecisionsEqual(
+    leftCommittedPlaybackDecision: CommittedPlaybackDecision | null,
+    rightCommittedPlaybackDecision: CommittedPlaybackDecision | null,
+  ): boolean {
+    if (
+      leftCommittedPlaybackDecision === null ||
+      rightCommittedPlaybackDecision === null
+    ) {
+      return leftCommittedPlaybackDecision === rightCommittedPlaybackDecision;
+    }
+
+    return (
+      leftCommittedPlaybackDecision.mode ===
+        rightCommittedPlaybackDecision.mode &&
+      leftCommittedPlaybackDecision.preferredLane ===
+        rightCommittedPlaybackDecision.preferredLane &&
+      leftCommittedPlaybackDecision.chosenLane ===
+        rightCommittedPlaybackDecision.chosenLane &&
+      leftCommittedPlaybackDecision.preferredRendererKind ===
+        rightCommittedPlaybackDecision.preferredRendererKind &&
+      leftCommittedPlaybackDecision.audioActivationMode ===
+        rightCommittedPlaybackDecision.audioActivationMode &&
+      leftCommittedPlaybackDecision.usedPreferredLane ===
+        rightCommittedPlaybackDecision.usedPreferredLane &&
+      leftCommittedPlaybackDecision.usedFallbackLane ===
+        rightCommittedPlaybackDecision.usedFallbackLane &&
+      leftCommittedPlaybackDecision.lanePreference ===
+        rightCommittedPlaybackDecision.lanePreference &&
+      leftCommittedPlaybackDecision.startPositionSeconds ===
+        rightCommittedPlaybackDecision.startPositionSeconds &&
+      JSON.stringify(leftCommittedPlaybackDecision.fallbackOrder) ===
+        JSON.stringify(rightCommittedPlaybackDecision.fallbackOrder) &&
+      JSON.stringify(leftCommittedPlaybackDecision.reasons) ===
+        JSON.stringify(rightCommittedPlaybackDecision.reasons) &&
+      JSON.stringify(leftCommittedPlaybackDecision.reasonDetails) ===
+        JSON.stringify(rightCommittedPlaybackDecision.reasonDetails)
+    );
   }
 }

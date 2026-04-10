@@ -9,6 +9,7 @@
 import type {
   BackgroundLayerLayout,
   BackgroundVideoPlaybackPolicy,
+  CommittedPlaybackDecision,
   MediaItem,
   PlaybackSequenceController,
   PlaybackSequenceState,
@@ -30,6 +31,7 @@ export class ExpoBackgroundVideoController {
   private readonly backgroundLayer: BackgroundLayerLayout;
   private readonly playbackSequenceController: PlaybackSequenceController;
   private readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
+  private currentSourceUrl: string | null;
 
   /**
    * @brief Capture the shared background video model used by the Expo app
@@ -44,6 +46,7 @@ export class ExpoBackgroundVideoController {
     this.backgroundLayer = backgroundLayer;
     this.playbackSequenceController = playbackSequenceController;
     this.playbackVisualReadinessController = playbackVisualReadinessController;
+    this.currentSourceUrl = null;
   }
 
   /**
@@ -67,9 +70,14 @@ export class ExpoBackgroundVideoController {
     const playbackPolicy: BackgroundVideoPlaybackPolicy = this.backgroundLayer
       .getBackgroundVideo()
       .getPlaybackPolicy();
+    const committedPlaybackDecision: CommittedPlaybackDecision | null =
+      this.playbackSequenceController.getCommittedPlaybackDecision();
 
     player.loop = playbackPolicy.loop;
-    player.muted = playbackPolicy.muted;
+    player.muted = this.resolveMutedState(
+      playbackPolicy,
+      committedPlaybackDecision,
+    );
   }
 
   /**
@@ -146,13 +154,49 @@ export class ExpoBackgroundVideoController {
     playbackSequenceState: PlaybackSequenceState,
   ): void {
     const activeItem: MediaItem | null = playbackSequenceState.activeItem;
+    const committedPlaybackDecision: CommittedPlaybackDecision | null =
+      playbackSequenceState.committedPlaybackDecision;
 
     if (activeItem === null) {
+      this.currentSourceUrl = null;
       return;
     }
 
+    const playbackPolicy: BackgroundVideoPlaybackPolicy = this.backgroundLayer
+      .getBackgroundVideo()
+      .getPlaybackPolicy();
+    const nextSourceUrl: string = activeItem.getPlaybackSource().url;
+
+    player.muted = this.resolveMutedState(
+      playbackPolicy,
+      committedPlaybackDecision,
+    );
+
+    if (this.currentSourceUrl === nextSourceUrl) {
+      return;
+    }
+
+    this.currentSourceUrl = nextSourceUrl;
     this.playbackVisualReadinessController.beginLoading();
     player.replace(this.createExpoVideoSource(activeItem.getPlaybackSource()));
     player.play();
+  }
+
+  /**
+   * @brief Resolve whether committed background playback should be muted
+   *
+   * @param playbackPolicy - Shared background playback policy
+   * @param committedPlaybackDecision - Current committed playback decision
+   *
+   * @returns `true` when Expo background playback should be muted
+   */
+  private resolveMutedState(
+    playbackPolicy: BackgroundVideoPlaybackPolicy,
+    committedPlaybackDecision: CommittedPlaybackDecision | null,
+  ): boolean {
+    return committedPlaybackDecision?.audioActivationMode === undefined ||
+      committedPlaybackDecision.audioActivationMode === "muted-preview"
+      ? playbackPolicy.muted
+      : false;
   }
 }
