@@ -23,8 +23,9 @@ export type CenteredOverlaySize = {
  * @brief Shared centered overlay layout for the foreground layer
  *
  * The current product surface only renders a centered icon overlay. This
- * model keeps that concept explicit in core so every runtime can adapt the
- * same layout rules without sharing renderer implementation details.
+ * model keeps that concept explicit in the shared layout package so every
+ * runtime can adapt the same layout rules without sharing renderer
+ * implementation details.
  */
 export class CenteredOverlayLayout {
   public readonly id: string;

@@ -6,12 +6,12 @@
  * See the file LICENSE.txt for more information.
  */
 
+import { BRAND_OVERLAY_ICON_URL } from "@meditation-surf/core/brand/web";
 import type {
   AppLayout,
   CenteredOverlayLayout,
   ForegroundLayerLayout,
-} from "@meditation-surf/core";
-import { BRAND_OVERLAY_ICON_URL } from "@meditation-surf/core/brand/web";
+} from "@meditation-surf/layout";
 
 import { WebBrandOverlay } from "../ui/WebBrandOverlay";
 

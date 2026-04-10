@@ -7,13 +7,13 @@
  */
 
 import type {
-  BackgroundLayerLayout,
   CommittedPlaybackDecision,
   MediaItem,
   MeditationExperience,
   PlaybackSequenceController,
   PlaybackSequenceState,
 } from "@meditation-surf/core";
+import type { BackgroundLayerLayout } from "@meditation-surf/layout";
 import type {
   IPlaybackController,
   PlaybackSource,

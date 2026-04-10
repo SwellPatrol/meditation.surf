@@ -174,16 +174,15 @@ export {
   type VariantSelectionRequest,
   type MediaWarmth,
 } from "@meditation-surf/media";
-export { MediaSourceDescriptorFactory } from "./catalog/MediaSourceDescriptorFactory";
-export { AppLayout } from "./layout/AppLayout";
-export { BackgroundLayerLayout } from "./layout/BackgroundLayerLayout";
-export {
+export type {
+  AppLayout,
+  BackgroundLayerLayout,
   CenteredOverlayLayout,
-  DEMO_CENTERED_OVERLAY_LAYOUT,
-  type CenteredOverlayPlacement,
-  type CenteredOverlaySize,
-} from "./layout/CenteredOverlayLayout";
-export { ForegroundLayerLayout } from "./layout/ForegroundLayerLayout";
+  CenteredOverlayPlacement,
+  CenteredOverlaySize,
+  ForegroundLayerLayout,
+} from "@meditation-surf/layout";
+export { MediaSourceDescriptorFactory } from "./catalog/MediaSourceDescriptorFactory";
 export {
   BackgroundVideoModel,
   type BackgroundVideoPlaybackPolicy,

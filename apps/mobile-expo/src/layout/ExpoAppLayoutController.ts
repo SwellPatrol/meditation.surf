@@ -6,12 +6,12 @@
  * See the file LICENSE.txt for more information.
  */
 
+import { BRAND_OVERLAY_ICON_SOURCE } from "@meditation-surf/core/brand/native";
 import type {
   AppLayout,
   CenteredOverlayLayout,
   CenteredOverlaySize,
-} from "@meditation-surf/core";
-import { BRAND_OVERLAY_ICON_SOURCE } from "@meditation-surf/core/brand/native";
+} from "@meditation-surf/layout";
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
 
 /**

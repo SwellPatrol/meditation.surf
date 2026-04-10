@@ -6,8 +6,11 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { CenteredOverlayLayout } from "../layout/CenteredOverlayLayout";
-import type { ForegroundLayerLayout } from "../layout/ForegroundLayerLayout";
+import {
+  CenteredOverlayLayout,
+  type ForegroundLayerLayout,
+} from "@meditation-surf/layout";
+
 import { ForegroundUiElement } from "./ForegroundUiElement";
 
 type ForegroundUiModelElement = ForegroundUiElement | CenteredOverlayLayout;

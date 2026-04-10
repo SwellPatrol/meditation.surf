@@ -13,6 +13,13 @@ import {
   BrowseSelectionController,
 } from "@meditation-surf/browse";
 import {
+  AppLayout,
+  BackgroundLayerLayout,
+  CenteredOverlayLayout,
+  DEMO_CENTERED_OVERLAY_LAYOUT,
+  ForegroundLayerLayout,
+} from "@meditation-surf/layout";
+import {
   MediaExecutionController,
   MediaKernelController,
   MediaKernelExperienceBridge,
@@ -35,13 +42,6 @@ import { FixtureCatalog } from "../catalog/FixtureCatalog";
 import type { MediaItem } from "../catalog/MediaItem";
 import { MediaSourceDescriptorFactory } from "../catalog/MediaSourceDescriptorFactory";
 import { MeditationExperience } from "../experience/MeditationExperience";
-import { AppLayout } from "../layout/AppLayout";
-import { BackgroundLayerLayout } from "../layout/BackgroundLayerLayout";
-import {
-  CenteredOverlayLayout,
-  DEMO_CENTERED_OVERLAY_LAYOUT,
-} from "../layout/CenteredOverlayLayout";
-import { ForegroundLayerLayout } from "../layout/ForegroundLayerLayout";
 import { BackgroundVideoModel } from "../playback/BackgroundVideoModel";
 import { DemoBackgroundVideo } from "../playback/DemoBackgroundVideo";
 import { PlaybackSequenceController } from "../playback/PlaybackSequenceController";

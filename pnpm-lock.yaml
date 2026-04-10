@@ -75,6 +75,9 @@ importers:
       '@meditation-surf/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@meditation-surf/layout':
+        specifier: workspace:*
+        version: link:../../packages/layout
       '@meditation-surf/overlay':
         specifier: workspace:*
         version: link:../../packages/overlay
@@ -127,6 +130,9 @@ importers:
       '@meditation-surf/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@meditation-surf/layout':
+        specifier: workspace:*
+        version: link:../../packages/layout
       '@meditation-surf/overlay':
         specifier: workspace:*
         version: link:../../packages/overlay
@@ -148,6 +154,9 @@ importers:
       '@meditation-surf/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@meditation-surf/layout':
+        specifier: workspace:*
+        version: link:../../packages/layout
       '@meditation-surf/overlay':
         specifier: workspace:*
         version: link:../../packages/overlay
@@ -166,6 +175,9 @@ importers:
       '@meditation-surf/browse':
         specifier: workspace:*
         version: link:../browse
+      '@meditation-surf/layout':
+        specifier: workspace:*
+        version: link:../layout
       '@meditation-surf/media':
         specifier: workspace:*
         version: link:../media
@@ -175,6 +187,12 @@ importers:
       '@meditation-surf/player-core':
         specifier: workspace:*
         version: link:../player-core
+
+  packages/layout:
+    dependencies:
+      '@meditation-surf/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/media:
     dependencies:

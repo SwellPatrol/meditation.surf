@@ -10,7 +10,7 @@ import type {
   AppLayout,
   CenteredOverlayLayout,
   CenteredOverlaySize,
-} from "@meditation-surf/core";
+} from "@meditation-surf/layout";
 
 import { TvStageIconLayout } from "../layout/TvStageIconLayout";
 

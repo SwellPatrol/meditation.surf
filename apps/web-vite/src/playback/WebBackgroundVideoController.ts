@@ -7,7 +7,6 @@
  */
 
 import {
-  BackgroundLayerLayout,
   BackgroundVideoPlaybackPolicy,
   CommittedPlaybackDecision,
   MediaItem,
@@ -15,6 +14,7 @@ import {
   PlaybackSequenceController,
   PlaybackSequenceState,
 } from "@meditation-surf/core";
+import { BackgroundLayerLayout } from "@meditation-surf/layout";
 import type {
   PlaybackSource,
   PlaybackVisualReadinessController,

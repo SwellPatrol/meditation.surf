@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { BackgroundVideoModel } from "../playback/BackgroundVideoModel";
+import type { BackgroundVideoModel } from "@meditation-surf/core";
 
 /**
  * @brief Shared layout model for the fullscreen background layer

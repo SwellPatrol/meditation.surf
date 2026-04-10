@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { CenteredOverlayLayout } from "@meditation-surf/core";
+import type { CenteredOverlayLayout } from "@meditation-surf/layout";
 
 /**
  * @brief Own DOM layout adaptation for the web brand overlay

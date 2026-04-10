@@ -11,11 +11,8 @@ import type {
   BrowseRowContent,
   BrowseScreenContent,
 } from "@meditation-surf/browse";
-import type {
-  CenteredOverlaySize,
-  MediaItem,
-  PlaybackSequenceState,
-} from "@meditation-surf/core";
+import type { MediaItem, PlaybackSequenceState } from "@meditation-surf/core";
+import type { CenteredOverlaySize } from "@meditation-surf/layout";
 import type { OverlayState } from "@meditation-surf/overlay";
 import type { PlaybackVisualReadinessState } from "@meditation-surf/player-core";
 import { useVideoPlayer, type VideoPlayer } from "expo-video";

@@ -15,6 +15,7 @@
   "dependencies": {
     "@meditation-surf/browse": "workspace:*",
     "@meditation-surf/core": "workspace:*",
+    "@meditation-surf/layout": "workspace:*",
     "@meditation-surf/overlay": "workspace:*",
     "@meditation-surf/player-core": "workspace:*",
     "expo": "^55.0.12",

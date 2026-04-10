@@ -11,6 +11,7 @@
 /node_modules
 /packages/browse/node_modules
 /packages/core/node_modules
+/packages/layout/node_modules
 /packages/media/node_modules
 /packages/player-core/node_modules
 /packages/vfs/node_modules

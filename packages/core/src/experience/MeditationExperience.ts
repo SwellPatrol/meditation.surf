@@ -10,6 +10,7 @@ import type {
   BrowseFocusController,
   BrowseSelectionController,
 } from "@meditation-surf/browse";
+import type { AppLayout, ForegroundLayerLayout } from "@meditation-surf/layout";
 import type {
   FocusDelayController,
   MediaExecutionController,
@@ -25,8 +26,6 @@ import type { PlaybackVisualReadinessController } from "@meditation-surf/player-
 
 import type { Catalog } from "../catalog/Catalog";
 import type { MediaItem } from "../catalog/MediaItem";
-import type { AppLayout } from "../layout/AppLayout";
-import type { ForegroundLayerLayout } from "../layout/ForegroundLayerLayout";
 import type { BackgroundVideoModel } from "../playback/BackgroundVideoModel";
 import type { PlaybackSequenceController } from "../playback/PlaybackSequenceController";
 
