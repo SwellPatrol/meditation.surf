@@ -12,6 +12,7 @@ import {
   MediaKernelExperienceBridge,
   type MediaKernelItem,
   type MediaSourceDescriptor,
+  MediaTelemetryController,
   MediaThumbnailController,
 } from "@meditation-surf/media";
 import {
@@ -95,8 +96,10 @@ export class DemoExperienceFactory {
             mediaKernelItem as MediaItem,
           ),
       );
+    const mediaTelemetryController: MediaTelemetryController =
+      new MediaTelemetryController();
     const mediaThumbnailController: MediaThumbnailController =
-      new MediaThumbnailController();
+      new MediaThumbnailController(null, undefined, mediaTelemetryController);
     const mediaKernelExperienceBridge: MediaKernelExperienceBridge<MediaItem> =
       new MediaKernelExperienceBridge(
         browseContentAdapter,
@@ -111,6 +114,7 @@ export class DemoExperienceFactory {
         mediaKernelController,
         null,
         mediaThumbnailController.getVfsController(),
+        mediaTelemetryController,
       );
 
     playbackVisualReadinessController.subscribe(

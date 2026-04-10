@@ -28,6 +28,7 @@ import {
   type PlaybackSequenceController,
   type PreviewSchedulerDecision,
   type PreviewSessionAssignment,
+  type RendererDecision,
   type RendererFrameHandle,
   RendererRouter as SharedRendererRouter,
   type RendererSnapshot,
@@ -445,6 +446,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       const customDecodeSnapshot: CustomDecodeSnapshot | null =
         shouldAttemptCustomDecode
           ? await this.tryWarmPreviewCustomDecode(
+              command,
               plannedSession,
               previewRuntimeSession,
             )
@@ -1636,6 +1638,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
    * @returns Inspectable custom decode snapshot for the preview slot
    */
   private async tryWarmPreviewCustomDecode(
+    command: MediaExecutionCommand,
     plannedSession: NonNullable<MediaExecutionCommand["session"]>,
     previewRuntimeSession: ManagedPreviewRuntimeSession,
   ): Promise<CustomDecodeSnapshot | null> {
@@ -1702,6 +1705,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
       > = await customDecodeSessionAdapter.captureFrameAtTimeMs(0);
       const rendererSnapshot: RendererSnapshot =
         await this.tryRoutePreviewWarmFrame(
+          command,
           plannedSession,
           previewRuntimeSession,
           frameResult.bitmap,
@@ -1772,17 +1776,23 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
    * @returns Shared renderer snapshot describing the warm-path route
    */
   private async tryRoutePreviewWarmFrame(
+    command: MediaExecutionCommand,
     plannedSession: NonNullable<MediaExecutionCommand["session"]>,
     previewRuntimeSession: ManagedPreviewRuntimeSession,
     frameSource: CanvasImageSource,
     frameHandle: RendererFrameHandle,
   ): Promise<RendererSnapshot> {
+    const runtimeGuardrailState: MediaExecutionCommand["plan"]["previewFarm"]["runtimeGuardrailState"] =
+      command.plan.previewFarm.runtimeGuardrailState;
     const webRendererRouter: WebRendererRouter = new WebRendererRouter();
     const rendererSnapshot: RendererSnapshot =
       await webRendererRouter.routeFrame({
         capability:
           plannedSession.capabilitySnapshot?.rendererCapability ?? null,
-        decision: plannedSession.capabilitySnapshot?.rendererDecision ?? null,
+        decision: this.createGuardrailAdjustedRendererDecision(
+          plannedSession.capabilitySnapshot?.rendererDecision ?? null,
+          runtimeGuardrailState,
+        ),
         sessionId: plannedSession.sessionId,
         sessionRole: "preview",
         variantRole: "preview-warm",
@@ -1808,6 +1818,57 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     previewRuntimeSession.previewRendererRouter = webRendererRouter;
 
     return rendererSnapshot;
+  }
+
+  /**
+   * @brief Apply conservative backend suppression to one renderer decision
+   *
+   * @param rendererDecision - Shared decision chosen by capability planning
+   * @param runtimeGuardrailState - Current session-local runtime guardrails
+   *
+   * @returns Guardrail-adjusted decision
+   */
+  private createGuardrailAdjustedRendererDecision(
+    rendererDecision: RendererDecision | null,
+    runtimeGuardrailState: MediaExecutionCommand["plan"]["previewFarm"]["runtimeGuardrailState"],
+  ): RendererDecision | null {
+    if (rendererDecision === null) {
+      return null;
+    }
+
+    const preferredBackendOrder: RendererDecision["preferredBackendOrder"] =
+      rendererDecision.preferredBackendOrder.filter(
+        (
+          backendKind: RendererDecision["preferredBackendOrder"][number],
+        ): boolean =>
+          backendKind === "none" ||
+          !runtimeGuardrailState.suppressedRendererBackends.includes(
+            backendKind,
+          ),
+      );
+    const selectedBackend: RendererDecision["selectedBackend"] =
+      runtimeGuardrailState.preferredRendererBackend !== null &&
+      runtimeGuardrailState.preferredRendererBackend !== "legacy" &&
+      preferredBackendOrder.includes(
+        runtimeGuardrailState.preferredRendererBackend,
+      )
+        ? runtimeGuardrailState.preferredRendererBackend
+        : (preferredBackendOrder.find(
+            (
+              backendKind: RendererDecision["preferredBackendOrder"][number],
+            ): boolean => backendKind !== "none",
+          ) ?? null);
+
+    return {
+      ...rendererDecision,
+      preferredBackendOrder,
+      selectedBackend,
+      fallbackReason:
+        runtimeGuardrailState.preferredRendererBackend === "legacy"
+          ? "Runtime guardrails temporarily prefer the legacy preview path."
+          : rendererDecision.fallbackReason,
+      notes: [...rendererDecision.notes, ...runtimeGuardrailState.notes],
+    };
   }
 
   /**

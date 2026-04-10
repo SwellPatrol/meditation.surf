@@ -18,6 +18,7 @@ import type { AudioPolicyDecision } from "../audio/AudioPolicyDecision";
 import type { CustomDecodeSnapshot } from "../custom-decode/CustomDecodeSnapshot";
 import { MediaInventoryCloner } from "../inventory/MediaInventoryCloner";
 import { RendererRouter } from "../rendering/RendererRouter";
+import { MediaTelemetryController } from "../telemetry/MediaTelemetryController";
 import type { MediaThumbnailCacheEntry } from "./MediaThumbnailCacheEntry";
 import type { MediaThumbnailDescriptor } from "./MediaThumbnailDescriptor";
 import type { MediaThumbnailExtractionAttempt } from "./MediaThumbnailExtractionAttempt";
@@ -56,6 +57,7 @@ export class MediaThumbnailController {
   >;
   private readonly listeners: Set<MediaThumbnailSnapshotListener>;
   private readonly pendingSourceIds: Set<string>;
+  private readonly telemetryController: MediaTelemetryController;
   private readonly vfsController: VfsController;
 
   private isProcessingQueue: boolean;
@@ -66,14 +68,17 @@ export class MediaThumbnailController {
    *
    * @param runtimeAdapter - Optional app-shell runtime adapter
    * @param vfsController - Optional VFS controller that owns artifact storage
+   * @param telemetryController - Shared local telemetry collector
    */
   public constructor(
     runtimeAdapter: MediaThumbnailRuntimeAdapter | null = null,
     vfsController: VfsController = new VfsController(),
+    telemetryController: MediaTelemetryController = new MediaTelemetryController(),
   ) {
     this.cacheEntriesBySourceId = new Map<string, MediaThumbnailCacheEntry>();
     this.listeners = new Set<MediaThumbnailSnapshotListener>();
     this.pendingSourceIds = new Set<string>();
+    this.telemetryController = telemetryController;
     this.vfsController = vfsController;
     this.isProcessingQueue = false;
     this.runtimeAdapter = runtimeAdapter;
@@ -407,6 +412,15 @@ export class MediaThumbnailController {
           : await this.tryRestoreCachedThumbnailResult(cacheEntry.request);
 
       if (restoredThumbnailResult !== null) {
+        this.telemetryController.recordEvent({
+          domain: "thumbnail",
+          kind: "cache-reused",
+          occurredAtMs: Date.now(),
+          sourceId: cacheEntry.request.sourceId,
+          strategy: cacheEntry.request.extractionPolicy.strategy,
+          latencyMs: 0,
+          reason: "VFS restored an existing cached thumbnail artifact.",
+        });
         this.applyCompletedThumbnailResult(
           nextSourceId,
           cacheEntry.request,
@@ -440,6 +454,7 @@ export class MediaThumbnailController {
       );
 
       try {
+        const extractionStartedAtMs: number = Date.now();
         const runtimeAdapter: MediaThumbnailRuntimeAdapter =
           this.requireRuntimeAdapter();
         const thumbnailExtractionResult: MediaThumbnailExtractionResult =
@@ -449,6 +464,7 @@ export class MediaThumbnailController {
             cacheEntry.request,
             thumbnailExtractionResult,
           );
+        this.recordThumbnailTelemetry(thumbnailResult, extractionStartedAtMs);
 
         this.applyCompletedThumbnailResult(
           nextSourceId,
@@ -460,6 +476,15 @@ export class MediaThumbnailController {
           error instanceof Error && error.message.length > 0
             ? error.message
             : `Thumbnail extraction failed for ${nextSourceId}.`;
+        this.telemetryController.recordEvent({
+          domain: "thumbnail",
+          kind: "extraction-failure",
+          occurredAtMs: Date.now(),
+          sourceId: cacheEntry.request.sourceId,
+          strategy: cacheEntry.request.extractionPolicy.strategy,
+          latencyMs: null,
+          reason: failureReason,
+        });
 
         this.pendingSourceIds.delete(nextSourceId);
         this.updateCacheEntryState(
@@ -1345,6 +1370,65 @@ export class MediaThumbnailController {
       startedAt: extractionAttempt.startedAt,
       finishedAt: extractionAttempt.finishedAt,
     };
+  }
+
+  /**
+   * @brief Emit structured thumbnail, renderer, and custom-decode telemetry
+   *
+   * @param thumbnailResult - Completed result to inspect
+   * @param extractionStartedAtMs - Extraction start timestamp
+   */
+  private recordThumbnailTelemetry(
+    thumbnailResult: MediaThumbnailResult,
+    extractionStartedAtMs: number,
+  ): void {
+    const extractionAttempt: MediaThumbnailExtractionAttempt =
+      thumbnailResult.debug.extractionAttempt;
+    const customDecode = thumbnailResult.debug.customDecode;
+    const renderer = thumbnailResult.debug.renderer;
+    const occurredAtMs: number = Date.now();
+
+    this.telemetryController.recordEvent({
+      domain: "thumbnail",
+      kind: "extraction-success",
+      occurredAtMs,
+      sourceId: thumbnailResult.sourceId,
+      strategy: extractionAttempt.strategyUsed,
+      latencyMs: occurredAtMs - extractionStartedAtMs,
+      reason: thumbnailResult.debug.selectionDecision.resolvedReason,
+    });
+
+    if (customDecode !== null) {
+      this.telemetryController.recordEvent({
+        domain: "custom-decode",
+        kind: customDecode.usedCustomDecode
+          ? "used"
+          : customDecode.failureReason !== null
+            ? "failed"
+            : "fallback",
+        occurredAtMs,
+        lane: customDecode.lane,
+        sourceId: thumbnailResult.sourceId,
+        reason:
+          customDecode.failureReason ?? customDecode.fallbackReason ?? null,
+      });
+    }
+
+    if (renderer !== null) {
+      this.telemetryController.recordEvent({
+        domain: "renderer",
+        kind:
+          renderer.failureReason !== null
+            ? "route-failure"
+            : renderer.usedLegacyPath
+              ? "route-fallback"
+              : "route-success",
+        occurredAtMs,
+        backend: renderer.usedLegacyPath ? "legacy" : renderer.activeBackend,
+        target: "thumbnail",
+        reason: renderer.failureReason ?? renderer.fallbackReason ?? null,
+      });
+    }
   }
 
   /**

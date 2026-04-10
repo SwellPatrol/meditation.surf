@@ -8,6 +8,9 @@
 
 import type { MediaIntentType } from "../intent/MediaIntentType";
 import type { MediaRendererKind } from "../sessions/MediaRendererKind";
+import type { TelemetrySnapshot } from "../telemetry/TelemetrySnapshot";
+import type { AdaptiveBudgetDecision } from "../tuning/AdaptiveBudgetDecision";
+import type { RuntimeGuardrailState } from "../tuning/RuntimeGuardrailState";
 import type { PreviewFarmAssignment } from "./PreviewFarmAssignment";
 import type { PreviewFarmBudget } from "./PreviewFarmBudget";
 import type { PreviewFarmCandidate } from "./PreviewFarmCandidate";
@@ -25,7 +28,10 @@ type PreviewFarmControllerInput = {
   currentSessionAssignments: PreviewFarmAssignment[];
   backgroundItemId: string | null;
   mediaIntentType: MediaIntentType;
+  adaptiveBudgetDecision: AdaptiveBudgetDecision;
   nowMs: number;
+  runtimeGuardrailState: RuntimeGuardrailState;
+  telemetry: TelemetrySnapshot;
 };
 
 type CandidateDecisionState = {
@@ -253,6 +259,9 @@ export class PreviewFarmController {
 
     return {
       budget: previewBudget,
+      telemetry: input.telemetry,
+      adaptiveBudgetDecision: input.adaptiveBudgetDecision,
+      runtimeGuardrailState: input.runtimeGuardrailState,
       budgetUsage: {
         warmSessions: warmedSessionIds.length,
         activePreviewSessions: activeSessionIds.length,

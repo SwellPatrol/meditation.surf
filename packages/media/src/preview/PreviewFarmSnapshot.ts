@@ -6,6 +6,9 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { TelemetrySnapshot } from "../telemetry/TelemetrySnapshot";
+import type { AdaptiveBudgetDecision } from "../tuning/AdaptiveBudgetDecision";
+import type { RuntimeGuardrailState } from "../tuning/RuntimeGuardrailState";
 import type { PreviewFarmAssignment } from "./PreviewFarmAssignment";
 import type { PreviewFarmBudget } from "./PreviewFarmBudget";
 import type { PreviewFarmCandidate } from "./PreviewFarmCandidate";
@@ -16,6 +19,9 @@ import type { PreviewSchedulerDecision } from "./PreviewSchedulerDecision";
  */
 export type PreviewFarmSnapshot = {
   budget: PreviewFarmBudget;
+  telemetry: TelemetrySnapshot;
+  adaptiveBudgetDecision: AdaptiveBudgetDecision;
+  runtimeGuardrailState: RuntimeGuardrailState;
   budgetUsage: {
     warmSessions: number;
     activePreviewSessions: number;

@@ -23,6 +23,10 @@ import type { MediaSessionSnapshot } from "../sessions/MediaSessionSnapshot";
 import type { MediaSessionState } from "../sessions/MediaSessionState";
 import type { MediaWarmth } from "../sessions/MediaWarmth";
 import type { MediaSourceDescriptor } from "../sources/MediaSourceDescriptor";
+import { MediaTelemetryController } from "../telemetry/MediaTelemetryController";
+import type { TelemetrySnapshot } from "../telemetry/TelemetrySnapshot";
+import type { AdaptiveBudgetDecision } from "../tuning/AdaptiveBudgetDecision";
+import type { RuntimeGuardrailState } from "../tuning/RuntimeGuardrailState";
 import type { MediaKernelItem } from "./MediaKernelItem";
 import type { MediaKernelState } from "./MediaKernelState";
 
@@ -53,13 +57,16 @@ export class MediaKernelController {
   private readonly stateListeners: Set<MediaKernelStateListener>;
 
   private activeItem: MediaKernelItem | null;
+  private adaptiveBudgetDecision: AdaptiveBudgetDecision;
   private currentIntent: MediaIntent | null;
   private currentPlan: MediaPlan;
   private focusedItem: MediaKernelItem | null;
   private planningNowMs: number;
   private previewCandidateInputs: PreviewCandidateInput<MediaKernelItem>[];
   private previewFarmTimerId: ReturnType<typeof globalThis.setTimeout> | null;
+  private runtimeGuardrailState: RuntimeGuardrailState;
   private selectedItem: MediaKernelItem | null;
+  private telemetry: TelemetrySnapshot;
 
   /**
    * @brief Create a runtime-agnostic media kernel controller
@@ -80,6 +87,29 @@ export class MediaKernelController {
         );
       });
     this.currentIntent = null;
+    this.telemetry = MediaTelemetryController.createEmptySnapshot();
+    this.adaptiveBudgetDecision = {
+      baseBudget: {
+        ...PreviewScheduler.UNSUPPORTED_BUDGET,
+      },
+      effectiveBudget: {
+        ...PreviewScheduler.UNSUPPORTED_BUDGET,
+      },
+      reasons: ["stable-default-budget"],
+      notes: ["No adaptive budget adjustments are active in this session."],
+      evaluatedAtMs: null,
+    };
+    this.runtimeGuardrailState = {
+      suppressAggressiveWarmExpansion: false,
+      suppressExtraWarmSessions: false,
+      disableCustomDecodePreviewWarm: false,
+      disableRendererBoundPreviewWork: false,
+      suppressedRendererBackends: [],
+      preferredRendererBackend: null,
+      reasons: ["none"],
+      notes: ["No runtime guardrails are active in this session."],
+      evaluatedAtMs: null,
+    };
     this.currentPlan = {
       sessions: [],
       previewFarm: this.createEmptyPreviewFarmState(),
@@ -128,12 +158,19 @@ export class MediaKernelController {
 
     return {
       activeItemId: this.activeItem?.id ?? null,
+      adaptiveBudgetDecision: this.cloneAdaptiveBudgetDecision(
+        this.adaptiveBudgetDecision,
+      ),
       appCapabilities,
       currentIntent: this.cloneMediaIntent(this.currentIntent),
       focusedItemId: this.focusedItem?.id ?? null,
       plan: this.cloneMediaPlan(this.currentPlan),
+      runtimeGuardrailState: this.cloneRuntimeGuardrailState(
+        this.runtimeGuardrailState,
+      ),
       selectedItemId: this.selectedItem?.id ?? null,
       sessions,
+      telemetry: this.cloneTelemetrySnapshot(this.telemetry),
     };
   }
 
@@ -465,6 +502,29 @@ export class MediaKernelController {
   }
 
   /**
+   * @brief Publish local runtime telemetry and adaptive state back into planning
+   *
+   * @param telemetry - Current bounded telemetry snapshot
+   * @param adaptiveBudgetDecision - Current budget decision
+   * @param runtimeGuardrailState - Current runtime guardrails
+   */
+  public setRuntimeDebugState(
+    telemetry: TelemetrySnapshot,
+    adaptiveBudgetDecision: AdaptiveBudgetDecision,
+    runtimeGuardrailState: RuntimeGuardrailState,
+  ): void {
+    this.telemetry = this.cloneTelemetrySnapshot(telemetry);
+    this.adaptiveBudgetDecision = this.cloneAdaptiveBudgetDecision(
+      adaptiveBudgetDecision,
+    );
+    this.runtimeGuardrailState = this.cloneRuntimeGuardrailState(
+      runtimeGuardrailState,
+    );
+    this.recomputePlan();
+    this.notifyStateListeners();
+  }
+
+  /**
    * @brief Release every subscription owned by the media kernel controller
    */
   public destroy(): void {
@@ -494,10 +554,17 @@ export class MediaKernelController {
       focusedItem: this.focusedItem,
       selectedItem: this.selectedItem,
       activeItem: this.activeItem,
+      adaptiveBudgetDecision: this.cloneAdaptiveBudgetDecision(
+        this.adaptiveBudgetDecision,
+      ),
       previewCandidateInputs: this.clonePreviewCandidateInputs(
         this.previewCandidateInputs,
       ),
       planningNowMs: this.planningNowMs,
+      runtimeGuardrailState: this.cloneRuntimeGuardrailState(
+        this.runtimeGuardrailState,
+      ),
+      telemetry: this.cloneTelemetrySnapshot(this.telemetry),
       createSourceDescriptor: this.createSourceDescriptor,
     });
     this.syncPreviewFarmTimer(nextPlan.previewFarm);
@@ -1288,6 +1355,13 @@ export class MediaKernelController {
         maxPreviewOverlapMs: previewFarmState.budget.maxPreviewOverlapMs,
         keepWarmAfterBlurMs: previewFarmState.budget.keepWarmAfterBlurMs,
       },
+      telemetry: this.cloneTelemetrySnapshot(previewFarmState.telemetry),
+      adaptiveBudgetDecision: this.cloneAdaptiveBudgetDecision(
+        previewFarmState.adaptiveBudgetDecision,
+      ),
+      runtimeGuardrailState: this.cloneRuntimeGuardrailState(
+        previewFarmState.runtimeGuardrailState,
+      ),
       budgetUsage: {
         warmSessions: previewFarmState.budgetUsage.warmSessions,
         activePreviewSessions:
@@ -1441,6 +1515,13 @@ export class MediaKernelController {
         keepWarmAfterBlurMs:
           PreviewScheduler.UNSUPPORTED_BUDGET.keepWarmAfterBlurMs,
       },
+      telemetry: this.cloneTelemetrySnapshot(this.telemetry),
+      adaptiveBudgetDecision: this.cloneAdaptiveBudgetDecision(
+        this.adaptiveBudgetDecision,
+      ),
+      runtimeGuardrailState: this.cloneRuntimeGuardrailState(
+        this.runtimeGuardrailState,
+      ),
       budgetUsage: {
         warmSessions: 0,
         activePreviewSessions: 0,
@@ -1461,6 +1542,100 @@ export class MediaKernelController {
       evictedSessionIds: [],
       deferredSessionIds: [],
       nextTransitionAtMs: null,
+    };
+  }
+
+  /**
+   * @brief Clone one bounded telemetry snapshot
+   *
+   * @param telemetry - Telemetry snapshot to clone
+   *
+   * @returns Cloned telemetry snapshot
+   */
+  private cloneTelemetrySnapshot(
+    telemetry: TelemetrySnapshot,
+  ): TelemetrySnapshot {
+    return {
+      counters: {
+        ...telemetry.counters,
+      },
+      rollingWindow: {
+        ...telemetry.rollingWindow,
+        preview: {
+          ...telemetry.rollingWindow.preview,
+        },
+        thumbnail: {
+          ...telemetry.rollingWindow.thumbnail,
+        },
+        renderer: {
+          ...telemetry.rollingWindow.renderer,
+        },
+        customDecode: {
+          ...telemetry.rollingWindow.customDecode,
+        },
+        startup: {
+          ...telemetry.rollingWindow.startup,
+        },
+        recentEvents: telemetry.rollingWindow.recentEvents.map((event) => ({
+          ...event,
+        })),
+      },
+      lastUpdatedAtMs: telemetry.lastUpdatedAtMs,
+      historyLimit: telemetry.historyLimit,
+      windowDurationMs: telemetry.windowDurationMs,
+      recentEvents: telemetry.recentEvents.map((event) => ({ ...event })),
+    };
+  }
+
+  /**
+   * @brief Clone one adaptive budget decision
+   *
+   * @param adaptiveBudgetDecision - Budget decision to clone
+   *
+   * @returns Cloned decision
+   */
+  private cloneAdaptiveBudgetDecision(
+    adaptiveBudgetDecision: AdaptiveBudgetDecision,
+  ): AdaptiveBudgetDecision {
+    return {
+      baseBudget: {
+        ...adaptiveBudgetDecision.baseBudget,
+      },
+      effectiveBudget: {
+        ...adaptiveBudgetDecision.effectiveBudget,
+      },
+      reasons: [...adaptiveBudgetDecision.reasons],
+      notes: [...adaptiveBudgetDecision.notes],
+      evaluatedAtMs: adaptiveBudgetDecision.evaluatedAtMs,
+    };
+  }
+
+  /**
+   * @brief Clone one runtime guardrail state
+   *
+   * @param runtimeGuardrailState - Guardrail state to clone
+   *
+   * @returns Cloned runtime guardrail state
+   */
+  private cloneRuntimeGuardrailState(
+    runtimeGuardrailState: RuntimeGuardrailState,
+  ): RuntimeGuardrailState {
+    return {
+      suppressAggressiveWarmExpansion:
+        runtimeGuardrailState.suppressAggressiveWarmExpansion,
+      suppressExtraWarmSessions:
+        runtimeGuardrailState.suppressExtraWarmSessions,
+      disableCustomDecodePreviewWarm:
+        runtimeGuardrailState.disableCustomDecodePreviewWarm,
+      disableRendererBoundPreviewWork:
+        runtimeGuardrailState.disableRendererBoundPreviewWork,
+      suppressedRendererBackends: [
+        ...runtimeGuardrailState.suppressedRendererBackends,
+      ],
+      preferredRendererBackend: runtimeGuardrailState.preferredRendererBackend,
+      reasons: [...runtimeGuardrailState.reasons],
+      notes: [...runtimeGuardrailState.notes],
+      evaluatedAtMs: runtimeGuardrailState.evaluatedAtMs,
     };
   }
 

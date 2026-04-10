@@ -25,6 +25,9 @@ import type { MediaPlaybackLane } from "../sessions/MediaPlaybackLane";
 import type { MediaRendererKind } from "../sessions/MediaRendererKind";
 import type { MediaSessionRole } from "../sessions/MediaSessionRole";
 import type { MediaSourceDescriptor } from "../sources/MediaSourceDescriptor";
+import type { TelemetrySnapshot } from "../telemetry/TelemetrySnapshot";
+import type { AdaptiveBudgetDecision } from "../tuning/AdaptiveBudgetDecision";
+import type { RuntimeGuardrailState } from "../tuning/RuntimeGuardrailState";
 import { VariantPolicy } from "../variant-policy/VariantPolicy";
 import type { VariantRolePolicy } from "../variant-policy/VariantRolePolicy";
 import type { VariantSelectionDecision } from "../variant-policy/VariantSelectionDecision";
@@ -53,8 +56,11 @@ export type MediaSessionPlannerInput<
   focusedItem: TMediaItem | null;
   selectedItem: TMediaItem | null;
   activeItem: TMediaItem | null;
+  adaptiveBudgetDecision: AdaptiveBudgetDecision;
   previewCandidateInputs: PreviewCandidateInput<TMediaItem>[];
   planningNowMs: number;
+  runtimeGuardrailState: RuntimeGuardrailState;
+  telemetry: TelemetrySnapshot;
   createSourceDescriptor: (mediaItem: TMediaItem) => MediaSourceDescriptor;
 };
 
@@ -115,16 +121,17 @@ export class MediaSessionPlanner {
     const previewFarmState: PreviewFarmState = PreviewScheduler.createState({
       previewCandidates,
       supportsPreviewVideo: appCapabilityProfile?.supportsPreviewVideo === true,
-      previewBudget:
-        appCapabilityProfile?.previewSchedulerBudget ??
-        PreviewScheduler.UNSUPPORTED_BUDGET,
+      previewBudget: input.adaptiveBudgetDecision.effectiveBudget,
       currentlyPlannedWarmSessionIds: previousPreviewFarmState.warmedSessionIds,
       currentlyPlannedActiveSessionIds:
         previousPreviewFarmState.activeSessionIds,
       currentSessionAssignments: previousPreviewFarmState.sessionAssignments,
       backgroundItemId: backgroundItem?.id ?? null,
       mediaIntentType: currentIntentType,
+      adaptiveBudgetDecision: input.adaptiveBudgetDecision,
       nowMs: input.planningNowMs,
+      runtimeGuardrailState: input.runtimeGuardrailState,
+      telemetry: input.telemetry,
     });
     const previewSessions: MediaPlanSession[] =
       this.createPreviewPlanSessionsFromFarm(previewFarmState, input);
@@ -251,7 +258,8 @@ export class MediaSessionPlanner {
           sessionId,
         );
       const canUseCustomDecode: boolean =
-        previewWarmRoleDecision.customDecodeDecision.shouldAttempt;
+        previewWarmRoleDecision.customDecodeDecision.shouldAttempt &&
+        !input.runtimeGuardrailState.disableCustomDecodePreviewWarm;
       const canUseWebGpuRenderer: boolean =
         previewWarmRoleDecision.capabilitySnapshot.rendererDecision.preferredBackendOrder.includes(
           "webgpu",
@@ -262,7 +270,8 @@ export class MediaSessionPlanner {
         );
       const rendererRoutingSupported: boolean =
         previewWarmRoleDecision.capabilitySnapshot.rendererDecision
-          .shouldRouteThroughRenderer;
+          .shouldRouteThroughRenderer &&
+        !input.runtimeGuardrailState.disableRendererBoundPreviewWork;
       const preferredRendererKind: MediaRendererKind | null =
         previewWarmRoleDecision.desiredRendererKind;
       const mustUseLegacyPreviewPath: boolean =
@@ -311,6 +320,7 @@ export class MediaSessionPlanner {
         preferredRendererKind,
         requiresRendererBudget: canUseCustomDecode && !mustUseLegacyPreviewPath,
         notes: [
+          ...input.runtimeGuardrailState.notes,
           canUseCustomDecode
             ? "Candidate may use the preview custom-decode warm path."
             : "Candidate stays on the established preview video warm path.",
@@ -956,6 +966,70 @@ export class MediaSessionPlanner {
         maxPreviewReuseMs: previewFarmState.budget.maxPreviewReuseMs,
         maxPreviewOverlapMs: previewFarmState.budget.maxPreviewOverlapMs,
         keepWarmAfterBlurMs: previewFarmState.budget.keepWarmAfterBlurMs,
+      },
+      telemetry: {
+        counters: {
+          ...previewFarmState.telemetry.counters,
+        },
+        rollingWindow: {
+          ...previewFarmState.telemetry.rollingWindow,
+          preview: {
+            ...previewFarmState.telemetry.rollingWindow.preview,
+          },
+          thumbnail: {
+            ...previewFarmState.telemetry.rollingWindow.thumbnail,
+          },
+          renderer: {
+            ...previewFarmState.telemetry.rollingWindow.renderer,
+          },
+          customDecode: {
+            ...previewFarmState.telemetry.rollingWindow.customDecode,
+          },
+          startup: {
+            ...previewFarmState.telemetry.rollingWindow.startup,
+          },
+          recentEvents:
+            previewFarmState.telemetry.rollingWindow.recentEvents.map(
+              (event) => ({ ...event }),
+            ),
+        },
+        lastUpdatedAtMs: previewFarmState.telemetry.lastUpdatedAtMs,
+        historyLimit: previewFarmState.telemetry.historyLimit,
+        windowDurationMs: previewFarmState.telemetry.windowDurationMs,
+        recentEvents: previewFarmState.telemetry.recentEvents.map((event) => ({
+          ...event,
+        })),
+      },
+      adaptiveBudgetDecision: {
+        baseBudget: {
+          ...previewFarmState.adaptiveBudgetDecision.baseBudget,
+        },
+        effectiveBudget: {
+          ...previewFarmState.adaptiveBudgetDecision.effectiveBudget,
+        },
+        reasons: [...previewFarmState.adaptiveBudgetDecision.reasons],
+        notes: [...previewFarmState.adaptiveBudgetDecision.notes],
+        evaluatedAtMs: previewFarmState.adaptiveBudgetDecision.evaluatedAtMs,
+      },
+      runtimeGuardrailState: {
+        suppressAggressiveWarmExpansion:
+          previewFarmState.runtimeGuardrailState
+            .suppressAggressiveWarmExpansion,
+        suppressExtraWarmSessions:
+          previewFarmState.runtimeGuardrailState.suppressExtraWarmSessions,
+        disableCustomDecodePreviewWarm:
+          previewFarmState.runtimeGuardrailState.disableCustomDecodePreviewWarm,
+        disableRendererBoundPreviewWork:
+          previewFarmState.runtimeGuardrailState
+            .disableRendererBoundPreviewWork,
+        suppressedRendererBackends: [
+          ...previewFarmState.runtimeGuardrailState.suppressedRendererBackends,
+        ],
+        preferredRendererBackend:
+          previewFarmState.runtimeGuardrailState.preferredRendererBackend,
+        reasons: [...previewFarmState.runtimeGuardrailState.reasons],
+        notes: [...previewFarmState.runtimeGuardrailState.notes],
+        evaluatedAtMs: previewFarmState.runtimeGuardrailState.evaluatedAtMs,
       },
       candidates: previewFarmState.candidates.map(
         (previewCandidate: PreviewCandidate): PreviewCandidate => ({

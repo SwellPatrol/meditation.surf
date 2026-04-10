@@ -30,6 +30,9 @@ import { RendererRouter } from "../rendering/RendererRouter";
 import type { RendererSnapshot } from "../rendering/RendererSnapshot";
 import type { MediaSessionDescriptor } from "../sessions/MediaSessionDescriptor";
 import type { MediaSourceDescriptor } from "../sources/MediaSourceDescriptor";
+import { MediaTelemetryController } from "../telemetry/MediaTelemetryController";
+import type { TelemetrySnapshot } from "../telemetry/TelemetrySnapshot";
+import { AdaptiveBudgetPolicy } from "../tuning/AdaptiveBudgetPolicy";
 import type { MediaExecutionCommand } from "./MediaExecutionCommand";
 import type { MediaExecutionCommandType } from "./MediaExecutionCommandType";
 import type { MediaExecutionResult } from "./MediaExecutionResult";
@@ -61,6 +64,7 @@ export class MediaExecutionController {
   >;
   private readonly mediaKernelController: MediaKernelController;
   private readonly stateListeners: Set<MediaExecutionStateListener>;
+  private readonly telemetryController: MediaTelemetryController;
   private readonly vfsController: VfsController;
 
   private currentPlan: MediaPlan;
@@ -75,11 +79,13 @@ export class MediaExecutionController {
    * @param mediaKernelController - Shared media kernel that owns the current plan
    * @param runtimeAdapter - Optional runtime adapter supplied by the app shell
    * @param vfsController - Shared VFS controller that owns startup-byte storage
+   * @param telemetryController - Shared local telemetry collector
    */
   public constructor(
     mediaKernelController: MediaKernelController,
     runtimeAdapter: MediaRuntimeAdapter | null = null,
     vfsController: VfsController = new VfsController(),
+    telemetryController: MediaTelemetryController = new MediaTelemetryController(),
   ) {
     this.executionSnapshotsBySessionId = new Map<
       string,
@@ -87,6 +93,7 @@ export class MediaExecutionController {
     >();
     this.mediaKernelController = mediaKernelController;
     this.stateListeners = new Set<MediaExecutionStateListener>();
+    this.telemetryController = telemetryController;
     this.vfsController = vfsController;
     this.currentPlan = this.mediaKernelController.getPlan();
     this.currentPlanSignature = this.createPlanSignature(this.currentPlan);
@@ -110,6 +117,8 @@ export class MediaExecutionController {
     if (this.runtimeAdapter !== null) {
       this.queueSync();
     }
+
+    this.publishTelemetryState();
   }
 
   /**
@@ -137,6 +146,15 @@ export class MediaExecutionController {
    */
   public getVfsController(): VfsController {
     return this.vfsController;
+  }
+
+  /**
+   * @brief Return the current immutable telemetry snapshot
+   *
+   * @returns Bounded local telemetry state
+   */
+  public getTelemetrySnapshot(): TelemetrySnapshot {
+    return this.telemetryController.getSnapshot();
   }
 
   /**
@@ -235,6 +253,10 @@ export class MediaExecutionController {
     );
 
     await this.executeGlobalCommand("sync-plan", runtimeAdapter, currentPlan);
+    this.recordPreviewFarmTelemetry(
+      currentMediaKernelState.plan.previewFarm,
+      currentPlan.previewFarm,
+    );
 
     for (const plannedSession of currentPlan.sessions) {
       const previousExecutionSnapshot: MediaExecutionSnapshot | undefined =
@@ -626,15 +648,27 @@ export class MediaExecutionController {
     command: MediaExecutionCommand,
     plannedSession: MediaPlanSession,
   ): Promise<MediaExecutionResult> {
+    const commandStartedAtMs: number = Date.now();
+
     try {
-      return await runtimeAdapter.execute(command);
+      const commandResult: MediaExecutionResult =
+        await runtimeAdapter.execute(command);
+
+      this.recordCommandTelemetry(
+        command,
+        plannedSession,
+        commandResult,
+        Date.now() - commandStartedAtMs,
+      );
+
+      return commandResult;
     } catch (error: unknown) {
       const failureReason: string =
         error instanceof Error
           ? error.message
           : "Unknown runtime adapter error";
 
-      return {
+      const failedCommandResult: MediaExecutionResult = {
         state: "failed",
         runtimeSessionHandle: command.runtimeSessionHandle,
         committedPlaybackDecision: command.committedPlaybackDecision,
@@ -644,7 +678,330 @@ export class MediaExecutionController {
         customDecode: null,
         renderer: null,
       };
+
+      this.recordCommandTelemetry(
+        command,
+        plannedSession,
+        failedCommandResult,
+        Date.now() - commandStartedAtMs,
+      );
+
+      return failedCommandResult;
     }
+  }
+
+  /**
+   * @brief Emit structured telemetry for one runtime command result
+   *
+   * @param command - Shared command that just completed
+   * @param plannedSession - Planned session associated with the command
+   * @param commandResult - Runtime result to inspect
+   * @param latencyMs - End-to-end command latency
+   */
+  private recordCommandTelemetry(
+    command: MediaExecutionCommand,
+    plannedSession: MediaPlanSession,
+    commandResult: MediaExecutionResult,
+    latencyMs: number,
+  ): void {
+    const occurredAtMs: number = Date.now();
+    const previousExecutionSnapshot: MediaExecutionSnapshot | undefined =
+      this.executionSnapshotsBySessionId.get(plannedSession.sessionId);
+    const sourceId: string | null = plannedSession.source?.sourceId ?? null;
+
+    if (command.type === "warm-session" && plannedSession.role === "preview") {
+      this.telemetryController.recordEvent({
+        domain: "preview",
+        kind: "warm-requested",
+        occurredAtMs,
+        sessionId: plannedSession.sessionId,
+        itemId: plannedSession.itemId,
+        sourceId,
+        latencyMs: null,
+        reason: null,
+      });
+
+      if (
+        previousExecutionSnapshot !== undefined &&
+        previousExecutionSnapshot.runtimeSessionHandle !== null &&
+        previousExecutionSnapshot.planSession?.source?.sourceId === sourceId &&
+        (previousExecutionSnapshot.state === "ready-first-frame" ||
+          previousExecutionSnapshot.state === "preview-active")
+      ) {
+        this.telemetryController.recordEvent({
+          domain: "preview",
+          kind: "warm-reused",
+          occurredAtMs,
+          sessionId: plannedSession.sessionId,
+          itemId: plannedSession.itemId,
+          sourceId,
+          latencyMs,
+          reason: "Warm request reused the existing preview slot state.",
+        });
+        this.telemetryController.recordEvent({
+          domain: "preview",
+          kind: "reuse-hit",
+          occurredAtMs,
+          sessionId: plannedSession.sessionId,
+          itemId: plannedSession.itemId,
+          sourceId,
+          latencyMs,
+          reason: "Preview warm path reused an already-prepared session.",
+        });
+      } else {
+        this.telemetryController.recordEvent({
+          domain: "preview",
+          kind: "reuse-miss",
+          occurredAtMs,
+          sessionId: plannedSession.sessionId,
+          itemId: plannedSession.itemId,
+          sourceId,
+          latencyMs,
+          reason: "Preview warm path required a fresh warm operation.",
+        });
+      }
+
+      if (commandResult.state === "ready-first-frame") {
+        this.telemetryController.recordEvent({
+          domain: "preview",
+          kind: "warm-completed",
+          occurredAtMs,
+          sessionId: plannedSession.sessionId,
+          itemId: plannedSession.itemId,
+          sourceId,
+          latencyMs,
+          reason: null,
+        });
+      }
+    }
+
+    if (
+      command.type === "activate-session" &&
+      plannedSession.role === "preview"
+    ) {
+      this.telemetryController.recordEvent({
+        domain: "preview",
+        kind:
+          commandResult.state === "preview-active"
+            ? "activation-success"
+            : "activation-failure",
+        occurredAtMs,
+        sessionId: plannedSession.sessionId,
+        itemId: plannedSession.itemId,
+        sourceId,
+        latencyMs,
+        reason: commandResult.failureReason,
+      });
+    }
+
+    this.recordStartupTelemetry(commandResult.startupDebugState, occurredAtMs);
+    this.recordCustomDecodeTelemetry(
+      commandResult.customDecode,
+      sourceId,
+      occurredAtMs,
+    );
+    this.recordRendererTelemetry(
+      commandResult.renderer,
+      plannedSession.role,
+      occurredAtMs,
+    );
+    this.publishTelemetryState();
+  }
+
+  /**
+   * @brief Emit startup artifact path usage from debug state
+   *
+   * @param startupDebugState - Startup debug state being inspected
+   * @param occurredAtMs - Telemetry timestamp
+   */
+  private recordStartupTelemetry(
+    startupDebugState: MediaStartupDebugState | null,
+    occurredAtMs: number,
+  ): void {
+    const warmResult = startupDebugState?.warmResult ?? null;
+
+    if (startupDebugState === null || warmResult === null) {
+      return;
+    }
+
+    const phase: MediaStartupDebugState["phase"] = startupDebugState.phase;
+    const sourceId: string | null = startupDebugState.sourceId;
+    const startupArtifacts: Array<{
+      artifact: "manifest" | "init-segment" | "startup-window" | "hot-range";
+      result:
+        | NonNullable<MediaStartupDebugState["warmResult"]>["manifest"]
+        | NonNullable<MediaStartupDebugState["warmResult"]>["initSegment"]
+        | NonNullable<MediaStartupDebugState["warmResult"]>["startupWindow"]
+        | NonNullable<MediaStartupDebugState["warmResult"]>["hotRange"];
+    }> = [
+      { artifact: "manifest", result: warmResult.manifest },
+      { artifact: "init-segment", result: warmResult.initSegment },
+      { artifact: "startup-window", result: warmResult.startupWindow },
+      { artifact: "hot-range", result: warmResult.hotRange },
+    ];
+
+    for (const startupArtifact of startupArtifacts) {
+      this.telemetryController.recordEvent({
+        domain: "startup",
+        kind: "artifact-usage",
+        occurredAtMs,
+        phase,
+        sourceId,
+        path: startupArtifact.result?.resolvedLayer ?? "none",
+        artifact: startupArtifact.artifact,
+        hit:
+          startupArtifact.result !== null &&
+          startupArtifact.result.resolvedLayer !== "none",
+        reason:
+          startupArtifact.result?.fallbackReason ??
+          startupDebugState.directRuntimeFallbackReason,
+      });
+    }
+  }
+
+  /**
+   * @brief Emit custom-decode telemetry from the latest runtime snapshot
+   *
+   * @param customDecode - Custom-decode snapshot being inspected
+   * @param sourceId - Source associated with the runtime command
+   * @param occurredAtMs - Telemetry timestamp
+   */
+  private recordCustomDecodeTelemetry(
+    customDecode: CustomDecodeSnapshot | null,
+    sourceId: string | null,
+    occurredAtMs: number,
+  ): void {
+    if (customDecode === null) {
+      return;
+    }
+
+    this.telemetryController.recordEvent({
+      domain: "custom-decode",
+      kind: customDecode.usedCustomDecode
+        ? "used"
+        : customDecode.failureReason !== null
+          ? "failed"
+          : "fallback",
+      occurredAtMs,
+      lane: customDecode.lane,
+      sourceId,
+      reason: customDecode.failureReason ?? customDecode.fallbackReason,
+    });
+  }
+
+  /**
+   * @brief Emit renderer routing telemetry from the latest runtime snapshot
+   *
+   * @param renderer - Renderer snapshot being inspected
+   * @param sessionRole - Session role associated with the route
+   * @param occurredAtMs - Telemetry timestamp
+   */
+  private recordRendererTelemetry(
+    renderer: RendererSnapshot | null,
+    sessionRole: MediaPlanSession["role"],
+    occurredAtMs: number,
+  ): void {
+    if (renderer === null) {
+      return;
+    }
+
+    this.telemetryController.recordEvent({
+      domain: "renderer",
+      kind:
+        renderer.failureReason !== null
+          ? "route-failure"
+          : renderer.usedLegacyPath
+            ? "route-fallback"
+            : "route-success",
+      occurredAtMs,
+      backend: renderer.usedLegacyPath ? "legacy" : renderer.activeBackend,
+      target: sessionRole === "preview" ? "preview" : "other",
+      reason: renderer.failureReason ?? renderer.fallbackReason,
+    });
+  }
+
+  /**
+   * @brief Emit preview-farm reuse and eviction telemetry from plan transitions
+   *
+   * @param previousPreviewFarm - Previous preview-farm snapshot
+   * @param nextPreviewFarm - Next preview-farm snapshot
+   */
+  private recordPreviewFarmTelemetry(
+    previousPreviewFarm: MediaPlan["previewFarm"],
+    nextPreviewFarm: MediaPlan["previewFarm"],
+  ): void {
+    const occurredAtMs: number = Date.now();
+    const previousReusedSessionIds: Set<string> = new Set<string>(
+      previousPreviewFarm.reusedSessionIds,
+    );
+    const previousEvictedSessionIds: Set<string> = new Set<string>(
+      previousPreviewFarm.evictedSessionIds,
+    );
+
+    for (const sessionId of nextPreviewFarm.reusedSessionIds) {
+      if (previousReusedSessionIds.has(sessionId)) {
+        continue;
+      }
+
+      this.telemetryController.recordEvent({
+        domain: "preview",
+        kind: "reuse-hit",
+        occurredAtMs,
+        sessionId,
+        itemId: null,
+        sourceId: null,
+        latencyMs: null,
+        reason: "Preview farm selected a previously warm session for reuse.",
+      });
+    }
+
+    for (const sessionId of nextPreviewFarm.evictedSessionIds) {
+      if (previousEvictedSessionIds.has(sessionId)) {
+        continue;
+      }
+
+      const previewDecision: PreviewSessionAssignment | undefined =
+        previousPreviewFarm.sessionAssignments.find(
+          (assignment: PreviewSessionAssignment): boolean =>
+            assignment.sessionId === sessionId,
+        );
+
+      this.telemetryController.recordEvent({
+        domain: "preview",
+        kind: "evicted",
+        occurredAtMs,
+        sessionId,
+        itemId: previewDecision?.itemId ?? null,
+        sourceId: null,
+        latencyMs: null,
+        reason:
+          nextPreviewFarm.decisions.find(
+            (decision): boolean => decision.sessionId === sessionId,
+          )?.evictionReason ?? null,
+      });
+    }
+  }
+
+  /**
+   * @brief Recompute and publish adaptive debug state into the shared kernel
+   */
+  private publishTelemetryState(): void {
+    const telemetrySnapshot: TelemetrySnapshot =
+      this.telemetryController.getSnapshot();
+    const previewBudget =
+      this.getRuntimeCapabilities()?.previewSchedulerBudget ??
+      this.mediaKernelController.getState().plan.previewFarm.budget;
+    const adaptiveState = AdaptiveBudgetPolicy.evaluate(
+      previewBudget,
+      telemetrySnapshot,
+      Date.now(),
+    );
+
+    this.mediaKernelController.setRuntimeDebugState(
+      telemetrySnapshot,
+      adaptiveState.adaptiveBudgetDecision,
+      adaptiveState.runtimeGuardrailState,
+    );
   }
 
   /**
