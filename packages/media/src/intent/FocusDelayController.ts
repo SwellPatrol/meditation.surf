@@ -28,7 +28,7 @@ export type FocusDelayStateListener = (state: FocusDelayState) => void;
  * second state transition once the configured threshold has elapsed.
  */
 export class FocusDelayController {
-  public static readonly DEFAULT_DELAY_THRESHOLD_MS: number = 2000;
+  public static readonly DEFAULT_DELAY_THRESHOLD_MS: number = 1000;
 
   private readonly delayThresholdMs: number;
   private readonly stateListeners: Set<FocusDelayStateListener>;
