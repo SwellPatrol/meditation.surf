@@ -61,6 +61,7 @@ export class WebExperienceAdapter {
       previewSchedulerBudget: {
         maxWarmSessions: 3,
         maxActivePreviewSessions: 1,
+        maxRendererBoundSessions: 1,
         maxHiddenSessions: 2,
         maxPreviewReuseMs: 5000,
         maxPreviewOverlapMs: 0,

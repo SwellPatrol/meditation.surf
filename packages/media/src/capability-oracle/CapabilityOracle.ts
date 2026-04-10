@@ -1226,6 +1226,9 @@ export class CapabilityOracle {
                 maxActivePreviewSessions:
                   request.appCapabilityProfile.previewSchedulerBudget
                     .maxActivePreviewSessions,
+                maxRendererBoundSessions:
+                  request.appCapabilityProfile.previewSchedulerBudget
+                    .maxRendererBoundSessions,
                 maxHiddenSessions:
                   request.appCapabilityProfile.previewSchedulerBudget
                     .maxHiddenSessions,
@@ -1287,6 +1290,9 @@ export class CapabilityOracle {
                 maxActivePreviewSessions:
                   request.runtimeCapabilities.previewSchedulerBudget
                     .maxActivePreviewSessions,
+                maxRendererBoundSessions:
+                  request.runtimeCapabilities.previewSchedulerBudget
+                    .maxRendererBoundSessions,
                 maxHiddenSessions:
                   request.runtimeCapabilities.previewSchedulerBudget
                     .maxHiddenSessions,

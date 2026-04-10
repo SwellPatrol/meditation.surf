@@ -6,14 +6,9 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { PreviewSchedulerDecisionReason } from "./PreviewSchedulerDecisionReason";
+import type { PreviewFarmCandidateRank } from "./PreviewFarmCandidateRank";
 
 /**
- * @brief Deterministic score metadata attached to one preview candidate
+ * @brief Backward-compatible alias for preview-farm candidate rank
  */
-export type PreviewCandidateScore = {
-  reason: PreviewSchedulerDecisionReason;
-  baseValue: number;
-  reuseBonus: number;
-  totalValue: number;
-};
+export type PreviewCandidateScore = PreviewFarmCandidateRank;

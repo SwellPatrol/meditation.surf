@@ -6,24 +6,9 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { MediaSourceDescriptor } from "../sources/MediaSourceDescriptor";
-import type { PreviewCandidateScore } from "./PreviewCandidateScore";
-import type { PreviewSchedulerDecisionReason } from "./PreviewSchedulerDecisionReason";
-import type { PreviewWarmState } from "./PreviewWarmState";
+import type { PreviewFarmCandidate } from "./PreviewFarmCandidate";
 
 /**
- * @brief One logical preview target considered by the shared scheduler
+ * @brief Backward-compatible alias for the shared preview-farm candidate
  */
-export type PreviewCandidate = {
-  candidateId: string;
-  sessionId: string;
-  itemId: string;
-  source: MediaSourceDescriptor;
-  rowIndex: number | null;
-  itemIndex: number | null;
-  reason: PreviewSchedulerDecisionReason;
-  score: PreviewCandidateScore;
-  currentWarmState: PreviewWarmState;
-  focusStartedAtMs: number | null;
-  lastFocusedAtMs: number | null;
-};
+export type PreviewCandidate = PreviewFarmCandidate;

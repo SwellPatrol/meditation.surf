@@ -7,15 +7,13 @@
  */
 
 /**
- * @brief Inspectable reasons recorded by the preview scheduler
+ * @brief Why one preview-farm session was downgraded or removed
  */
-export type PreviewSchedulerDecisionReason =
-  | "focused-item"
-  | "focus-neighbor"
-  | "likely-next-item"
-  | "visible-item"
-  | "recent-focus"
+export type PreviewFarmEvictionReason =
   | "over-budget"
   | "lower-priority"
   | "runtime-unsupported"
-  | "background-priority";
+  | "background-priority"
+  | "reuse-window-expired"
+  | "renderer-budget-exhausted"
+  | "hidden-budget-exhausted";

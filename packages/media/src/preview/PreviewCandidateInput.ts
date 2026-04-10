@@ -20,7 +20,11 @@ export type PreviewCandidateInput<
   itemIndex: number;
   reason: Extract<
     PreviewSchedulerDecisionReason,
-    "focused-item" | "focus-neighbor" | "visible-item" | "recent-focus"
+    | "focused-item"
+    | "focus-neighbor"
+    | "likely-next-item"
+    | "visible-item"
+    | "recent-focus"
   >;
   focusStartedAtMs: number | null;
   lastFocusedAtMs: number | null;

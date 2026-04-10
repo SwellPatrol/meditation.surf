@@ -6,13 +6,9 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { PreviewFarmSessionState } from "./PreviewFarmSessionState";
+
 /**
- * @brief Preview-specific warmth states used by the shared preview scheduler
+ * @brief Backward-compatible alias for preview-farm session state
  */
-export type PreviewWarmState =
-  | "cold"
-  | "warming"
-  | "ready-first-frame"
-  | "preview-active"
-  | "cooling-down"
-  | "evicted";
+export type PreviewWarmState = PreviewFarmSessionState;

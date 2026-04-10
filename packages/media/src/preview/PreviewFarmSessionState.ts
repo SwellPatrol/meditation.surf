@@ -6,9 +6,14 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { PreviewFarmBudget } from "./PreviewFarmBudget";
-
 /**
- * @brief Backward-compatible alias for the shared preview-farm budget
+ * @brief Shared preview-farm lifecycle states used for warming and reuse policy
  */
-export type PreviewSchedulerBudget = PreviewFarmBudget;
+export type PreviewFarmSessionState =
+  | "cold"
+  | "warming"
+  | "ready-first-frame"
+  | "preview-active"
+  | "cooling"
+  | "evicted"
+  | "failed";

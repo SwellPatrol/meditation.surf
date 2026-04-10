@@ -26,6 +26,8 @@ import {
   type MediaTextTrackInfo,
   type MediaVariantInfo,
   type PlaybackSequenceController,
+  type PreviewSchedulerDecision,
+  type PreviewSessionAssignment,
   type RendererFrameHandle,
   RendererRouter as SharedRendererRouter,
   type RendererSnapshot,
@@ -135,6 +137,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     previewSchedulerBudget: {
       maxWarmSessions: 3,
       maxActivePreviewSessions: 1,
+      maxRendererBoundSessions: 1,
       maxHiddenSessions: 2,
       maxPreviewReuseMs: 5000,
       maxPreviewOverlapMs: 0,
@@ -230,6 +233,9 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
         maxActivePreviewSessions:
           WebMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
             .maxActivePreviewSessions,
+        maxRendererBoundSessions:
+          WebMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
+            .maxRendererBoundSessions,
         maxHiddenSessions:
           WebMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
             .maxHiddenSessions,
@@ -421,11 +427,39 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     }
 
     try {
+      const previewFarmDecision: PreviewSchedulerDecision | null =
+        this.resolvePreviewFarmDecision(command, plannedSession.sessionId);
+      const shouldAttemptCustomDecode: boolean =
+        previewFarmDecision?.shouldAttemptCustomDecode ?? true;
+      const legacyFallbackReason: string =
+        previewFarmDecision?.mustUseLegacyPreviewPath === true
+          ? (previewFarmDecision.notes.find(
+              (previewFarmNote: string): boolean =>
+                previewFarmNote.includes("legacy preview path") ||
+                previewFarmNote.includes("renderer-bound budget"),
+            ) ??
+            "Preview farm kept this session on the established preview video path to preserve conservative renderer-bound budgets.")
+          : "Preview warm stayed on the existing preview path.";
+      const previewCustomDecodeCapability =
+        plannedSession.capabilitySnapshot?.customDecodeCapability ?? null;
       const customDecodeSnapshot: CustomDecodeSnapshot | null =
-        await this.tryWarmPreviewCustomDecode(
-          plannedSession,
-          previewRuntimeSession,
-        );
+        shouldAttemptCustomDecode
+          ? await this.tryWarmPreviewCustomDecode(
+              plannedSession,
+              previewRuntimeSession,
+            )
+          : previewCustomDecodeCapability === null ||
+              plannedSession.customDecodeDecision === null
+            ? null
+            : this.createPreviewCustomDecodeSnapshot(
+                previewCustomDecodeCapability,
+                plannedSession.customDecodeDecision,
+                "unsupported",
+                false,
+                true,
+                legacyFallbackReason,
+                null,
+              );
       previewRuntimeSession.customDecodeSnapshot =
         this.cloneCustomDecodeSnapshot(customDecodeSnapshot);
       previewRuntimeSession.rendererSnapshot =
@@ -434,7 +468,7 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
             this.createPreviewRendererFallbackSnapshot(
               plannedSession,
               "preview-warm",
-              "Preview warm stayed on the existing preview path.",
+              legacyFallbackReason,
               [],
               null,
             ),
@@ -1309,6 +1343,23 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     command: MediaExecutionCommand,
     plannedSession: NonNullable<MediaExecutionCommand["session"]>,
   ): ManagedPreviewRuntimeSession | null {
+    const previewFarmAssignment: PreviewSessionAssignment | null =
+      this.resolvePreviewFarmAssignment(command, plannedSession.sessionId);
+    const previewRuntimeSessionByAssignedSlot:
+      | ManagedPreviewRuntimeSession
+      | undefined =
+      previewFarmAssignment === null
+        ? undefined
+        : this.previewRuntimeSessions.find(
+            (previewRuntimeSession: ManagedPreviewRuntimeSession): boolean =>
+              previewRuntimeSession.runtimeSessionHandle.handleId ===
+              previewFarmAssignment.slotId,
+          );
+
+    if (previewRuntimeSessionByAssignedSlot !== undefined) {
+      return previewRuntimeSessionByAssignedSlot;
+    }
+
     const existingPreviewRuntimeSession: ManagedPreviewRuntimeSession | null =
       this.findPreviewRuntimeSession(plannedSession.sessionId, command);
 
@@ -1367,6 +1418,25 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     sessionId: string | null,
     command: MediaExecutionCommand,
   ): ManagedPreviewRuntimeSession | null {
+    if (sessionId !== null) {
+      const previewFarmAssignment: PreviewSessionAssignment | null =
+        this.resolvePreviewFarmAssignment(command, sessionId);
+
+      if (previewFarmAssignment !== null) {
+        const previewRuntimeSessionByAssignedSlot:
+          | ManagedPreviewRuntimeSession
+          | undefined = this.previewRuntimeSessions.find(
+          (previewRuntimeSession: ManagedPreviewRuntimeSession): boolean =>
+            previewRuntimeSession.runtimeSessionHandle.handleId ===
+            previewFarmAssignment.slotId,
+        );
+
+        if (previewRuntimeSessionByAssignedSlot !== undefined) {
+          return previewRuntimeSessionByAssignedSlot;
+        }
+      }
+    }
+
     const runtimeHandleId: string | null =
       command.runtimeSessionHandle?.handleId ?? null;
 
@@ -1396,6 +1466,48 @@ export class WebMediaRuntimeAdapter implements MediaRuntimeAdapter {
     );
 
     return previewRuntimeSessionBySessionId ?? null;
+  }
+
+  /**
+   * @brief Resolve one shared preview-farm assignment for the current session
+   *
+   * @param command - Shared command carrying the current farm snapshot
+   * @param sessionId - Preview session being resolved
+   *
+   * @returns Shared preview-farm assignment, or `null` when absent
+   */
+  private resolvePreviewFarmAssignment(
+    command: MediaExecutionCommand,
+    sessionId: string,
+  ): PreviewSessionAssignment | null {
+    const previewFarmAssignment: PreviewSessionAssignment | undefined =
+      command.plan.previewFarm.sessionAssignments.find(
+        (candidatePreviewFarmAssignment: PreviewSessionAssignment): boolean =>
+          candidatePreviewFarmAssignment.sessionId === sessionId,
+      );
+
+    return previewFarmAssignment ?? null;
+  }
+
+  /**
+   * @brief Resolve one shared preview-farm decision for the current session
+   *
+   * @param command - Shared command carrying the current farm snapshot
+   * @param sessionId - Preview session being resolved
+   *
+   * @returns Shared preview-farm decision, or `null` when absent
+   */
+  private resolvePreviewFarmDecision(
+    command: MediaExecutionCommand,
+    sessionId: string,
+  ): PreviewSchedulerDecision | null {
+    const previewFarmDecision: PreviewSchedulerDecision | undefined =
+      command.plan.previewFarm.decisions.find(
+        (candidatePreviewFarmDecision: PreviewSchedulerDecision): boolean =>
+          candidatePreviewFarmDecision.sessionId === sessionId,
+      );
+
+    return previewFarmDecision ?? null;
   }
 
   /**

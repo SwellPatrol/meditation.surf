@@ -6,23 +6,9 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { PreviewCandidate } from "./PreviewCandidate";
-import type { PreviewSchedulerBudget } from "./PreviewSchedulerBudget";
-import type { PreviewSchedulerDecision } from "./PreviewSchedulerDecision";
-import type { PreviewSessionAssignment } from "./PreviewSessionAssignment";
+import type { PreviewFarmSnapshot } from "./PreviewFarmSnapshot";
 
 /**
- * @brief Complete preview-farm debug state for one deterministic plan
+ * @brief Backward-compatible alias for the shared preview-farm snapshot
  */
-export type PreviewFarmState = {
-  budget: PreviewSchedulerBudget;
-  candidates: PreviewCandidate[];
-  decisions: PreviewSchedulerDecision[];
-  sessionAssignments: PreviewSessionAssignment[];
-  activeSessionIds: string[];
-  warmedSessionIds: string[];
-  retainedSessionIds: string[];
-  evictedSessionIds: string[];
-  deferredSessionIds: string[];
-  nextTransitionAtMs: number | null;
-};
+export type PreviewFarmState = PreviewFarmSnapshot;

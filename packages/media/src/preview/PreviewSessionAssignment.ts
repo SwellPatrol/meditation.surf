@@ -6,15 +6,9 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { PreviewWarmState } from "./PreviewWarmState";
+import type { PreviewFarmAssignment } from "./PreviewFarmAssignment";
 
 /**
- * @brief Mapping from one logical preview session to one runtime slot
+ * @brief Backward-compatible alias for preview-farm assignment state
  */
-export type PreviewSessionAssignment = {
-  sessionId: string;
-  itemId: string;
-  slotId: string;
-  warmState: PreviewWarmState;
-  isActive: boolean;
-};
+export type PreviewSessionAssignment = PreviewFarmAssignment;

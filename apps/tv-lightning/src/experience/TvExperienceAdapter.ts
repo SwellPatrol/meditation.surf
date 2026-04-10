@@ -51,6 +51,7 @@ export class TvExperienceAdapter {
     previewSchedulerBudget: {
       maxWarmSessions: 0,
       maxActivePreviewSessions: 0,
+      maxRendererBoundSessions: 0,
       maxHiddenSessions: 0,
       maxPreviewReuseMs: 1500,
       maxPreviewOverlapMs: 0,

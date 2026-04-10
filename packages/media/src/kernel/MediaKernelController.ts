@@ -614,6 +614,11 @@ export class MediaKernelController {
             appMediaCapabilities.profile.previewSchedulerBudget
               .maxActivePreviewSessions,
           ),
+          maxRendererBoundSessions: Math.min(
+            mergedProfile.previewSchedulerBudget.maxRendererBoundSessions,
+            appMediaCapabilities.profile.previewSchedulerBudget
+              .maxRendererBoundSessions,
+          ),
           maxHiddenSessions: Math.min(
             mergedProfile.previewSchedulerBudget.maxHiddenSessions,
             appMediaCapabilities.profile.previewSchedulerBudget
@@ -686,6 +691,8 @@ export class MediaKernelController {
         maxWarmSessions: profile.previewSchedulerBudget.maxWarmSessions,
         maxActivePreviewSessions:
           profile.previewSchedulerBudget.maxActivePreviewSessions,
+        maxRendererBoundSessions:
+          profile.previewSchedulerBudget.maxRendererBoundSessions,
         maxHiddenSessions: profile.previewSchedulerBudget.maxHiddenSessions,
         maxPreviewReuseMs: profile.previewSchedulerBudget.maxPreviewReuseMs,
         maxPreviewOverlapMs: profile.previewSchedulerBudget.maxPreviewOverlapMs,
@@ -809,6 +816,10 @@ export class MediaKernelController {
                             mediaPlanSession.capabilitySnapshot.request
                               .appCapabilityProfile.previewSchedulerBudget
                               .maxActivePreviewSessions,
+                          maxRendererBoundSessions:
+                            mediaPlanSession.capabilitySnapshot.request
+                              .appCapabilityProfile.previewSchedulerBudget
+                              .maxRendererBoundSessions,
                           maxHiddenSessions:
                             mediaPlanSession.capabilitySnapshot.request
                               .appCapabilityProfile.previewSchedulerBudget
@@ -901,6 +912,10 @@ export class MediaKernelController {
                             mediaPlanSession.capabilitySnapshot.request
                               .runtimeCapabilities.previewSchedulerBudget
                               .maxActivePreviewSessions,
+                          maxRendererBoundSessions:
+                            mediaPlanSession.capabilitySnapshot.request
+                              .runtimeCapabilities.previewSchedulerBudget
+                              .maxRendererBoundSessions,
                           maxHiddenSessions:
                             mediaPlanSession.capabilitySnapshot.request
                               .runtimeCapabilities.previewSchedulerBudget
@@ -1266,10 +1281,22 @@ export class MediaKernelController {
         maxWarmSessions: previewFarmState.budget.maxWarmSessions,
         maxActivePreviewSessions:
           previewFarmState.budget.maxActivePreviewSessions,
+        maxRendererBoundSessions:
+          previewFarmState.budget.maxRendererBoundSessions,
         maxHiddenSessions: previewFarmState.budget.maxHiddenSessions,
         maxPreviewReuseMs: previewFarmState.budget.maxPreviewReuseMs,
         maxPreviewOverlapMs: previewFarmState.budget.maxPreviewOverlapMs,
         keepWarmAfterBlurMs: previewFarmState.budget.keepWarmAfterBlurMs,
+      },
+      budgetUsage: {
+        warmSessions: previewFarmState.budgetUsage.warmSessions,
+        activePreviewSessions:
+          previewFarmState.budgetUsage.activePreviewSessions,
+        hiddenSessions: previewFarmState.budgetUsage.hiddenSessions,
+        rendererBoundSessions:
+          previewFarmState.budgetUsage.rendererBoundSessions,
+        coldCandidates: previewFarmState.budgetUsage.coldCandidates,
+        failedCandidates: previewFarmState.budgetUsage.failedCandidates,
       },
       candidates: previewFarmState.candidates.map((previewCandidate) => ({
         candidateId: previewCandidate.candidateId,
@@ -1290,11 +1317,23 @@ export class MediaKernelController {
           reason: previewCandidate.score.reason,
           baseValue: previewCandidate.score.baseValue,
           reuseBonus: previewCandidate.score.reuseBonus,
+          rendererBonus: previewCandidate.score.rendererBonus,
+          rendererPenalty: previewCandidate.score.rendererPenalty,
           totalValue: previewCandidate.score.totalValue,
+          notes: [...previewCandidate.score.notes],
         },
         currentWarmState: previewCandidate.currentWarmState,
         focusStartedAtMs: previewCandidate.focusStartedAtMs,
         lastFocusedAtMs: previewCandidate.lastFocusedAtMs,
+        canReuseWarmSession: previewCandidate.canReuseWarmSession,
+        canUseCustomDecode: previewCandidate.canUseCustomDecode,
+        canUseWebGpuRenderer: previewCandidate.canUseWebGpuRenderer,
+        canUseWebGlRenderer: previewCandidate.canUseWebGlRenderer,
+        mustUseLegacyPreviewPath: previewCandidate.mustUseLegacyPreviewPath,
+        rendererRoutingSupported: previewCandidate.rendererRoutingSupported,
+        preferredRendererKind: previewCandidate.preferredRendererKind,
+        requiresRendererBudget: previewCandidate.requiresRendererBudget,
+        notes: [...previewCandidate.notes],
       })),
       decisions: previewFarmState.decisions.map((previewSchedulerDecision) => ({
         candidateId: previewSchedulerDecision.candidateId,
@@ -1304,18 +1343,30 @@ export class MediaKernelController {
           reason: previewSchedulerDecision.score.reason,
           baseValue: previewSchedulerDecision.score.baseValue,
           reuseBonus: previewSchedulerDecision.score.reuseBonus,
+          rendererBonus: previewSchedulerDecision.score.rendererBonus,
+          rendererPenalty: previewSchedulerDecision.score.rendererPenalty,
           totalValue: previewSchedulerDecision.score.totalValue,
+          notes: [...previewSchedulerDecision.score.notes],
         },
         primaryReason: previewSchedulerDecision.primaryReason,
+        transitionReason: previewSchedulerDecision.transitionReason,
         deferredReason: previewSchedulerDecision.deferredReason,
         evictionReason: previewSchedulerDecision.evictionReason,
         targetWarmState: previewSchedulerDecision.targetWarmState,
         shouldWarm: previewSchedulerDecision.shouldWarm,
         shouldActivate: previewSchedulerDecision.shouldActivate,
         shouldRetain: previewSchedulerDecision.shouldRetain,
+        shouldReuse: previewSchedulerDecision.shouldReuse,
         shouldEvict: previewSchedulerDecision.shouldEvict,
         isDeferred: previewSchedulerDecision.isDeferred,
         retainUntilMs: previewSchedulerDecision.retainUntilMs,
+        rendererBound: previewSchedulerDecision.rendererBound,
+        selectedRendererKind: previewSchedulerDecision.selectedRendererKind,
+        shouldAttemptCustomDecode:
+          previewSchedulerDecision.shouldAttemptCustomDecode,
+        mustUseLegacyPreviewPath:
+          previewSchedulerDecision.mustUseLegacyPreviewPath,
+        notes: [...previewSchedulerDecision.notes],
       })),
       sessionAssignments: previewFarmState.sessionAssignments.map(
         (previewSessionAssignment) => ({
@@ -1323,12 +1374,21 @@ export class MediaKernelController {
           itemId: previewSessionAssignment.itemId,
           slotId: previewSessionAssignment.slotId,
           warmState: previewSessionAssignment.warmState,
+          sessionState: previewSessionAssignment.sessionState,
           isActive: previewSessionAssignment.isActive,
+          assignmentDomain: previewSessionAssignment.assignmentDomain,
+          assignmentKind: previewSessionAssignment.assignmentKind,
+          rendererBound: previewSessionAssignment.rendererBound,
+          rendererKind: previewSessionAssignment.rendererKind,
+          transitionReason: previewSessionAssignment.transitionReason,
         }),
       ),
       activeSessionIds: [...previewFarmState.activeSessionIds],
       warmedSessionIds: [...previewFarmState.warmedSessionIds],
       retainedSessionIds: [...previewFarmState.retainedSessionIds],
+      reusedSessionIds: [...previewFarmState.reusedSessionIds],
+      rendererBoundSessionIds: [...previewFarmState.rendererBoundSessionIds],
+      legacyPathSessionIds: [...previewFarmState.legacyPathSessionIds],
       evictedSessionIds: [...previewFarmState.evictedSessionIds],
       deferredSessionIds: [...previewFarmState.deferredSessionIds],
       nextTransitionAtMs: previewFarmState.nextTransitionAtMs,
@@ -1370,6 +1430,8 @@ export class MediaKernelController {
         maxWarmSessions: PreviewScheduler.UNSUPPORTED_BUDGET.maxWarmSessions,
         maxActivePreviewSessions:
           PreviewScheduler.UNSUPPORTED_BUDGET.maxActivePreviewSessions,
+        maxRendererBoundSessions:
+          PreviewScheduler.UNSUPPORTED_BUDGET.maxRendererBoundSessions,
         maxHiddenSessions:
           PreviewScheduler.UNSUPPORTED_BUDGET.maxHiddenSessions,
         maxPreviewReuseMs:
@@ -1379,12 +1441,23 @@ export class MediaKernelController {
         keepWarmAfterBlurMs:
           PreviewScheduler.UNSUPPORTED_BUDGET.keepWarmAfterBlurMs,
       },
+      budgetUsage: {
+        warmSessions: 0,
+        activePreviewSessions: 0,
+        hiddenSessions: 0,
+        rendererBoundSessions: 0,
+        coldCandidates: 0,
+        failedCandidates: 0,
+      },
       candidates: [],
       decisions: [],
       sessionAssignments: [],
       activeSessionIds: [],
       warmedSessionIds: [],
       retainedSessionIds: [],
+      reusedSessionIds: [],
+      rendererBoundSessionIds: [],
+      legacyPathSessionIds: [],
       evictedSessionIds: [],
       deferredSessionIds: [],
       nextTransitionAtMs: null,
@@ -1438,6 +1511,8 @@ export class MediaKernelController {
         rightProfile.previewSchedulerBudget.maxWarmSessions &&
       leftProfile.previewSchedulerBudget.maxActivePreviewSessions ===
         rightProfile.previewSchedulerBudget.maxActivePreviewSessions &&
+      leftProfile.previewSchedulerBudget.maxRendererBoundSessions ===
+        rightProfile.previewSchedulerBudget.maxRendererBoundSessions &&
       leftProfile.previewSchedulerBudget.maxHiddenSessions ===
         rightProfile.previewSchedulerBudget.maxHiddenSessions &&
       leftProfile.previewSchedulerBudget.maxPreviewReuseMs ===

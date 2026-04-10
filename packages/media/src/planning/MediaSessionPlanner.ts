@@ -121,6 +121,7 @@ export class MediaSessionPlanner {
       currentlyPlannedWarmSessionIds: previousPreviewFarmState.warmedSessionIds,
       currentlyPlannedActiveSessionIds:
         previousPreviewFarmState.activeSessionIds,
+      currentSessionAssignments: previousPreviewFarmState.sessionAssignments,
       backgroundItemId: backgroundItem?.id ?? null,
       mediaIntentType: currentIntentType,
       nowMs: input.planningNowMs,
@@ -225,6 +226,13 @@ export class MediaSessionPlanner {
   ): PreviewCandidate[] {
     const previewCandidates: PreviewCandidate[] = [];
     const seenSessionIds: Set<string> = new Set<string>();
+    const previewWarmRoleDecision: PlannedRoleDecision =
+      this.createPlannedRoleDecision(
+        "preview-warm",
+        input.appCapabilityProfile,
+        this.selectPreviewPlaybackLane(input.appCapabilityProfile),
+        this.selectRendererKind(input.appCapabilityProfile),
+      );
 
     for (const previewCandidateInput of input.previewCandidateInputs) {
       if (previewCandidateInput.mediaItem.id === backgroundItemId) {
@@ -237,6 +245,36 @@ export class MediaSessionPlanner {
         "preview",
         sourceDescriptor,
       );
+      const currentWarmState: PreviewWarmState =
+        this.resolveCurrentPreviewWarmState(
+          input.currentMediaKernelState,
+          sessionId,
+        );
+      const canUseCustomDecode: boolean =
+        previewWarmRoleDecision.customDecodeDecision.shouldAttempt;
+      const canUseWebGpuRenderer: boolean =
+        previewWarmRoleDecision.capabilitySnapshot.rendererDecision.preferredBackendOrder.includes(
+          "webgpu",
+        );
+      const canUseWebGlRenderer: boolean =
+        previewWarmRoleDecision.capabilitySnapshot.rendererDecision.preferredBackendOrder.includes(
+          "webgl",
+        );
+      const rendererRoutingSupported: boolean =
+        previewWarmRoleDecision.capabilitySnapshot.rendererDecision
+          .shouldRouteThroughRenderer;
+      const preferredRendererKind: MediaRendererKind | null =
+        previewWarmRoleDecision.desiredRendererKind;
+      const mustUseLegacyPreviewPath: boolean =
+        !canUseCustomDecode ||
+        !rendererRoutingSupported ||
+        previewWarmRoleDecision.capabilitySnapshot.rendererDecision
+          .selectedBackend === null;
+      const canReuseWarmSession: boolean =
+        currentWarmState === "warming" ||
+        currentWarmState === "ready-first-frame" ||
+        currentWarmState === "preview-active" ||
+        currentWarmState === "cooling";
 
       if (seenSessionIds.has(sessionId)) {
         continue;
@@ -246,6 +284,8 @@ export class MediaSessionPlanner {
         this.createPreviewCandidateScore(
           previewCandidateInput.reason,
           sourceDescriptor.sourceId,
+          canUseCustomDecode,
+          mustUseLegacyPreviewPath,
           input.currentMediaKernelState,
         );
 
@@ -259,12 +299,27 @@ export class MediaSessionPlanner {
         itemIndex: previewCandidateInput.itemIndex,
         reason: previewCandidateInput.reason,
         score: previewCandidateScore,
-        currentWarmState: this.resolveCurrentPreviewWarmState(
-          input.currentMediaKernelState,
-          sessionId,
-        ),
+        currentWarmState,
         focusStartedAtMs: previewCandidateInput.focusStartedAtMs,
         lastFocusedAtMs: previewCandidateInput.lastFocusedAtMs,
+        canReuseWarmSession,
+        canUseCustomDecode,
+        canUseWebGpuRenderer,
+        canUseWebGlRenderer,
+        mustUseLegacyPreviewPath,
+        rendererRoutingSupported,
+        preferredRendererKind,
+        requiresRendererBudget: canUseCustomDecode && !mustUseLegacyPreviewPath,
+        notes: [
+          canUseCustomDecode
+            ? "Candidate may use the preview custom-decode warm path."
+            : "Candidate stays on the established preview video warm path.",
+          canUseWebGpuRenderer
+            ? "Candidate can route preview-first-frame work through WebGPU when budget allows."
+            : canUseWebGlRenderer
+              ? "Candidate can route preview-first-frame work through WebGL when budget allows."
+              : "Candidate has no renderer-router backend available for preview warm routing.",
+        ],
       });
     }
 
@@ -283,6 +338,8 @@ export class MediaSessionPlanner {
   private static createPreviewCandidateScore(
     reason: PreviewSchedulerDecisionReason,
     sourceId: string,
+    canUseCustomDecode: boolean,
+    mustUseLegacyPreviewPath: boolean,
     currentMediaKernelState: MediaKernelState,
   ): PreviewCandidateScore {
     const baseValue: number = this.getPreviewReasonScore(reason);
@@ -294,12 +351,42 @@ export class MediaSessionPlanner {
     )
       ? 25
       : 0;
+    const rendererBonus: number =
+      canUseCustomDecode && !mustUseLegacyPreviewPath ? 10 : 0;
+    const rendererPenalty: number =
+      canUseCustomDecode &&
+      !mustUseLegacyPreviewPath &&
+      reason !== "focused-item"
+        ? 15
+        : 0;
+    const notes: string[] = [];
+
+    if (reuseBonus > 0) {
+      notes.push(
+        "Candidate receives a reuse bonus because a preview session already exists for this source.",
+      );
+    }
+
+    if (rendererBonus > 0) {
+      notes.push(
+        "Candidate can use the renderer-aware warm path when the renderer budget allows it.",
+      );
+    }
+
+    if (rendererPenalty > 0) {
+      notes.push(
+        "Candidate keeps a small penalty so focused work can reserve the renderer-bound budget first.",
+      );
+    }
 
     return {
       reason,
       baseValue,
       reuseBonus,
-      totalValue: baseValue + reuseBonus,
+      rendererBonus,
+      rendererPenalty,
+      totalValue: baseValue + reuseBonus + rendererBonus - rendererPenalty,
+      notes,
     };
   }
 
@@ -369,7 +456,9 @@ export class MediaSessionPlanner {
           plannedRoleDecision.fallbackPlaybackLaneOrder,
         desiredPlaybackLane: plannedRoleDecision.desiredPlaybackLane,
         variantSelection: plannedRoleDecision.variantSelection,
-        desiredRendererKind: plannedRoleDecision.desiredRendererKind,
+        desiredRendererKind:
+          previewSchedulerDecision.selectedRendererKind ??
+          this.selectRendererKind(appCapabilityProfile),
         desiredWarmth: previewSchedulerDecision.shouldActivate
           ? "preloaded"
           : "first-frame",
@@ -624,6 +713,8 @@ export class MediaSessionPlanner {
         return "high";
       case "focus-neighbor":
         return "normal";
+      case "likely-next-item":
+        return "normal";
       case "visible-item":
         return "normal";
       case "recent-focus":
@@ -663,6 +754,13 @@ export class MediaSessionPlanner {
           kind: "focus-neighbor-item",
           message:
             "Immediate row neighbor should stay warm when preview budget allows",
+        };
+      case "likely-next-item":
+        return {
+          intentType: "focused",
+          kind: "focus-neighbor-item",
+          message:
+            "Likely next browse target should be warmed conservatively when preview budget allows",
         };
       case "visible-item":
         return {
@@ -706,6 +804,8 @@ export class MediaSessionPlanner {
         return 400;
       case "focus-neighbor":
         return 240;
+      case "likely-next-item":
+        return 210;
       case "visible-item":
         return 180;
       case "recent-focus":
@@ -850,6 +950,8 @@ export class MediaSessionPlanner {
         maxWarmSessions: previewFarmState.budget.maxWarmSessions,
         maxActivePreviewSessions:
           previewFarmState.budget.maxActivePreviewSessions,
+        maxRendererBoundSessions:
+          previewFarmState.budget.maxRendererBoundSessions,
         maxHiddenSessions: previewFarmState.budget.maxHiddenSessions,
         maxPreviewReuseMs: previewFarmState.budget.maxPreviewReuseMs,
         maxPreviewOverlapMs: previewFarmState.budget.maxPreviewOverlapMs,
@@ -875,11 +977,23 @@ export class MediaSessionPlanner {
             reason: previewCandidate.score.reason,
             baseValue: previewCandidate.score.baseValue,
             reuseBonus: previewCandidate.score.reuseBonus,
+            rendererBonus: previewCandidate.score.rendererBonus,
+            rendererPenalty: previewCandidate.score.rendererPenalty,
             totalValue: previewCandidate.score.totalValue,
+            notes: [...previewCandidate.score.notes],
           },
           currentWarmState: previewCandidate.currentWarmState,
           focusStartedAtMs: previewCandidate.focusStartedAtMs,
           lastFocusedAtMs: previewCandidate.lastFocusedAtMs,
+          canReuseWarmSession: previewCandidate.canReuseWarmSession,
+          canUseCustomDecode: previewCandidate.canUseCustomDecode,
+          canUseWebGpuRenderer: previewCandidate.canUseWebGpuRenderer,
+          canUseWebGlRenderer: previewCandidate.canUseWebGlRenderer,
+          mustUseLegacyPreviewPath: previewCandidate.mustUseLegacyPreviewPath,
+          rendererRoutingSupported: previewCandidate.rendererRoutingSupported,
+          preferredRendererKind: previewCandidate.preferredRendererKind,
+          requiresRendererBudget: previewCandidate.requiresRendererBudget,
+          notes: [...previewCandidate.notes],
         }),
       ),
       decisions: previewFarmState.decisions.map(
@@ -893,18 +1007,30 @@ export class MediaSessionPlanner {
             reason: previewSchedulerDecision.score.reason,
             baseValue: previewSchedulerDecision.score.baseValue,
             reuseBonus: previewSchedulerDecision.score.reuseBonus,
+            rendererBonus: previewSchedulerDecision.score.rendererBonus,
+            rendererPenalty: previewSchedulerDecision.score.rendererPenalty,
             totalValue: previewSchedulerDecision.score.totalValue,
+            notes: [...previewSchedulerDecision.score.notes],
           },
           primaryReason: previewSchedulerDecision.primaryReason,
+          transitionReason: previewSchedulerDecision.transitionReason,
           deferredReason: previewSchedulerDecision.deferredReason,
           evictionReason: previewSchedulerDecision.evictionReason,
           targetWarmState: previewSchedulerDecision.targetWarmState,
           shouldWarm: previewSchedulerDecision.shouldWarm,
           shouldActivate: previewSchedulerDecision.shouldActivate,
           shouldRetain: previewSchedulerDecision.shouldRetain,
+          shouldReuse: previewSchedulerDecision.shouldReuse,
           shouldEvict: previewSchedulerDecision.shouldEvict,
           isDeferred: previewSchedulerDecision.isDeferred,
           retainUntilMs: previewSchedulerDecision.retainUntilMs,
+          rendererBound: previewSchedulerDecision.rendererBound,
+          selectedRendererKind: previewSchedulerDecision.selectedRendererKind,
+          shouldAttemptCustomDecode:
+            previewSchedulerDecision.shouldAttemptCustomDecode,
+          mustUseLegacyPreviewPath:
+            previewSchedulerDecision.mustUseLegacyPreviewPath,
+          notes: [...previewSchedulerDecision.notes],
         }),
       ),
       sessionAssignments: previewFarmState.sessionAssignments.map(
@@ -915,14 +1041,33 @@ export class MediaSessionPlanner {
           itemId: previewSessionAssignment.itemId,
           slotId: previewSessionAssignment.slotId,
           warmState: previewSessionAssignment.warmState,
+          sessionState: previewSessionAssignment.sessionState,
           isActive: previewSessionAssignment.isActive,
+          assignmentDomain: previewSessionAssignment.assignmentDomain,
+          assignmentKind: previewSessionAssignment.assignmentKind,
+          rendererBound: previewSessionAssignment.rendererBound,
+          rendererKind: previewSessionAssignment.rendererKind,
+          transitionReason: previewSessionAssignment.transitionReason,
         }),
       ),
       activeSessionIds: [...previewFarmState.activeSessionIds],
       warmedSessionIds: [...previewFarmState.warmedSessionIds],
       retainedSessionIds: [...previewFarmState.retainedSessionIds],
+      reusedSessionIds: [...previewFarmState.reusedSessionIds],
+      rendererBoundSessionIds: [...previewFarmState.rendererBoundSessionIds],
+      legacyPathSessionIds: [...previewFarmState.legacyPathSessionIds],
       evictedSessionIds: [...previewFarmState.evictedSessionIds],
       deferredSessionIds: [...previewFarmState.deferredSessionIds],
+      budgetUsage: {
+        warmSessions: previewFarmState.budgetUsage.warmSessions,
+        activePreviewSessions:
+          previewFarmState.budgetUsage.activePreviewSessions,
+        hiddenSessions: previewFarmState.budgetUsage.hiddenSessions,
+        rendererBoundSessions:
+          previewFarmState.budgetUsage.rendererBoundSessions,
+        coldCandidates: previewFarmState.budgetUsage.coldCandidates,
+        failedCandidates: previewFarmState.budgetUsage.failedCandidates,
+      },
       nextTransitionAtMs: previewFarmState.nextTransitionAtMs,
     };
   }

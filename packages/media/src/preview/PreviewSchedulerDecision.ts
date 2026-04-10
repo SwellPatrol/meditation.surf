@@ -6,8 +6,10 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { MediaRendererKind } from "../sessions/MediaRendererKind";
 import type { PreviewCandidateScore } from "./PreviewCandidateScore";
 import type { PreviewEvictionReason } from "./PreviewEvictionReason";
+import type { PreviewFarmTransitionReason } from "./PreviewFarmTransitionReason";
 import type { PreviewSchedulerDecisionReason } from "./PreviewSchedulerDecisionReason";
 import type { PreviewWarmState } from "./PreviewWarmState";
 
@@ -20,13 +22,20 @@ export type PreviewSchedulerDecision = {
   itemId: string;
   score: PreviewCandidateScore;
   primaryReason: PreviewSchedulerDecisionReason;
-  deferredReason: PreviewSchedulerDecisionReason | null;
+  transitionReason: PreviewFarmTransitionReason | null;
+  deferredReason: PreviewFarmTransitionReason | null;
   evictionReason: PreviewEvictionReason | null;
   targetWarmState: PreviewWarmState;
   shouldWarm: boolean;
   shouldActivate: boolean;
   shouldRetain: boolean;
+  shouldReuse: boolean;
   shouldEvict: boolean;
   isDeferred: boolean;
   retainUntilMs: number | null;
+  rendererBound: boolean;
+  selectedRendererKind: MediaRendererKind | null;
+  shouldAttemptCustomDecode: boolean;
+  mustUseLegacyPreviewPath: boolean;
+  notes: string[];
 };

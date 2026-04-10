@@ -52,6 +52,7 @@ export class TvMediaRuntimeAdapter implements MediaRuntimeAdapter {
     previewSchedulerBudget: {
       maxWarmSessions: 0,
       maxActivePreviewSessions: 0,
+      maxRendererBoundSessions: 0,
       maxHiddenSessions: 0,
       maxPreviewReuseMs: 1500,
       maxPreviewOverlapMs: 0,
@@ -118,6 +119,9 @@ export class TvMediaRuntimeAdapter implements MediaRuntimeAdapter {
         maxActivePreviewSessions:
           TvMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
             .maxActivePreviewSessions,
+        maxRendererBoundSessions:
+          TvMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
+            .maxRendererBoundSessions,
         maxHiddenSessions:
           TvMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
             .maxHiddenSessions,

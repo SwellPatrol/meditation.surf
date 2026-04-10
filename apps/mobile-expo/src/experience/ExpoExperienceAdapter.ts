@@ -51,6 +51,7 @@ export class ExpoExperienceAdapter {
     previewSchedulerBudget: {
       maxWarmSessions: 0,
       maxActivePreviewSessions: 0,
+      maxRendererBoundSessions: 0,
       maxHiddenSessions: 0,
       maxPreviewReuseMs: 2000,
       maxPreviewOverlapMs: 0,

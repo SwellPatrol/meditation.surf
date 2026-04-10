@@ -52,6 +52,7 @@ export class ExpoMediaRuntimeAdapter implements MediaRuntimeAdapter {
     previewSchedulerBudget: {
       maxWarmSessions: 0,
       maxActivePreviewSessions: 0,
+      maxRendererBoundSessions: 0,
       maxHiddenSessions: 0,
       maxPreviewReuseMs: 2000,
       maxPreviewOverlapMs: 0,
@@ -118,6 +119,9 @@ export class ExpoMediaRuntimeAdapter implements MediaRuntimeAdapter {
         maxActivePreviewSessions:
           ExpoMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
             .maxActivePreviewSessions,
+        maxRendererBoundSessions:
+          ExpoMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
+            .maxRendererBoundSessions,
         maxHiddenSessions:
           ExpoMediaRuntimeAdapter.CAPABILITIES.previewSchedulerBudget
             .maxHiddenSessions,

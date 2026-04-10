@@ -1325,7 +1325,13 @@ export class MediaExecutionController {
       itemId: previewSessionAssignment.itemId,
       slotId: previewSessionAssignment.slotId,
       warmState: previewSessionAssignment.warmState,
+      sessionState: previewSessionAssignment.sessionState,
       isActive: previewSessionAssignment.isActive,
+      assignmentDomain: previewSessionAssignment.assignmentDomain,
+      assignmentKind: previewSessionAssignment.assignmentKind,
+      rendererBound: previewSessionAssignment.rendererBound,
+      rendererKind: previewSessionAssignment.rendererKind,
+      transitionReason: previewSessionAssignment.transitionReason,
     };
   }
 
@@ -2033,10 +2039,35 @@ export class MediaExecutionController {
             ? "warming"
             : state === "ready-first-frame"
               ? "ready-first-frame"
-              : state === "disposed"
-                ? "evicted"
-                : "cold",
+              : state === "failed"
+                ? "failed"
+                : state === "disposed"
+                  ? "evicted"
+                  : "cold",
+      sessionState:
+        state === "preview-active"
+          ? "preview-active"
+          : state === "warming-metadata" || state === "warming-first-frame"
+            ? "warming"
+            : state === "ready-first-frame"
+              ? "ready-first-frame"
+              : state === "failed"
+                ? "failed"
+                : state === "disposed"
+                  ? "evicted"
+                  : "cold",
       isActive: state === "preview-active",
+      assignmentDomain: "runtime-execution",
+      assignmentKind:
+        state === "preview-active" ? "active-preview" : "warm-preview",
+      rendererBound:
+        plannedSession.desiredRendererKind === "webgpu" ||
+        plannedSession.desiredRendererKind === "webgl",
+      rendererKind:
+        plannedSession.desiredRendererKind === "none"
+          ? null
+          : plannedSession.desiredRendererKind,
+      transitionReason: null,
     };
   }
 }

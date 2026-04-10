@@ -6,12 +6,9 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { PreviewFarmEvictionReason } from "./PreviewFarmEvictionReason";
+
 /**
- * @brief Why one warmed preview session was removed from the active pool
+ * @brief Backward-compatible alias for preview-farm eviction reason
  */
-export type PreviewEvictionReason =
-  | "over-budget"
-  | "lower-priority"
-  | "runtime-unsupported"
-  | "background-priority"
-  | "reuse-window-expired";
+export type PreviewEvictionReason = PreviewFarmEvictionReason;

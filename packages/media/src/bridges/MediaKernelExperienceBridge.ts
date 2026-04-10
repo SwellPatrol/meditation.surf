@@ -649,6 +649,11 @@ export class MediaKernelExperienceBridge<
             appCapabilityProfile.previewSchedulerBudget
               .maxActivePreviewSessions,
           ),
+          maxRendererBoundSessions: Math.min(
+            mergedProfile.previewSchedulerBudget.maxRendererBoundSessions,
+            appCapabilityProfile.previewSchedulerBudget
+              .maxRendererBoundSessions,
+          ),
           maxHiddenSessions: Math.min(
             mergedProfile.previewSchedulerBudget.maxHiddenSessions,
             appCapabilityProfile.previewSchedulerBudget.maxHiddenSessions,
@@ -704,6 +709,10 @@ export class MediaKernelExperienceBridge<
         lastFocusedAtMs: this.focusDelayState.focusStartedAtMs ?? this.now(),
       });
       this.appendFocusedNeighborPreviewCandidates(
+        previewCandidateInputs,
+        seenItemIds,
+      );
+      this.appendLikelyNextPreviewCandidate(
         previewCandidateInputs,
         seenItemIds,
       );
@@ -773,6 +782,55 @@ export class MediaKernelExperienceBridge<
   }
 
   /**
+   * @brief Add one conservative likely-next candidate beyond the immediate neighbors
+   *
+   * @param previewCandidateInputs - Ordered preview candidate list being built
+   * @param seenItemIds - Dedupe set keyed by media item identifier
+   */
+  private appendLikelyNextPreviewCandidate(
+    previewCandidateInputs: PreviewCandidateInput<TMediaItem>[],
+    seenItemIds: Set<string>,
+  ): void {
+    if (!this.browseFocusState.hasFocusedItem) {
+      return;
+    }
+
+    const rowIndex: number = this.browseFocusState.activeRowIndex;
+    const focusedItemIndex: number =
+      this.browseFocusState.activeItemIndexByRow[rowIndex] ?? 0;
+    const previousFocusedPreviewCandidate: PreviewCandidateInput<TMediaItem> | null =
+      this.currentFocusedPreviewCandidate;
+    let direction: number;
+
+    if (
+      previousFocusedPreviewCandidate !== null &&
+      previousFocusedPreviewCandidate.rowIndex === rowIndex &&
+      previousFocusedPreviewCandidate.itemIndex !== focusedItemIndex
+    ) {
+      direction =
+        previousFocusedPreviewCandidate.itemIndex < focusedItemIndex ? 1 : -1;
+    } else {
+      const itemCountAtRow: number =
+        this.browseContentAdapter.getItemCountAtRow(rowIndex);
+
+      direction =
+        focusedItemIndex + 2 < itemCountAtRow
+          ? 1
+          : focusedItemIndex - 2 >= 0
+            ? -1
+            : 1;
+    }
+
+    this.appendPreviewCandidateFromBrowsePosition(
+      previewCandidateInputs,
+      seenItemIds,
+      rowIndex,
+      focusedItemIndex + direction * 2,
+      "likely-next-item",
+    );
+  }
+
+  /**
    * @brief Append one preview candidate resolved from a concrete browse position
    *
    * @param previewCandidateInputs - Ordered preview candidate list being built
@@ -788,7 +846,7 @@ export class MediaKernelExperienceBridge<
     itemIndex: number,
     reason: Extract<
       PreviewCandidateInput<TMediaItem>["reason"],
-      "focus-neighbor" | "visible-item"
+      "focus-neighbor" | "likely-next-item" | "visible-item"
     >,
   ): void {
     if (
