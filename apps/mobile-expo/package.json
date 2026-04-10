@@ -13,6 +13,7 @@
     "dev:mobile": "expo start"
   },
   "dependencies": {
+    "@meditation-surf/browse": "workspace:*",
     "@meditation-surf/core": "workspace:*",
     "@meditation-surf/overlay": "workspace:*",
     "@meditation-surf/player-core": "workspace:*",

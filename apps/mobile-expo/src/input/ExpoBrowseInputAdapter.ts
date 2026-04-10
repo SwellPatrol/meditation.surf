@@ -6,8 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { BrowseInputIntent } from "@meditation-surf/core";
-import { BrowseInteractionController } from "@meditation-surf/core";
+import type { BrowseInputIntent } from "@meditation-surf/browse";
+import { BrowseInteractionController } from "@meditation-surf/browse";
 import { Platform } from "react-native";
 
 /**

@@ -69,6 +69,9 @@ importers:
 
   apps/mobile-expo:
     dependencies:
+      '@meditation-surf/browse':
+        specifier: workspace:*
+        version: link:../../packages/browse
       '@meditation-surf/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -118,6 +121,9 @@ importers:
       '@lightningjs/sdk':
         specifier: ^5.5.7
         version: 5.5.7
+      '@meditation-surf/browse':
+        specifier: workspace:*
+        version: link:../../packages/browse
       '@meditation-surf/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -136,6 +142,9 @@ importers:
 
   apps/web-vite:
     dependencies:
+      '@meditation-surf/browse':
+        specifier: workspace:*
+        version: link:../../packages/browse
       '@meditation-surf/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -146,8 +155,17 @@ importers:
         specifier: ^5.0.9
         version: 5.0.10
 
+  packages/browse:
+    dependencies:
+      '@meditation-surf/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/core:
     dependencies:
+      '@meditation-surf/browse':
+        specifier: workspace:*
+        version: link:../browse
       '@meditation-surf/media':
         specifier: workspace:*
         version: link:../media

@@ -14,6 +14,8 @@ import {
   type BrowseRowContent,
   type BrowseScreenContent,
   type BrowseThumbnailContent,
+} from "@meditation-surf/browse";
+import {
   MediaInventoryCloner,
   type MediaThumbnailCacheEntry,
   type MediaThumbnailSnapshot,

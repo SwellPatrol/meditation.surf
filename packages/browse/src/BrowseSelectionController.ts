@@ -239,7 +239,7 @@ export class BrowseSelectionController {
   /**
    * @brief Determine whether a row index currently exists
    *
-   * @param rowIndex - Candidate row index
+   * @param rowIndex - Row index to validate
    *
    * @returns `true` when the row exists
    */
@@ -248,74 +248,80 @@ export class BrowseSelectionController {
   }
 
   /**
-   * @brief Determine whether one row and item still describe a valid selection
+   * @brief Determine whether one selected item still exists
    *
-   * @param rowIndex - Candidate selected row
-   * @param itemIndex - Candidate selected item index
+   * @param rowIndex - Row containing the selected item
+   * @param itemIndex - Selected item position inside that row
    *
    * @returns `true` when the item still exists
    */
   private isSelectableIndex(rowIndex: number, itemIndex: number): boolean {
-    if (!this.isValidRowIndex(rowIndex)) {
-      return false;
-    }
-
     const rowItemCount: number = this.rowItemCounts[rowIndex] ?? 0;
 
-    return itemIndex >= 0 && itemIndex < rowItemCount;
+    return rowItemCount > 0 && itemIndex >= 0 && itemIndex < rowItemCount;
   }
 
   /**
-   * @brief Find the next row that currently has selectable items
+   * @brief Find the next row that currently contains items
    *
-   * @param startingRowIndex - Row index to start searching from
+   * @param startRowIndex - Row index to start searching from
    * @param direction - Search direction, either `-1` or `1`
    *
    * @returns Focusable row index, or `null` when none exists
    */
   private findFocusableRowIndex(
-    startingRowIndex: number,
+    startRowIndex: number,
     direction: -1 | 1,
   ): number | null {
-    for (
-      let rowIndex: number = startingRowIndex + direction;
-      rowIndex >= 0 && rowIndex < this.rowItemCounts.length;
-      rowIndex += direction
+    let candidateRowIndex: number = startRowIndex + direction;
+
+    while (
+      candidateRowIndex >= 0 &&
+      candidateRowIndex < this.rowItemCounts.length
     ) {
-      if ((this.rowItemCounts[rowIndex] ?? 0) > 0) {
-        return rowIndex;
+      if ((this.rowItemCounts[candidateRowIndex] ?? 0) > 0) {
+        return candidateRowIndex;
       }
+
+      candidateRowIndex += direction;
     }
 
     return null;
   }
 
   /**
-   * @brief Commit a new state only when the selection snapshot actually changes
+   * @brief Publish a selection-state change only when the snapshot differs
    *
-   * @param nextState - Candidate selection state after controller logic
+   * @param nextState - Candidate next browse selection state
    */
   private transitionTo(nextState: BrowseSelectionState): void {
-    if (
-      this.state.hasSelectedItem === nextState.hasSelectedItem &&
-      this.state.selectedRowIndex === nextState.selectedRowIndex &&
-      this.state.selectedItemIndex === nextState.selectedItemIndex
-    ) {
+    if (this.areStatesEqual(this.state, nextState)) {
       return;
     }
 
     this.state = nextState;
-    this.notifyStateListeners();
+
+    for (const stateListener of this.stateListeners) {
+      stateListener(this.getState());
+    }
   }
 
   /**
-   * @brief Notify every subscribed surface about the latest selection snapshot
+   * @brief Compare two browse selection snapshots for semantic equality
+   *
+   * @param previousState - Current browse selection state
+   * @param nextState - Candidate next browse selection state
+   *
+   * @returns `true` when both snapshots describe the same selection
    */
-  private notifyStateListeners(): void {
-    const browseSelectionState: BrowseSelectionState = this.getState();
-
-    for (const stateListener of this.stateListeners) {
-      stateListener(browseSelectionState);
-    }
+  private areStatesEqual(
+    previousState: BrowseSelectionState,
+    nextState: BrowseSelectionState,
+  ): boolean {
+    return (
+      previousState.hasSelectedItem === nextState.hasSelectedItem &&
+      previousState.selectedRowIndex === nextState.selectedRowIndex &&
+      previousState.selectedItemIndex === nextState.selectedItemIndex
+    );
   }
 }

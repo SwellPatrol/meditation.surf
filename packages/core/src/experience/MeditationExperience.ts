@@ -7,6 +7,10 @@
  */
 
 import type {
+  BrowseFocusController,
+  BrowseSelectionController,
+} from "@meditation-surf/browse";
+import type {
   FocusDelayController,
   MediaExecutionController,
   MediaKernelController,
@@ -19,8 +23,6 @@ import type {
 } from "@meditation-surf/overlay";
 import type { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
-import type { BrowseFocusController } from "../browse/BrowseFocusController";
-import type { BrowseSelectionController } from "../browse/BrowseSelectionController";
 import type { Catalog } from "../catalog/Catalog";
 import type { MediaItem } from "../catalog/MediaItem";
 import type { AppLayout } from "../layout/AppLayout";

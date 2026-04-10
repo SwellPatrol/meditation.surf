@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@meditation-surf/browse": "workspace:*",
     "@meditation-surf/core": "workspace:*",
     "@meditation-surf/overlay": "workspace:*",
     "shaka-player": "^5.0.9"

@@ -6,8 +6,11 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { BrowseInputIntent, BrowseInputMode } from "@meditation-surf/core";
-import { BrowseInteractionController } from "@meditation-surf/core";
+import type {
+  BrowseInputIntent,
+  BrowseInputMode,
+} from "@meditation-surf/browse";
+import { BrowseInteractionController } from "@meditation-surf/browse";
 
 import type { WebAppShell } from "../ui/WebAppShell";
 

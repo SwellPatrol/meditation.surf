@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { BrowseInteractionController } from "@meditation-surf/core";
+import { BrowseInteractionController } from "@meditation-surf/browse";
 
 import {
   LIGHTNING_APP_HEIGHT,

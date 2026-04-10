@@ -263,23 +263,23 @@ export class BrowseFocusController {
   }
 
   /**
-   * @brief Return the remembered item index for a row
+   * @brief Determine whether a row index currently exists
    *
-   * @param rowIndex - Row whose remembered item should be returned
+   * @param rowIndex - Row index to validate
    *
-   * @returns Remembered item index, defaulting to zero
+   * @returns `true` when the row exists
    */
-  private getActiveItemIndex(rowIndex: number): number {
-    return this.state.activeItemIndexByRow[rowIndex] ?? 0;
+  private isValidRowIndex(rowIndex: number): boolean {
+    return rowIndex >= 0 && rowIndex < this.rowItemCounts.length;
   }
 
   /**
-   * @brief Clamp a candidate item index to a specific row
+   * @brief Clamp one item index against the current row size
    *
-   * @param rowIndex - Row whose bounds should be respected
+   * @param rowIndex - Row containing the item
    * @param itemIndex - Candidate item index
    *
-   * @returns Safe item index for the row
+   * @returns Safe item index for the given row
    */
   private clampItemIndex(rowIndex: number, itemIndex: number): number {
     const rowItemCount: number = this.rowItemCounts[rowIndex] ?? 0;
@@ -292,71 +292,91 @@ export class BrowseFocusController {
   }
 
   /**
-   * @brief Determine whether a row index currently exists
+   * @brief Return the remembered item index for one row
    *
-   * @param rowIndex - Candidate row index
+   * @param rowIndex - Row whose item memory should be inspected
    *
-   * @returns `true` when the row exists
+   * @returns Remembered item index, defaulting to `0`
    */
-  private isValidRowIndex(rowIndex: number): boolean {
-    return rowIndex >= 0 && rowIndex < this.rowItemCounts.length;
+  private getActiveItemIndex(rowIndex: number): number {
+    return this.state.activeItemIndexByRow[rowIndex] ?? 0;
   }
 
   /**
-   * @brief Find the next focusable row in a specific direction
+   * @brief Find the next row that currently contains items
    *
-   * @param startingRowIndex - Row index to start searching from
+   * @param startRowIndex - Row index to start searching from
    * @param direction - Search direction, either `-1` or `1`
    *
    * @returns Focusable row index, or `null` when none exists
    */
   private findFocusableRowIndex(
-    startingRowIndex: number,
+    startRowIndex: number,
     direction: -1 | 1,
   ): number | null {
-    for (
-      let rowIndex: number = startingRowIndex + direction;
-      rowIndex >= 0 && rowIndex < this.rowItemCounts.length;
-      rowIndex += direction
+    let candidateRowIndex: number = startRowIndex + direction;
+
+    while (
+      candidateRowIndex >= 0 &&
+      candidateRowIndex < this.rowItemCounts.length
     ) {
-      if ((this.rowItemCounts[rowIndex] ?? 0) > 0) {
-        return rowIndex;
+      if ((this.rowItemCounts[candidateRowIndex] ?? 0) > 0) {
+        return candidateRowIndex;
       }
+
+      candidateRowIndex += direction;
     }
 
     return null;
   }
 
   /**
-   * @brief Commit a new state only when the focus snapshot actually changes
+   * @brief Publish a focus-state change only when the snapshot actually differs
    *
-   * @param nextState - Candidate focus state after controller logic
+   * @param nextState - Candidate next browse focus state
    */
   private transitionTo(nextState: BrowseFocusState): void {
-    const currentItemIndexes: string =
-      this.state.activeItemIndexByRow.join(",");
-    const nextItemIndexes: string = nextState.activeItemIndexByRow.join(",");
-
-    if (
-      this.state.activeRowIndex === nextState.activeRowIndex &&
-      currentItemIndexes === nextItemIndexes &&
-      this.state.hasFocusedItem === nextState.hasFocusedItem
-    ) {
+    if (this.areStatesEqual(this.state, nextState)) {
       return;
     }
 
     this.state = nextState;
-    this.notifyStateListeners();
+
+    for (const stateListener of this.stateListeners) {
+      stateListener(this.getState());
+    }
   }
 
   /**
-   * @brief Notify every subscribed surface about the latest focus snapshot
+   * @brief Compare two browse focus snapshots for semantic equality
+   *
+   * @param previousState - Current browse focus state
+   * @param nextState - Candidate next browse focus state
+   *
+   * @returns `true` when both snapshots describe the same focus target
    */
-  private notifyStateListeners(): void {
-    const browseFocusState: BrowseFocusState = this.getState();
-
-    for (const stateListener of this.stateListeners) {
-      stateListener(browseFocusState);
+  private areStatesEqual(
+    previousState: BrowseFocusState,
+    nextState: BrowseFocusState,
+  ): boolean {
+    if (previousState.activeRowIndex !== nextState.activeRowIndex) {
+      return false;
     }
+
+    if (previousState.hasFocusedItem !== nextState.hasFocusedItem) {
+      return false;
+    }
+
+    if (
+      previousState.activeItemIndexByRow.length !==
+      nextState.activeItemIndexByRow.length
+    ) {
+      return false;
+    }
+
+    return previousState.activeItemIndexByRow.every(
+      (itemIndex: number, rowIndex: number): boolean =>
+        itemIndex === nextState.activeItemIndexByRow[rowIndex],
+    );
   }
 }

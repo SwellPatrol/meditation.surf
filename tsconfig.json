@@ -16,6 +16,7 @@
     "types": ["node", "vite/client"],
     "baseUrl": ".",
     "paths": {
+      "@meditation-surf/browse": ["packages/browse/src/index.ts"],
       "@meditation-surf/core": ["packages/core/src/index.ts"],
       "@meditation-surf/core/brand/native": [
         "packages/core/src/brand/native.ts"
@@ -40,6 +41,7 @@
     "apps/mobile-expo/**/*",
     "apps/tv-lightning/**/*",
     "apps/web-vite/**/*",
+    "packages/browse/**/*",
     "packages/core/**/*",
     "packages/media/**/*",
     "packages/overlay/**/*",

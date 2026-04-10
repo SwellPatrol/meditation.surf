@@ -6,10 +6,13 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { Catalog } from "../catalog/Catalog";
-import type { CatalogSection } from "../catalog/CatalogSection";
-import type { MediaItem } from "../catalog/MediaItem";
-import type { MediaItemMetadataTag } from "../catalog/MediaItemMetadata";
+import type {
+  Catalog,
+  CatalogSection,
+  MediaItem,
+  MediaItemMetadataTag,
+} from "@meditation-surf/core";
+
 import type { BrowseFocusState } from "./BrowseFocusController";
 
 /**

@@ -6,14 +6,14 @@
  * See the file LICENSE.txt for more information.
  */
 
-import type { BrowseFocusState } from "../browse/BrowseFocusController";
-import { BrowseFocusController } from "../browse/BrowseFocusController";
-import { BrowseSelectionController } from "../browse/BrowseSelectionController";
+import type { BrowseFocusState } from "./BrowseFocusController";
+import { BrowseFocusController } from "./BrowseFocusController";
 import type {
   BrowseDirectionalInputIntent,
   BrowseInputCommand,
   BrowseInputIntent,
 } from "./BrowseInputIntent";
+import { BrowseSelectionController } from "./BrowseSelectionController";
 
 /**
  * @brief Supported browse input modes shared across app surfaces
@@ -217,8 +217,6 @@ export class BrowseInteractionController {
 
   /**
    * @brief Interpret one shared browse activation intent
-   *
-   * @param intent - Activation intent that should select the currently focused item
    */
   private dispatchActivationIntent(): void {
     const browseFocusState: BrowseFocusState =
@@ -258,7 +256,7 @@ export class BrowseInteractionController {
   /**
    * @brief Commit a mode transition only when the mode actually changes
    *
-   * @param inputMode - Candidate next input mode
+   * @param inputMode - Candidate next browse input mode
    */
   private transitionInputMode(inputMode: BrowseInputMode): void {
     if (this.inputMode === inputMode) {
@@ -266,13 +264,7 @@ export class BrowseInteractionController {
     }
 
     this.inputMode = inputMode;
-    this.notifyInputModeListeners();
-  }
 
-  /**
-   * @brief Notify every subscribed runtime about the latest input mode
-   */
-  private notifyInputModeListeners(): void {
     for (const inputModeListener of this.inputModeListeners) {
       inputModeListener(this.inputMode);
     }

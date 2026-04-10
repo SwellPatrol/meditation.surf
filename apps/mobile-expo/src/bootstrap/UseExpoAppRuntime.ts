@@ -8,7 +8,10 @@
 
 import type {
   BrowseFocusState,
+  BrowseRowContent,
   BrowseScreenContent,
+} from "@meditation-surf/browse";
+import type {
   CenteredOverlaySize,
   MediaItem,
   PlaybackSequenceState,
@@ -114,7 +117,7 @@ export function useExpoAppRuntime(
             experienceAdapter.browseFocusController.getState(),
           );
         const rowItemCounts: number[] = nextBrowseContent.rows.map(
-          (browseRow): number => browseRow.items.length,
+          (browseRow: BrowseRowContent): number => browseRow.items.length,
         );
 
         experienceAdapter.browseFocusController.syncRows(rowItemCounts);

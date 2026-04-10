@@ -11,6 +11,8 @@ import {
   type BrowseFocusController,
   BrowseInteractionController,
   type BrowseSelectionController,
+} from "@meditation-surf/browse";
+import {
   type MediaCapabilityProfile,
   type MediaExecutionController,
   type MediaKernelController,

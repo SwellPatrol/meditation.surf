@@ -7,6 +7,12 @@
  */
 
 import {
+  BrowseContentAdapter,
+  BrowseFocusController,
+  type BrowseRowContent,
+  BrowseSelectionController,
+} from "@meditation-surf/browse";
+import {
   MediaExecutionController,
   MediaKernelController,
   MediaKernelExperienceBridge,
@@ -24,12 +30,6 @@ import {
   type PlaybackVisualReadinessState,
 } from "@meditation-surf/player-core";
 
-import {
-  BrowseContentAdapter,
-  type BrowseRowContent,
-} from "../browse/BrowseContentAdapter";
-import { BrowseFocusController } from "../browse/BrowseFocusController";
-import { BrowseSelectionController } from "../browse/BrowseSelectionController";
 import { Catalog } from "../catalog/Catalog";
 import { FixtureCatalog } from "../catalog/FixtureCatalog";
 import type { MediaItem } from "../catalog/MediaItem";

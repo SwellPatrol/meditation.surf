@@ -8,7 +8,10 @@
 
 import type {
   BrowseFocusState,
+  BrowseRowContent,
   BrowseScreenContent,
+} from "@meditation-surf/browse";
+import type {
   MediaItem,
   MediaThumbnailSnapshot,
   MeditationExperience,
@@ -55,7 +58,7 @@ export class WebApp {
         this.experienceAdapter.browseFocusController.getState(),
       );
     const initialRowItemCounts: number[] = initialBrowseContent.rows.map(
-      (browseRow): number => browseRow.items.length,
+      (browseRow: BrowseRowContent): number => browseRow.items.length,
     );
 
     this.experienceAdapter.browseFocusController.syncRows(initialRowItemCounts);
@@ -146,7 +149,7 @@ export class WebApp {
               this.experienceAdapter.browseFocusController.getState(),
             );
           const rowItemCounts: number[] = browseContent.rows.map(
-            (browseRow): number => browseRow.items.length,
+            (browseRow: BrowseRowContent): number => browseRow.items.length,
           );
 
           this.experienceAdapter.browseFocusController.syncRows(rowItemCounts);

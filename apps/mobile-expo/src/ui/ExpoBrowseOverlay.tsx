@@ -13,7 +13,7 @@ import type {
   BrowseRowContent,
   BrowseScreenContent,
   BrowseThumbnailContent,
-} from "@meditation-surf/core";
+} from "@meditation-surf/browse";
 import type { JSX } from "react";
 import {
   Pressable,

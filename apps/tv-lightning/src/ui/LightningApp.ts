@@ -15,6 +15,8 @@ import type {
   BrowseScreenContent,
   BrowseSelectionController,
   BrowseThumbnailContent,
+} from "@meditation-surf/browse";
+import type {
   MediaItem,
   PlaybackSequenceController,
   PlaybackSequenceState,

@@ -9,6 +9,7 @@
     "./brand/web": "./src/brand/web.ts"
   },
   "dependencies": {
+    "@meditation-surf/browse": "workspace:*",
     "@meditation-surf/media": "workspace:*",
     "@meditation-surf/overlay": "workspace:*",
     "@meditation-surf/player-core": "workspace:*"
