@@ -6,6 +6,9 @@
  * See the file LICENSE.txt for more information.
  */
 
+import type { MediaThumbnailExtractionAttempt } from "./MediaThumbnailExtractionAttempt";
+import type { MediaThumbnailSelectionDecision } from "./MediaThumbnailSelectionDecision";
+
 /**
  * @brief Raw thumbnail extraction payload emitted by runtime adapters
  *
@@ -21,4 +24,6 @@ export type MediaThumbnailExtractionResult = {
   frameTimeMs: number | null;
   extractedAt: number;
   wasApproximate: boolean;
+  extractionAttempt: MediaThumbnailExtractionAttempt;
+  selectionDecision: MediaThumbnailSelectionDecision;
 };

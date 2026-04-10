@@ -13,6 +13,8 @@ import type {
 } from "@meditation-surf/vfs";
 
 import type { AudioPolicyDecision } from "../audio/AudioPolicyDecision";
+import type { MediaThumbnailExtractionAttempt } from "./MediaThumbnailExtractionAttempt";
+import type { MediaThumbnailSelectionDecision } from "./MediaThumbnailSelectionDecision";
 
 /**
  * @brief Runtime thumbnail payload that can be rendered by an app shell
@@ -32,5 +34,7 @@ export type MediaThumbnailResult = {
     reusedFromVfs: boolean;
     fallbackReason: string | null;
     audioPolicyDecision: AudioPolicyDecision;
+    extractionAttempt: MediaThumbnailExtractionAttempt;
+    selectionDecision: MediaThumbnailSelectionDecision;
   };
 };

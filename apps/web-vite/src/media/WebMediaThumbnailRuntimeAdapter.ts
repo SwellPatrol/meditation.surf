@@ -7,30 +7,42 @@
  */
 
 import type {
+  MediaThumbnailCandidateFrame,
+  MediaThumbnailExtractionAttempt,
   MediaThumbnailExtractionResult,
   MediaThumbnailRequest,
   MediaThumbnailRuntimeAdapter,
   MediaThumbnailRuntimeCapabilities,
+  MediaThumbnailSelectionDecision,
+  MediaThumbnailSelectionReason,
 } from "@meditation-surf/core";
+import { MediaThumbnailFrameSelector } from "@meditation-surf/core";
 import { VfsController } from "@meditation-surf/vfs";
 
 type ShakaModule =
   (typeof import("shaka-player/dist/shaka-player.compiled.js"))["default"];
 type ShakaPlayer = InstanceType<ShakaModule["Player"]>;
+type WebFrameAnalysis = {
+  averageLuma: number;
+  darkestSampleLuma: number;
+  brightestSampleLuma: number;
+  darkPixelRatio: number;
+};
 
 /**
  * @brief Real web thumbnail extraction adapter backed by hidden media elements
  *
  * The implementation intentionally stays practical for this phase: one hidden
- * extraction path, strong first-frame support, optional time-hint seeking, and
- * raw image payloads that the shared VFS layer can persist and lease.
+ * extraction path, bounded first-non-black inspection, optional time-hint
+ * seeking, and raw image payloads that the shared VFS layer can persist and
+ * lease.
  */
 export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAdapter {
   public static readonly RUNTIME_ID: string = "web-vite-thumbnail";
 
   private static readonly CAPABILITIES: MediaThumbnailRuntimeCapabilities = {
     canExtractFirstFrame: true,
-    canExtractNonBlackFrame: false,
+    canExtractNonBlackFrame: true,
     canExtractFromHiddenMedia: true,
     canCacheObjectUrls: false,
     canPrioritizeFocusedItem: true,
@@ -38,6 +50,7 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
 
   public readonly runtimeId: string;
 
+  private analysisCanvasElement: HTMLCanvasElement | null;
   private extractionCanvasElement: HTMLCanvasElement | null;
   private extractionRootElement: HTMLDivElement | null;
   private extractionVideoElement: HTMLVideoElement | null;
@@ -51,6 +64,7 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
    */
   public constructor(vfsController: VfsController | null = null) {
     this.runtimeId = WebMediaThumbnailRuntimeAdapter.RUNTIME_ID;
+    this.analysisCanvasElement = null;
     this.extractionCanvasElement = null;
     this.extractionRootElement = null;
     this.extractionVideoElement = null;
@@ -80,18 +94,34 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
     request: MediaThumbnailRequest,
   ): Promise<MediaThumbnailExtractionResult> {
     const videoElement: HTMLVideoElement = this.ensureExtractionVideoElement();
+    const analysisCanvasElement: HTMLCanvasElement =
+      this.ensureAnalysisCanvasElement();
     const canvasElement: HTMLCanvasElement =
       this.ensureExtractionCanvasElement();
+    const extractionStartedAt: number = Date.now();
 
     try {
       await this.warmStartupArtifacts(request);
-      await this.loadRequestSource(request, videoElement);
-      await this.applyTimeHintIfNeeded(request, videoElement);
+      await this.loadRequestSource(request, videoElement, extractionStartedAt);
+      const candidateFrames: MediaThumbnailCandidateFrame[] =
+        await this.collectCandidateFrames(
+          request,
+          videoElement,
+          analysisCanvasElement,
+          extractionStartedAt,
+        );
+      const selectionDecision: MediaThumbnailSelectionDecision =
+        MediaThumbnailFrameSelector.selectCandidateFrame(
+          request.extractionPolicy,
+          candidateFrames,
+        );
 
-      return await this.captureCurrentFrame(
+      return await this.captureSelectedFrame(
         request,
         videoElement,
         canvasElement,
+        selectionDecision,
+        extractionStartedAt,
       );
     } finally {
       await this.resetExtractionPath();
@@ -175,6 +205,24 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
   }
 
   /**
+   * @brief Ensure one reusable analysis canvas exists for luma inspection
+   *
+   * @returns Canvas element used for bounded candidate-frame analysis
+   */
+  private ensureAnalysisCanvasElement(): HTMLCanvasElement {
+    if (this.analysisCanvasElement !== null) {
+      return this.analysisCanvasElement;
+    }
+
+    const analysisCanvasElement: HTMLCanvasElement =
+      document.createElement("canvas");
+
+    this.analysisCanvasElement = analysisCanvasElement;
+
+    return analysisCanvasElement;
+  }
+
+  /**
    * @brief Load the request source through native playback or Shaka
    *
    * @param request - Shared request being loaded
@@ -183,6 +231,7 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
   private async loadRequestSource(
     request: MediaThumbnailRequest,
     videoElement: HTMLVideoElement,
+    extractionStartedAt: number,
   ): Promise<void> {
     const sourceDescriptor = request.sourceDescriptor;
     const playbackMimeType: string =
@@ -190,14 +239,16 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
     const canUseNativePlayback: boolean =
       videoElement.canPlayType(playbackMimeType) !== "";
     const loadPromise: Promise<void> = this.waitForLoadedData(videoElement);
-    const timeoutMs: number | null = request.extractionPolicy.timeoutMs;
-
     videoElement.poster = sourceDescriptor.posterUrl ?? "";
 
     if (canUseNativePlayback) {
       videoElement.src = sourceDescriptor.url;
       videoElement.load();
-      await this.withOptionalTimeout(loadPromise, timeoutMs);
+      await this.withRemainingTimeout(
+        loadPromise,
+        request.extractionPolicy.timeoutMs,
+        extractionStartedAt,
+      );
       return;
     }
 
@@ -213,56 +264,200 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
     const shakaPlayer: ShakaPlayer = new shaka.Player(videoElement);
 
     this.shakaPlayer = shakaPlayer;
-    await this.withOptionalTimeout(
+    await this.withRemainingTimeout(
       shakaPlayer.load(sourceDescriptor.url),
-      timeoutMs,
+      request.extractionPolicy.timeoutMs,
+      extractionStartedAt,
     );
-    await this.withOptionalTimeout(loadPromise, timeoutMs);
+    await this.withRemainingTimeout(
+      loadPromise,
+      request.extractionPolicy.timeoutMs,
+      extractionStartedAt,
+    );
   }
 
   /**
-   * @brief Seek the hidden extractor to one requested time hint when present
+   * @brief Inspect a bounded set of candidate frames for the current request
    *
-   * @param request - Shared request that may carry a time hint
+   * @param request - Shared request emitted by the thumbnail controller
    * @param videoElement - Hidden video element used for decoding
+   * @param analysisCanvasElement - Reusable canvas used for luma analysis
+   * @param extractionStartedAt - Wall-clock timestamp when extraction began
+   *
+   * @returns Candidate frames prepared for shared selection logic
    */
-  private async applyTimeHintIfNeeded(
+  private async collectCandidateFrames(
     request: MediaThumbnailRequest,
     videoElement: HTMLVideoElement,
-  ): Promise<void> {
-    const targetTimeMs: number | null =
-      request.extractionPolicy.strategy === "time-hint"
-        ? request.timeHintMs
-        : null;
+    analysisCanvasElement: HTMLCanvasElement,
+    extractionStartedAt: number,
+  ): Promise<MediaThumbnailCandidateFrame[]> {
+    const candidateFrameTimesMs: number[] =
+      MediaThumbnailFrameSelector.createCandidateFrameTimes(
+        request.extractionPolicy,
+        request.timeHintMs,
+      );
+    const boundedCandidateFrameTimesMs: number[] = candidateFrameTimesMs.slice(
+      0,
+      request.extractionPolicy.maxAttemptCount,
+    );
+    const candidateFrames: MediaThumbnailCandidateFrame[] = [];
 
-    if (targetTimeMs === null || targetTimeMs <= 0) {
+    for (const [
+      attemptIndex,
+      candidateFrameTimeMs,
+    ] of boundedCandidateFrameTimesMs.entries()) {
+      const candidateFrame: MediaThumbnailCandidateFrame =
+        await this.inspectCandidateFrame(
+          request,
+          videoElement,
+          analysisCanvasElement,
+          candidateFrameTimeMs,
+          attemptIndex,
+          extractionStartedAt,
+        );
+
+      candidateFrames.push(candidateFrame);
+
+      if (candidateFrame.rejectionReason === "timeout") {
+        break;
+      }
+    }
+
+    return candidateFrames;
+  }
+
+  /**
+   * @brief Inspect one candidate frame at a requested time
+   *
+   * @param request - Shared request emitted by the thumbnail controller
+   * @param videoElement - Hidden video element used for decoding
+   * @param analysisCanvasElement - Reusable canvas used for luma analysis
+   * @param candidateFrameTimeMs - Candidate frame time being inspected
+   * @param attemptIndex - Stable attempt index within the bounded candidate set
+   * @param extractionStartedAt - Wall-clock timestamp when extraction began
+   *
+   * @returns Shared candidate-frame description for selection logic
+   */
+  private async inspectCandidateFrame(
+    request: MediaThumbnailRequest,
+    videoElement: HTMLVideoElement,
+    analysisCanvasElement: HTMLCanvasElement,
+    candidateFrameTimeMs: number,
+    attemptIndex: number,
+    extractionStartedAt: number,
+  ): Promise<MediaThumbnailCandidateFrame> {
+    try {
+      await this.seekToFrameTime(
+        videoElement,
+        candidateFrameTimeMs,
+        request.extractionPolicy.timeoutMs,
+        extractionStartedAt,
+      );
+
+      const frameAnalysis: WebFrameAnalysis = this.analyzeCurrentFrame(
+        videoElement,
+        analysisCanvasElement,
+      );
+
+      return {
+        attemptIndex,
+        frameTimeMs: Math.round(videoElement.currentTime * 1000),
+        averageLuma: frameAnalysis.averageLuma,
+        darkestSampleLuma: frameAnalysis.darkestSampleLuma,
+        brightestSampleLuma: frameAnalysis.brightestSampleLuma,
+        darkPixelRatio: frameAnalysis.darkPixelRatio,
+        isDecodable: true,
+        rejectionReason: null,
+      };
+    } catch (error: unknown) {
+      const rejectionReason: MediaThumbnailCandidateFrame["rejectionReason"] =
+        error instanceof Error && error.message.includes("timed out")
+          ? "timeout"
+          : "decode-failed";
+
+      return {
+        attemptIndex,
+        frameTimeMs: candidateFrameTimeMs,
+        averageLuma: null,
+        darkestSampleLuma: null,
+        brightestSampleLuma: null,
+        darkPixelRatio: null,
+        isDecodable: false,
+        rejectionReason,
+      };
+    }
+  }
+
+  /**
+   * @brief Seek the hidden extractor to one requested frame time
+   *
+   * @param videoElement - Hidden video element used for decoding
+   * @param targetTimeMs - Requested frame time in milliseconds
+   * @param timeoutMs - Optional request timeout
+   * @param extractionStartedAt - Wall-clock timestamp when extraction began
+   */
+  private async seekToFrameTime(
+    videoElement: HTMLVideoElement,
+    targetTimeMs: number,
+    timeoutMs: number | null,
+    extractionStartedAt: number,
+  ): Promise<void> {
+    const normalizedTargetTimeSeconds: number = Math.max(
+      0,
+      targetTimeMs / 1000,
+    );
+
+    if (
+      Math.abs(videoElement.currentTime - normalizedTargetTimeSeconds) <= 0.02
+    ) {
       return;
     }
 
-    const targetTimeSeconds: number = Math.max(0, targetTimeMs / 1000);
     const seekPromise: Promise<void> = this.waitForSeeked(videoElement);
 
-    videoElement.currentTime = targetTimeSeconds;
-    await this.withOptionalTimeout(
+    videoElement.currentTime = normalizedTargetTimeSeconds;
+    await this.withRemainingTimeout(
       seekPromise,
-      request.extractionPolicy.timeoutMs,
+      timeoutMs,
+      extractionStartedAt,
     );
   }
 
   /**
-   * @brief Draw the decoded frame into the reusable canvas and serialize it
+   * @brief Capture the currently selected frame into the persisted still blob
    *
    * @param request - Shared thumbnail request
-   * @param videoElement - Hidden video element currently holding the frame
-   * @param canvasElement - Reusable canvas used for serialization
+   * @param videoElement - Hidden video element used for decoding
+   * @param canvasElement - Reusable canvas used for final serialization
+   * @param selectionDecision - Shared selection decision produced by the selector
+   * @param extractionStartedAt - Wall-clock timestamp when extraction began
    *
-   * @returns Serialized thumbnail result
+   * @returns Serialized thumbnail result with inspectable selection metadata
    */
-  private async captureCurrentFrame(
+  private async captureSelectedFrame(
     request: MediaThumbnailRequest,
     videoElement: HTMLVideoElement,
     canvasElement: HTMLCanvasElement,
+    selectionDecision: MediaThumbnailSelectionDecision,
+    extractionStartedAt: number,
   ): Promise<MediaThumbnailExtractionResult> {
+    const selectedFrameTimeMs: number | null =
+      selectionDecision.selectedFrameTimeMs;
+
+    if (selectedFrameTimeMs === null) {
+      throw new Error(
+        `Thumbnail extraction could not decode any usable frames for ${request.sourceId}.`,
+      );
+    }
+
+    await this.seekToFrameTime(
+      videoElement,
+      selectedFrameTimeMs,
+      request.extractionPolicy.timeoutMs,
+      extractionStartedAt,
+    );
+
     const targetSize: { width: number; height: number } =
       this.resolveTargetSize(request, videoElement);
     const canvasContext: CanvasRenderingContext2D | null =
@@ -286,6 +481,12 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
       canvasElement,
       request.qualityHint,
     );
+    const extractionAttempt: MediaThumbnailExtractionAttempt =
+      this.createExtractionAttempt(
+        request,
+        selectionDecision,
+        extractionStartedAt,
+      );
 
     return {
       sourceId: request.sourceId,
@@ -295,7 +496,134 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
       height: targetSize.height,
       frameTimeMs: Math.round(videoElement.currentTime * 1000),
       extractedAt: Date.now(),
-      wasApproximate: false,
+      wasApproximate: selectionDecision.fallbackUsed,
+      extractionAttempt,
+      selectionDecision: {
+        ...selectionDecision,
+        resolvedReason: this.resolveSelectionReason(selectionDecision),
+      },
+    };
+  }
+
+  /**
+   * @brief Build one shared extraction-attempt summary for debug consumers
+   *
+   * @param request - Shared request currently being processed
+   * @param selectionDecision - Shared selection decision produced for the request
+   * @param extractionStartedAt - Wall-clock timestamp when extraction began
+   *
+   * @returns Shared extraction-attempt summary
+   */
+  private createExtractionAttempt(
+    request: MediaThumbnailRequest,
+    selectionDecision: MediaThumbnailSelectionDecision,
+    extractionStartedAt: number,
+  ): MediaThumbnailExtractionAttempt {
+    const completedFrameCount: number =
+      selectionDecision.candidateFrames.filter(
+        (candidateFrame: MediaThumbnailCandidateFrame): boolean =>
+          candidateFrame.isDecodable,
+      ).length;
+
+    return {
+      requestedStrategy: request.extractionPolicy.strategy,
+      strategyUsed: selectionDecision.strategyUsed,
+      qualityIntent: request.extractionPolicy.qualityIntent,
+      timeoutMs: request.extractionPolicy.timeoutMs,
+      candidateWindowMs: request.extractionPolicy.candidateWindowMs,
+      candidateFrameStepMs: request.extractionPolicy.candidateFrameStepMs,
+      maxCandidateFrames: request.extractionPolicy.maxCandidateFrames,
+      maxAttemptCount: request.extractionPolicy.maxAttemptCount,
+      attemptedFrameCount: selectionDecision.attemptedFrameCount,
+      completedFrameCount,
+      timedOut: selectionDecision.rejectionReasons.includes("timeout"),
+      unsupported: false,
+      startedAt: extractionStartedAt,
+      finishedAt: Date.now(),
+    };
+  }
+
+  /**
+   * @brief Resolve the surfaced selection reason for one extraction result
+   *
+   * @param selectionDecision - Shared selection decision chosen by the selector
+   *
+   * @returns Selection reason surfaced by the runtime result
+   */
+  private resolveSelectionReason(
+    selectionDecision: MediaThumbnailSelectionDecision,
+  ): MediaThumbnailSelectionReason {
+    return selectionDecision.selectionReason;
+  }
+
+  /**
+   * @brief Analyze the current decoded frame using a small off-screen canvas
+   *
+   * @param videoElement - Hidden video element holding the current decoded frame
+   * @param analysisCanvasElement - Reusable canvas used for luma analysis
+   *
+   * @returns Simple bounded brightness analysis for shared selection logic
+   */
+  private analyzeCurrentFrame(
+    videoElement: HTMLVideoElement,
+    analysisCanvasElement: HTMLCanvasElement,
+  ): WebFrameAnalysis {
+    const intrinsicWidth: number = Math.max(1, videoElement.videoWidth || 1);
+    const intrinsicHeight: number = Math.max(1, videoElement.videoHeight || 1);
+    const analysisWidth: number = Math.min(64, intrinsicWidth);
+    const analysisHeight: number = Math.max(
+      1,
+      Math.round((intrinsicHeight / intrinsicWidth) * analysisWidth),
+    );
+    const canvasContext: CanvasRenderingContext2D | null =
+      analysisCanvasElement.getContext("2d");
+
+    if (canvasContext === null) {
+      throw new Error("The browser could not create a 2D canvas context.");
+    }
+
+    analysisCanvasElement.width = analysisWidth;
+    analysisCanvasElement.height = analysisHeight;
+    canvasContext.drawImage(videoElement, 0, 0, analysisWidth, analysisHeight);
+    const imageData: ImageData = canvasContext.getImageData(
+      0,
+      0,
+      analysisWidth,
+      analysisHeight,
+    );
+    const pixelData: Uint8ClampedArray = imageData.data;
+    let totalLuma: number = 0;
+    let darkestSampleLuma: number = 255;
+    let brightestSampleLuma: number = 0;
+    let darkPixelCount: number = 0;
+    const pixelCount: number = Math.max(1, pixelData.length / 4);
+
+    for (
+      let pixelOffset: number = 0;
+      pixelOffset < pixelData.length;
+      pixelOffset += 4
+    ) {
+      const redChannel: number = pixelData[pixelOffset] ?? 0;
+      const greenChannel: number = pixelData[pixelOffset + 1] ?? 0;
+      const blueChannel: number = pixelData[pixelOffset + 2] ?? 0;
+      const sampleLuma: number = Math.round(
+        redChannel * 0.2126 + greenChannel * 0.7152 + blueChannel * 0.0722,
+      );
+
+      totalLuma += sampleLuma;
+      darkestSampleLuma = Math.min(darkestSampleLuma, sampleLuma);
+      brightestSampleLuma = Math.max(brightestSampleLuma, sampleLuma);
+
+      if (sampleLuma <= 24) {
+        darkPixelCount += 1;
+      }
+    }
+
+    return {
+      averageLuma: totalLuma / pixelCount,
+      darkestSampleLuma,
+      brightestSampleLuma,
+      darkPixelRatio: darkPixelCount / pixelCount,
     };
   }
 
@@ -533,6 +861,36 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
         });
       },
     );
+  }
+
+  /**
+   * @brief Wrap an async operation in the request's optional timeout
+   *
+   * @param promise - Async operation being awaited
+   * @param totalTimeoutMs - Optional timeout duration for the whole extraction
+   * @param extractionStartedAt - Wall-clock timestamp when extraction began
+   *
+   * @returns Original promise result when it finishes before the remaining timeout
+   */
+  private async withRemainingTimeout<TValue>(
+    promise: Promise<TValue>,
+    totalTimeoutMs: number | null,
+    extractionStartedAt: number,
+  ): Promise<TValue> {
+    if (totalTimeoutMs === null || totalTimeoutMs <= 0) {
+      return promise;
+    }
+
+    const elapsedMs: number = Date.now() - extractionStartedAt;
+    const remainingTimeoutMs: number = totalTimeoutMs - elapsedMs;
+
+    if (remainingTimeoutMs <= 0) {
+      throw new Error(
+        `Thumbnail extraction timed out after ${totalTimeoutMs}ms.`,
+      );
+    }
+
+    return await this.withOptionalTimeout(promise, remainingTimeoutMs);
   }
 
   /**

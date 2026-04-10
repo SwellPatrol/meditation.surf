@@ -25,6 +25,7 @@ import type {
   MediaThumbnailPriority,
   MediaThumbnailQuality,
 } from "../thumbnails/MediaThumbnailExtractionPolicy";
+import type { MediaThumbnailQualityIntent } from "../thumbnails/MediaThumbnailQualityIntent";
 import type { MediaThumbnailRequest } from "../thumbnails/MediaThumbnailRequest";
 import { VariantPolicy } from "../variant-policy/VariantPolicy";
 import type { VariantSelectionDecision } from "../variant-policy/VariantSelectionDecision";
@@ -509,11 +510,18 @@ export class MediaKernelExperienceBridge<
     });
     const qualityHint: MediaThumbnailQuality =
       variantSelection.desiredQualityTier;
+    const qualityIntent: MediaThumbnailQualityIntent = isFocusedCandidate
+      ? "high"
+      : "medium";
     const timeoutMs: number = isFocusedCandidate
       ? 3200
       : isFocusedRowCandidate
         ? 2200
         : 1800;
+    const candidateWindowMs: number = qualityIntent === "high" ? 900 : 600;
+    const candidateFrameStepMs: number = qualityIntent === "high" ? 150 : 180;
+    const maxCandidateFrames: number = qualityIntent === "high" ? 6 : 4;
+    const maxAttemptCount: number = maxCandidateFrames;
     const audioPolicyDecision: AudioPolicyDecision = AudioPolicy.decide({
       activationIntent: {
         sessionRole: "extractor",
@@ -541,11 +549,18 @@ export class MediaKernelExperienceBridge<
       timeHintMs: 0,
       variantSelection,
       extractionPolicy: {
-        strategy: "first-frame",
-        quality: qualityHint,
+        strategy: "first-non-black",
+        qualityIntent,
         timeoutMs,
         targetWidth,
         targetHeight: null,
+        candidateWindowMs,
+        candidateFrameStepMs,
+        maxCandidateFrames,
+        maxAttemptCount,
+        blackFrameThreshold: 10,
+        nearBlackFrameThreshold: 24,
+        fadeInFrameThreshold: 40,
       },
       audioPolicyDecision,
     };

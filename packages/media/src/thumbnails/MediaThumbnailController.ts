@@ -17,15 +17,18 @@ import {
 import type { AudioPolicyDecision } from "../audio/AudioPolicyDecision";
 import type { MediaThumbnailCacheEntry } from "./MediaThumbnailCacheEntry";
 import type { MediaThumbnailDescriptor } from "./MediaThumbnailDescriptor";
+import type { MediaThumbnailExtractionAttempt } from "./MediaThumbnailExtractionAttempt";
 import type {
   MediaThumbnailPriority,
   MediaThumbnailQuality,
 } from "./MediaThumbnailExtractionPolicy";
 import type { MediaThumbnailExtractionResult } from "./MediaThumbnailExtractionResult";
+import type { MediaThumbnailQualityIntent } from "./MediaThumbnailQualityIntent";
 import type { MediaThumbnailRequest } from "./MediaThumbnailRequest";
 import type { MediaThumbnailResult } from "./MediaThumbnailResult";
 import type { MediaThumbnailRuntimeAdapter } from "./MediaThumbnailRuntimeAdapter";
 import type { MediaThumbnailRuntimeCapabilities } from "./MediaThumbnailRuntimeCapabilities";
+import type { MediaThumbnailSelectionDecision } from "./MediaThumbnailSelectionDecision";
 import type { MediaThumbnailSnapshot } from "./MediaThumbnailSnapshot";
 import type { MediaThumbnailState } from "./MediaThumbnailState";
 
@@ -241,8 +244,14 @@ export class MediaThumbnailController {
       const nextDescriptor: MediaThumbnailDescriptor = this.cloneDescriptor(
         normalizedRequest.descriptor,
       );
+      const shouldRefineExistingEntry: boolean =
+        existingEntry?.state === "ready" &&
+        existingEntry.request !== null &&
+        this.shouldRefineReadyEntry(existingEntry.request, normalizedRequest);
       const nextState: MediaThumbnailState =
-        existingEntry?.state === "ready" ? "ready" : "requested";
+        existingEntry?.state === "ready" && !shouldRefineExistingEntry
+          ? "ready"
+          : "requested";
 
       nextRelevantSourceIds.add(sourceId);
       this.cacheEntriesBySourceId.set(sourceId, {
@@ -257,7 +266,7 @@ export class MediaThumbnailController {
         lastUpdatedAt: nowMs,
       });
 
-      if (existingEntry?.state !== "ready") {
+      if (existingEntry?.state !== "ready" || shouldRefineExistingEntry) {
         this.pendingSourceIds.add(sourceId);
       }
     }
@@ -395,11 +404,9 @@ export class MediaThumbnailController {
           : await this.tryRestoreCachedThumbnailResult(cacheEntry.request);
 
       if (restoredThumbnailResult !== null) {
-        this.pendingSourceIds.delete(nextSourceId);
-        this.updateCacheEntryState(
+        this.applyCompletedThumbnailResult(
           nextSourceId,
-          "ready",
-          null,
+          cacheEntry.request,
           restoredThumbnailResult,
         );
         continue;
@@ -440,11 +447,9 @@ export class MediaThumbnailController {
             thumbnailExtractionResult,
           );
 
-        this.pendingSourceIds.delete(nextSourceId);
-        this.updateCacheEntryState(
+        this.applyCompletedThumbnailResult(
           nextSourceId,
-          "ready",
-          null,
+          cacheEntry.request,
           thumbnailResult,
         );
       } catch (error: unknown) {
@@ -454,9 +459,44 @@ export class MediaThumbnailController {
             : `Thumbnail extraction failed for ${nextSourceId}.`;
 
         this.pendingSourceIds.delete(nextSourceId);
-        this.updateCacheEntryState(nextSourceId, "failed", failureReason, null);
+        this.updateCacheEntryState(
+          nextSourceId,
+          "failed",
+          failureReason,
+          cacheEntry.result,
+        );
       }
     }
+  }
+
+  /**
+   * @brief Apply one completed thumbnail result while respecting newer queued requests
+   *
+   * @param sourceId - Stable source identifier whose work just completed
+   * @param completedRequest - Request that produced the supplied result
+   * @param thumbnailResult - Completed thumbnail result to surface immediately
+   */
+  private applyCompletedThumbnailResult(
+    sourceId: string,
+    completedRequest: MediaThumbnailRequest,
+    thumbnailResult: MediaThumbnailResult,
+  ): void {
+    const latestCacheEntry: MediaThumbnailCacheEntry | undefined =
+      this.cacheEntriesBySourceId.get(sourceId);
+    const latestRequest: MediaThumbnailRequest | null =
+      latestCacheEntry?.request ?? null;
+    const shouldContinueRefining: boolean =
+      latestRequest !== null &&
+      this.shouldRefineReadyEntry(completedRequest, latestRequest);
+
+    if (shouldContinueRefining) {
+      this.pendingSourceIds.add(sourceId);
+      this.updateCacheEntryState(sourceId, "requested", null, thumbnailResult);
+      return;
+    }
+
+    this.pendingSourceIds.delete(sourceId);
+    this.updateCacheEntryState(sourceId, "ready", null, thumbnailResult);
   }
 
   /**
@@ -624,6 +664,129 @@ export class MediaThumbnailController {
       case "low":
         return 1;
     }
+  }
+
+  /**
+   * @brief Convert one thumbnail quality intent into a stable numeric rank
+   *
+   * @param qualityIntent - Shared thumbnail quality intent being ranked
+   *
+   * @returns Numeric quality-intent rank
+   */
+  private getQualityIntentRank(
+    qualityIntent: MediaThumbnailQualityIntent,
+  ): number {
+    switch (qualityIntent) {
+      case "high":
+        return 3;
+      case "medium":
+        return 2;
+      case "low":
+        return 1;
+    }
+  }
+
+  /**
+   * @brief Convert one extraction strategy into a stable refinement rank
+   *
+   * @param strategy - Extraction strategy being ranked
+   *
+   * @returns Numeric strategy rank
+   */
+  private getStrategyRank(
+    strategy: MediaThumbnailRequest["extractionPolicy"]["strategy"],
+  ): number {
+    switch (strategy) {
+      case "first-non-black":
+        return 3;
+      case "time-hint":
+        return 2;
+      case "first-frame":
+        return 1;
+    }
+  }
+
+  /**
+   * @brief Determine whether a ready entry should be refined for a newer request
+   *
+   * @param existingRequest - Previously satisfied request still cached in memory
+   * @param nextRequest - New request derived from the latest browse context
+   *
+   * @returns `true` when the newer request justifies conservative refinement
+   */
+  private shouldRefineReadyEntry(
+    existingRequest: MediaThumbnailRequest,
+    nextRequest: MediaThumbnailRequest,
+  ): boolean {
+    const existingStrategyRank: number = this.getStrategyRank(
+      existingRequest.extractionPolicy.strategy,
+    );
+    const nextStrategyRank: number = this.getStrategyRank(
+      nextRequest.extractionPolicy.strategy,
+    );
+
+    if (nextStrategyRank > existingStrategyRank) {
+      return true;
+    }
+
+    const existingQualityIntentRank: number = this.getQualityIntentRank(
+      existingRequest.extractionPolicy.qualityIntent,
+    );
+    const nextQualityIntentRank: number = this.getQualityIntentRank(
+      nextRequest.extractionPolicy.qualityIntent,
+    );
+
+    if (nextQualityIntentRank > existingQualityIntentRank) {
+      return true;
+    }
+
+    const existingQualityRank: number = this.getQualityRank(
+      existingRequest.qualityHint,
+    );
+    const nextQualityRank: number = this.getQualityRank(
+      nextRequest.qualityHint,
+    );
+
+    if (nextQualityRank > existingQualityRank) {
+      return true;
+    }
+
+    const existingTargetArea: number = this.getTargetArea(existingRequest);
+    const nextTargetArea: number = this.getTargetArea(nextRequest);
+
+    if (nextTargetArea > existingTargetArea) {
+      return true;
+    }
+
+    if (
+      existingRequest.extractionPolicy.strategy === "time-hint" &&
+      nextRequest.extractionPolicy.strategy === "time-hint" &&
+      nextRequest.timeHintMs !== existingRequest.timeHintMs
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * @brief Resolve one normalized target area for conservative refinement checks
+   *
+   * @param request - Request whose target dimensions are being compared
+   *
+   * @returns Best-effort requested thumbnail area
+   */
+  private getTargetArea(request: MediaThumbnailRequest): number {
+    const resolvedWidth: number = Math.max(
+      1,
+      request.targetWidth ?? request.extractionPolicy.targetWidth ?? 1,
+    );
+    const resolvedHeight: number = Math.max(
+      1,
+      request.targetHeight ?? request.extractionPolicy.targetHeight ?? 1,
+    );
+
+    return resolvedWidth * resolvedHeight;
   }
 
   /**
@@ -844,10 +1007,18 @@ export class MediaThumbnailController {
       },
       extractionPolicy: {
         strategy: request.extractionPolicy.strategy,
-        quality: request.extractionPolicy.quality,
+        qualityIntent: request.extractionPolicy.qualityIntent,
         timeoutMs: request.extractionPolicy.timeoutMs,
         targetWidth: request.extractionPolicy.targetWidth,
         targetHeight: request.extractionPolicy.targetHeight,
+        candidateWindowMs: request.extractionPolicy.candidateWindowMs,
+        candidateFrameStepMs: request.extractionPolicy.candidateFrameStepMs,
+        maxCandidateFrames: request.extractionPolicy.maxCandidateFrames,
+        maxAttemptCount: request.extractionPolicy.maxAttemptCount,
+        blackFrameThreshold: request.extractionPolicy.blackFrameThreshold,
+        nearBlackFrameThreshold:
+          request.extractionPolicy.nearBlackFrameThreshold,
+        fadeInFrameThreshold: request.extractionPolicy.fadeInFrameThreshold,
       },
       audioPolicyDecision: this.cloneAudioPolicyDecision(
         request.audioPolicyDecision,
@@ -890,6 +1061,12 @@ export class MediaThumbnailController {
         audioPolicyDecision: this.cloneAudioPolicyDecision(
           result.debug.audioPolicyDecision,
         ),
+        extractionAttempt: this.cloneExtractionAttempt(
+          result.debug.extractionAttempt,
+        ),
+        selectionDecision: this.cloneSelectionDecision(
+          result.debug.selectionDecision,
+        ),
       },
     };
   }
@@ -919,6 +1096,11 @@ export class MediaThumbnailController {
       return null;
     }
 
+    const restoredExtractionAttempt: MediaThumbnailExtractionAttempt =
+      this.readExtractionAttemptFromMetadata(storedArtifact, request);
+    const restoredSelectionDecision: MediaThumbnailSelectionDecision =
+      this.readSelectionDecisionFromMetadata(storedArtifact, request);
+
     return {
       sourceId: request.sourceId,
       artifactKey: storedArtifact.descriptor.artifactKey,
@@ -945,6 +1127,12 @@ export class MediaThumbnailController {
         audioPolicyDecision: this.cloneAudioPolicyDecision(
           request.audioPolicyDecision,
         ),
+        extractionAttempt: restoredExtractionAttempt,
+        selectionDecision: {
+          ...this.cloneSelectionDecision(restoredSelectionDecision),
+          cachedArtifactReused: true,
+          resolvedReason: "cached-artifact-reused",
+        },
       },
     };
   }
@@ -972,13 +1160,23 @@ export class MediaThumbnailController {
         contentType: extractionResult.imageContentType,
         metadata: {
           extractedAt: extractionResult.extractedAt,
+          extractionAttemptJson: JSON.stringify(
+            extractionResult.extractionAttempt,
+          ),
           frameTimeMs: extractionResult.frameTimeMs,
           height: extractionResult.height,
+          qualityIntent: request.extractionPolicy.qualityIntent,
+          selectionDecisionJson: JSON.stringify(
+            extractionResult.selectionDecision,
+          ),
+          selectionReason: extractionResult.selectionDecision.selectionReason,
+          strategyUsed: extractionResult.selectionDecision.strategyUsed,
           sourceId: extractionResult.sourceId,
           targetHeight:
             request.targetHeight ?? request.extractionPolicy.targetHeight,
           targetWidth:
             request.targetWidth ?? request.extractionPolicy.targetWidth,
+          fallbackUsed: extractionResult.selectionDecision.fallbackUsed,
           wasApproximate: extractionResult.wasApproximate,
           width: extractionResult.width,
         },
@@ -1010,7 +1208,228 @@ export class MediaThumbnailController {
         audioPolicyDecision: this.cloneAudioPolicyDecision(
           request.audioPolicyDecision,
         ),
+        extractionAttempt: this.cloneExtractionAttempt(
+          extractionResult.extractionAttempt,
+        ),
+        selectionDecision: this.cloneSelectionDecision(
+          extractionResult.selectionDecision,
+        ),
       },
+    };
+  }
+
+  /**
+   * @brief Clone one shared extraction-attempt summary
+   *
+   * @param extractionAttempt - Extraction attempt being cloned
+   *
+   * @returns Cloned extraction attempt
+   */
+  private cloneExtractionAttempt(
+    extractionAttempt: MediaThumbnailExtractionAttempt,
+  ): MediaThumbnailExtractionAttempt {
+    return {
+      requestedStrategy: extractionAttempt.requestedStrategy,
+      strategyUsed: extractionAttempt.strategyUsed,
+      qualityIntent: extractionAttempt.qualityIntent,
+      timeoutMs: extractionAttempt.timeoutMs,
+      candidateWindowMs: extractionAttempt.candidateWindowMs,
+      candidateFrameStepMs: extractionAttempt.candidateFrameStepMs,
+      maxCandidateFrames: extractionAttempt.maxCandidateFrames,
+      maxAttemptCount: extractionAttempt.maxAttemptCount,
+      attemptedFrameCount: extractionAttempt.attemptedFrameCount,
+      completedFrameCount: extractionAttempt.completedFrameCount,
+      timedOut: extractionAttempt.timedOut,
+      unsupported: extractionAttempt.unsupported,
+      startedAt: extractionAttempt.startedAt,
+      finishedAt: extractionAttempt.finishedAt,
+    };
+  }
+
+  /**
+   * @brief Clone one shared frame-selection decision
+   *
+   * @param selectionDecision - Selection decision being cloned
+   *
+   * @returns Cloned selection decision
+   */
+  private cloneSelectionDecision(
+    selectionDecision: MediaThumbnailSelectionDecision,
+  ): MediaThumbnailSelectionDecision {
+    return {
+      requestedStrategy: selectionDecision.requestedStrategy,
+      strategyUsed: selectionDecision.strategyUsed,
+      qualityIntent: selectionDecision.qualityIntent,
+      selectionReason: selectionDecision.selectionReason,
+      resolvedReason: selectionDecision.resolvedReason,
+      selectedFrameTimeMs: selectionDecision.selectedFrameTimeMs,
+      selectedCandidateIndex: selectionDecision.selectedCandidateIndex,
+      attemptedFrameCount: selectionDecision.attemptedFrameCount,
+      rejectedFrameCount: selectionDecision.rejectedFrameCount,
+      fallbackUsed: selectionDecision.fallbackUsed,
+      cachedArtifactReused: selectionDecision.cachedArtifactReused,
+      rejectionReasons: [...selectionDecision.rejectionReasons],
+      candidateFrames: selectionDecision.candidateFrames.map(
+        (
+          candidateFrame: (typeof selectionDecision.candidateFrames)[number],
+        ): (typeof selectionDecision.candidateFrames)[number] => ({
+          attemptIndex: candidateFrame.attemptIndex,
+          frameTimeMs: candidateFrame.frameTimeMs,
+          averageLuma: candidateFrame.averageLuma,
+          darkestSampleLuma: candidateFrame.darkestSampleLuma,
+          brightestSampleLuma: candidateFrame.brightestSampleLuma,
+          darkPixelRatio: candidateFrame.darkPixelRatio,
+          isDecodable: candidateFrame.isDecodable,
+          rejectionReason: candidateFrame.rejectionReason,
+        }),
+      ),
+    };
+  }
+
+  /**
+   * @brief Restore one extraction-attempt summary from persisted artifact metadata
+   *
+   * @param storedArtifact - Stored artifact being surfaced from VFS
+   * @param request - Current request associated with the artifact
+   *
+   * @returns Restored extraction-attempt summary
+   */
+  private readExtractionAttemptFromMetadata(
+    storedArtifact: DerivedArtifactEntry,
+    request: MediaThumbnailRequest,
+  ): MediaThumbnailExtractionAttempt {
+    const serializedExtractionAttempt: string | null =
+      typeof storedArtifact.metadata.extractionAttemptJson === "string"
+        ? storedArtifact.metadata.extractionAttemptJson
+        : null;
+
+    if (serializedExtractionAttempt === null) {
+      return this.createLegacyExtractionAttempt(storedArtifact, request);
+    }
+
+    try {
+      const parsedExtractionAttempt: unknown = JSON.parse(
+        serializedExtractionAttempt,
+      );
+
+      return this.cloneExtractionAttempt(
+        parsedExtractionAttempt as MediaThumbnailExtractionAttempt,
+      );
+    } catch {
+      return this.createLegacyExtractionAttempt(storedArtifact, request);
+    }
+  }
+
+  /**
+   * @brief Restore one selection decision from persisted artifact metadata
+   *
+   * @param storedArtifact - Stored artifact being surfaced from VFS
+   * @param request - Current request associated with the artifact
+   *
+   * @returns Restored frame-selection decision
+   */
+  private readSelectionDecisionFromMetadata(
+    storedArtifact: DerivedArtifactEntry,
+    request: MediaThumbnailRequest,
+  ): MediaThumbnailSelectionDecision {
+    const serializedSelectionDecision: string | null =
+      typeof storedArtifact.metadata.selectionDecisionJson === "string"
+        ? storedArtifact.metadata.selectionDecisionJson
+        : null;
+
+    if (serializedSelectionDecision === null) {
+      return this.createLegacySelectionDecision(storedArtifact, request);
+    }
+
+    try {
+      const parsedSelectionDecision: unknown = JSON.parse(
+        serializedSelectionDecision,
+      );
+
+      return this.cloneSelectionDecision(
+        parsedSelectionDecision as MediaThumbnailSelectionDecision,
+      );
+    } catch {
+      return this.createLegacySelectionDecision(storedArtifact, request);
+    }
+  }
+
+  /**
+   * @brief Create a conservative legacy extraction-attempt summary when metadata is absent
+   *
+   * @param storedArtifact - Stored artifact being surfaced from VFS
+   * @param request - Current request associated with the artifact
+   *
+   * @returns Conservative extraction-attempt summary
+   */
+  private createLegacyExtractionAttempt(
+    storedArtifact: DerivedArtifactEntry,
+    request: MediaThumbnailRequest,
+  ): MediaThumbnailExtractionAttempt {
+    return {
+      requestedStrategy: request.extractionPolicy.strategy,
+      strategyUsed: request.extractionPolicy.strategy,
+      qualityIntent: request.extractionPolicy.qualityIntent,
+      timeoutMs: request.extractionPolicy.timeoutMs,
+      candidateWindowMs: request.extractionPolicy.candidateWindowMs,
+      candidateFrameStepMs: request.extractionPolicy.candidateFrameStepMs,
+      maxCandidateFrames: request.extractionPolicy.maxCandidateFrames,
+      maxAttemptCount: request.extractionPolicy.maxAttemptCount,
+      attemptedFrameCount: 1,
+      completedFrameCount: 1,
+      timedOut: false,
+      unsupported: false,
+      startedAt: Number(
+        storedArtifact.metadata.extractedAt ?? storedArtifact.createdAt,
+      ),
+      finishedAt: Number(
+        storedArtifact.metadata.extractedAt ?? storedArtifact.updatedAt,
+      ),
+    };
+  }
+
+  /**
+   * @brief Create a conservative legacy selection decision when metadata is absent
+   *
+   * @param storedArtifact - Stored artifact being surfaced from VFS
+   * @param request - Current request associated with the artifact
+   *
+   * @returns Conservative selection decision
+   */
+  private createLegacySelectionDecision(
+    storedArtifact: DerivedArtifactEntry,
+    request: MediaThumbnailRequest,
+  ): MediaThumbnailSelectionDecision {
+    const restoredFrameTimeMs: number | null =
+      storedArtifact.metadata.frameTimeMs === null
+        ? null
+        : Number(storedArtifact.metadata.frameTimeMs ?? 0);
+
+    return {
+      requestedStrategy: request.extractionPolicy.strategy,
+      strategyUsed: request.extractionPolicy.strategy,
+      qualityIntent: request.extractionPolicy.qualityIntent,
+      selectionReason: "first-frame-accepted",
+      resolvedReason: "first-frame-accepted",
+      selectedFrameTimeMs: restoredFrameTimeMs,
+      selectedCandidateIndex: 0,
+      attemptedFrameCount: 1,
+      rejectedFrameCount: 0,
+      fallbackUsed: storedArtifact.metadata.wasApproximate === true,
+      cachedArtifactReused: false,
+      rejectionReasons: [],
+      candidateFrames: [
+        {
+          attemptIndex: 0,
+          frameTimeMs: restoredFrameTimeMs,
+          averageLuma: null,
+          darkestSampleLuma: null,
+          brightestSampleLuma: null,
+          darkPixelRatio: null,
+          isDecodable: true,
+          rejectionReason: null,
+        },
+      ],
     };
   }
 
@@ -1071,6 +1490,7 @@ export class MediaThumbnailController {
   ): DerivedArtifactDescriptor {
     const artifactVariantKey: string = [
       request.qualityHint,
+      request.extractionPolicy.qualityIntent,
       `${request.targetWidth ?? request.extractionPolicy.targetWidth ?? "auto"}x${request.targetHeight ?? request.extractionPolicy.targetHeight ?? "auto"}`,
       request.extractionPolicy.strategy,
       `${request.timeHintMs ?? "start"}`,

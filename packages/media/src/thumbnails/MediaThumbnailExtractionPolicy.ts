@@ -7,6 +7,7 @@
  */
 
 import type { VariantQualityTier } from "../variant-policy/VariantQualityTier";
+import type { MediaThumbnailQualityIntent } from "./MediaThumbnailQualityIntent";
 
 /**
  * @brief Shared thumbnail quality intent carried from browse orchestration to runtimes
@@ -31,8 +32,15 @@ export type MediaThumbnailExtractionStrategy =
  */
 export type MediaThumbnailExtractionPolicy = {
   strategy: MediaThumbnailExtractionStrategy;
-  quality: MediaThumbnailQuality;
+  qualityIntent: MediaThumbnailQualityIntent;
   timeoutMs: number | null;
   targetWidth: number | null;
   targetHeight: number | null;
+  candidateWindowMs: number;
+  candidateFrameStepMs: number;
+  maxCandidateFrames: number;
+  maxAttemptCount: number;
+  blackFrameThreshold: number;
+  nearBlackFrameThreshold: number;
+  fadeInFrameThreshold: number;
 };

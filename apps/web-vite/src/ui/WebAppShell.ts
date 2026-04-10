@@ -302,13 +302,33 @@ export class WebAppShell {
                   },
                   extractionPolicy: {
                     strategy: thumbnailEntry.request.extractionPolicy.strategy,
-                    quality: thumbnailEntry.request.extractionPolicy.quality,
+                    qualityIntent:
+                      thumbnailEntry.request.extractionPolicy.qualityIntent,
                     timeoutMs:
                       thumbnailEntry.request.extractionPolicy.timeoutMs,
                     targetWidth:
                       thumbnailEntry.request.extractionPolicy.targetWidth,
                     targetHeight:
                       thumbnailEntry.request.extractionPolicy.targetHeight,
+                    candidateWindowMs:
+                      thumbnailEntry.request.extractionPolicy.candidateWindowMs,
+                    candidateFrameStepMs:
+                      thumbnailEntry.request.extractionPolicy
+                        .candidateFrameStepMs,
+                    maxCandidateFrames:
+                      thumbnailEntry.request.extractionPolicy
+                        .maxCandidateFrames,
+                    maxAttemptCount:
+                      thumbnailEntry.request.extractionPolicy.maxAttemptCount,
+                    blackFrameThreshold:
+                      thumbnailEntry.request.extractionPolicy
+                        .blackFrameThreshold,
+                    nearBlackFrameThreshold:
+                      thumbnailEntry.request.extractionPolicy
+                        .nearBlackFrameThreshold,
+                    fadeInFrameThreshold:
+                      thumbnailEntry.request.extractionPolicy
+                        .fadeInFrameThreshold,
                   },
                   audioPolicyDecision: {
                     audioMode:
@@ -462,6 +482,102 @@ export class WebAppShell {
                         ...thumbnailEntry.result.debug.audioPolicyDecision
                           .reasonDetails,
                       ],
+                    },
+                    extractionAttempt: {
+                      requestedStrategy:
+                        thumbnailEntry.result.debug.extractionAttempt
+                          .requestedStrategy,
+                      strategyUsed:
+                        thumbnailEntry.result.debug.extractionAttempt
+                          .strategyUsed,
+                      qualityIntent:
+                        thumbnailEntry.result.debug.extractionAttempt
+                          .qualityIntent,
+                      timeoutMs:
+                        thumbnailEntry.result.debug.extractionAttempt.timeoutMs,
+                      candidateWindowMs:
+                        thumbnailEntry.result.debug.extractionAttempt
+                          .candidateWindowMs,
+                      candidateFrameStepMs:
+                        thumbnailEntry.result.debug.extractionAttempt
+                          .candidateFrameStepMs,
+                      maxCandidateFrames:
+                        thumbnailEntry.result.debug.extractionAttempt
+                          .maxCandidateFrames,
+                      maxAttemptCount:
+                        thumbnailEntry.result.debug.extractionAttempt
+                          .maxAttemptCount,
+                      attemptedFrameCount:
+                        thumbnailEntry.result.debug.extractionAttempt
+                          .attemptedFrameCount,
+                      completedFrameCount:
+                        thumbnailEntry.result.debug.extractionAttempt
+                          .completedFrameCount,
+                      timedOut:
+                        thumbnailEntry.result.debug.extractionAttempt.timedOut,
+                      unsupported:
+                        thumbnailEntry.result.debug.extractionAttempt
+                          .unsupported,
+                      startedAt:
+                        thumbnailEntry.result.debug.extractionAttempt.startedAt,
+                      finishedAt:
+                        thumbnailEntry.result.debug.extractionAttempt
+                          .finishedAt,
+                    },
+                    selectionDecision: {
+                      requestedStrategy:
+                        thumbnailEntry.result.debug.selectionDecision
+                          .requestedStrategy,
+                      strategyUsed:
+                        thumbnailEntry.result.debug.selectionDecision
+                          .strategyUsed,
+                      qualityIntent:
+                        thumbnailEntry.result.debug.selectionDecision
+                          .qualityIntent,
+                      selectionReason:
+                        thumbnailEntry.result.debug.selectionDecision
+                          .selectionReason,
+                      resolvedReason:
+                        thumbnailEntry.result.debug.selectionDecision
+                          .resolvedReason,
+                      selectedFrameTimeMs:
+                        thumbnailEntry.result.debug.selectionDecision
+                          .selectedFrameTimeMs,
+                      selectedCandidateIndex:
+                        thumbnailEntry.result.debug.selectionDecision
+                          .selectedCandidateIndex,
+                      attemptedFrameCount:
+                        thumbnailEntry.result.debug.selectionDecision
+                          .attemptedFrameCount,
+                      rejectedFrameCount:
+                        thumbnailEntry.result.debug.selectionDecision
+                          .rejectedFrameCount,
+                      fallbackUsed:
+                        thumbnailEntry.result.debug.selectionDecision
+                          .fallbackUsed,
+                      cachedArtifactReused:
+                        thumbnailEntry.result.debug.selectionDecision
+                          .cachedArtifactReused,
+                      rejectionReasons: [
+                        ...thumbnailEntry.result.debug.selectionDecision
+                          .rejectionReasons,
+                      ],
+                      candidateFrames:
+                        thumbnailEntry.result.debug.selectionDecision.candidateFrames.map(
+                          (
+                            candidateFrame: (typeof thumbnailEntry.result.debug.selectionDecision.candidateFrames)[number],
+                          ): (typeof thumbnailEntry.result.debug.selectionDecision.candidateFrames)[number] => ({
+                            attemptIndex: candidateFrame.attemptIndex,
+                            frameTimeMs: candidateFrame.frameTimeMs,
+                            averageLuma: candidateFrame.averageLuma,
+                            darkestSampleLuma: candidateFrame.darkestSampleLuma,
+                            brightestSampleLuma:
+                              candidateFrame.brightestSampleLuma,
+                            darkPixelRatio: candidateFrame.darkPixelRatio,
+                            isDecodable: candidateFrame.isDecodable,
+                            rejectionReason: candidateFrame.rejectionReason,
+                          }),
+                        ),
                     },
                   },
                 },
@@ -752,9 +868,8 @@ export class WebAppShell {
     thumbnailBinding: WebThumbnailCardBinding,
     thumbnailEntry: MediaThumbnailCacheEntry | null,
   ): void {
-    const readyThumbnailResult = thumbnailEntry?.result ?? null;
-    const hasReadyStill: boolean =
-      thumbnailEntry?.state === "ready" && readyThumbnailResult !== null;
+    const availableThumbnailResult = thumbnailEntry?.result ?? null;
+    const hasAvailableStill: boolean = availableThumbnailResult !== null;
     const isPreviewActive: boolean =
       thumbnailBinding.previewHostElement.classList.contains("is-active");
 
@@ -762,13 +877,27 @@ export class WebAppShell {
       thumbnailEntry?.state ?? "idle";
     thumbnailBinding.cardElement.dataset.thumbnailSourceId =
       thumbnailEntry?.descriptor.sourceId ?? "";
+    thumbnailBinding.cardElement.dataset.thumbnailStrategy =
+      thumbnailEntry?.request?.extractionPolicy.strategy ??
+      availableThumbnailResult?.debug.selectionDecision.strategyUsed ??
+      "";
+    thumbnailBinding.cardElement.dataset.thumbnailQualityIntent =
+      thumbnailEntry?.request?.extractionPolicy.qualityIntent ??
+      availableThumbnailResult?.debug.selectionDecision.qualityIntent ??
+      "";
+    thumbnailBinding.cardElement.dataset.thumbnailSelectionReason =
+      availableThumbnailResult?.debug.selectionDecision.resolvedReason ?? "";
+    thumbnailBinding.cardElement.dataset.thumbnailCandidateCount = `${availableThumbnailResult?.debug.selectionDecision.attemptedFrameCount ?? 0}`;
+    thumbnailBinding.cardElement.dataset.thumbnailSelectedFrameTimeMs = `${availableThumbnailResult?.debug.selectionDecision.selectedFrameTimeMs ?? ""}`;
+    thumbnailBinding.cardElement.dataset.thumbnailFallbackUsed = `${availableThumbnailResult?.debug.selectionDecision.fallbackUsed ?? false}`;
 
-    if (hasReadyStill && readyThumbnailResult !== null) {
+    if (hasAvailableStill && availableThumbnailResult !== null) {
       if (
         thumbnailBinding.stillImageElement.getAttribute("src") !==
-        readyThumbnailResult.imageUrl
+        availableThumbnailResult.imageUrl
       ) {
-        thumbnailBinding.stillImageElement.src = readyThumbnailResult.imageUrl;
+        thumbnailBinding.stillImageElement.src =
+          availableThumbnailResult.imageUrl;
       }
 
       thumbnailBinding.stillImageElement.classList.add("is-ready");
@@ -781,7 +910,7 @@ export class WebAppShell {
 
     thumbnailBinding.cardElement.dataset.thumbnailVisualState = isPreviewActive
       ? "preview"
-      : hasReadyStill
+      : hasAvailableStill
         ? "still"
         : "fallback";
   }

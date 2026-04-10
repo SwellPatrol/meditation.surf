@@ -107,7 +107,9 @@ export {
   type MediaThumbnailSnapshotListener,
 } from "./thumbnails/MediaThumbnailController";
 export type { MediaThumbnailCacheEntry } from "./thumbnails/MediaThumbnailCacheEntry";
+export type { MediaThumbnailCandidateFrame } from "./thumbnails/MediaThumbnailCandidateFrame";
 export type { MediaThumbnailDescriptor } from "./thumbnails/MediaThumbnailDescriptor";
+export type { MediaThumbnailExtractionAttempt } from "./thumbnails/MediaThumbnailExtractionAttempt";
 export type { MediaThumbnailExtractionResult } from "./thumbnails/MediaThumbnailExtractionResult";
 export type {
   MediaThumbnailExtractionPolicy,
@@ -115,10 +117,15 @@ export type {
   MediaThumbnailPriority,
   MediaThumbnailQuality,
 } from "./thumbnails/MediaThumbnailExtractionPolicy";
+export { MediaThumbnailFrameSelector } from "./thumbnails/MediaThumbnailFrameSelector";
+export type { MediaThumbnailFrameRejectionReason } from "./thumbnails/MediaThumbnailFrameRejectionReason";
+export type { MediaThumbnailQualityIntent } from "./thumbnails/MediaThumbnailQualityIntent";
 export type { MediaThumbnailRequest } from "./thumbnails/MediaThumbnailRequest";
 export type { MediaThumbnailResult } from "./thumbnails/MediaThumbnailResult";
 export type { MediaThumbnailRuntimeAdapter } from "./thumbnails/MediaThumbnailRuntimeAdapter";
 export type { MediaThumbnailRuntimeCapabilities } from "./thumbnails/MediaThumbnailRuntimeCapabilities";
+export type { MediaThumbnailSelectionDecision } from "./thumbnails/MediaThumbnailSelectionDecision";
+export type { MediaThumbnailSelectionReason } from "./thumbnails/MediaThumbnailSelectionReason";
 export type { MediaThumbnailSnapshot } from "./thumbnails/MediaThumbnailSnapshot";
 export type { MediaThumbnailState } from "./thumbnails/MediaThumbnailState";
 export { VariantPolicy } from "./variant-policy/VariantPolicy";
