@@ -58,6 +58,57 @@ export class DerivedArtifactStore {
   }
 
   /**
+   * @brief List stored artifacts whose cache keys share one stable prefix
+   *
+   * The returned entries preserve the store's normal object-URL leasing
+   * behavior so callers can immediately render any restored artifact.
+   *
+   * @param cacheKeyPrefix - Stable cache-key prefix used to filter artifacts
+   *
+   * @returns Matching artifact entries ordered by persistence enumeration
+   */
+  public async listArtifactsByCacheKeyPrefix(
+    cacheKeyPrefix: string,
+  ): Promise<DerivedArtifactEntry[]> {
+    const artifactEntriesByCacheKey: Map<CacheKey, DerivedArtifactEntry> =
+      new Map<CacheKey, DerivedArtifactEntry>();
+
+    for (const [
+      cacheKey,
+      artifactEntry,
+    ] of this.artifactEntriesByCacheKey.entries()) {
+      if (!cacheKey.startsWith(cacheKeyPrefix)) {
+        continue;
+      }
+
+      artifactEntriesByCacheKey.set(
+        cacheKey,
+        this.cloneArtifactEntry(artifactEntry),
+      );
+    }
+
+    const storedRecords: PersistenceRecord[] =
+      await this.persistenceAdapter.list(cacheKeyPrefix);
+
+    for (const storedRecord of storedRecords) {
+      if (artifactEntriesByCacheKey.has(storedRecord.key)) {
+        continue;
+      }
+
+      const artifactEntry: DerivedArtifactEntry =
+        this.createArtifactEntry(storedRecord);
+
+      this.artifactEntriesByCacheKey.set(storedRecord.key, artifactEntry);
+      artifactEntriesByCacheKey.set(
+        storedRecord.key,
+        this.cloneArtifactEntry(artifactEntry),
+      );
+    }
+
+    return [...artifactEntriesByCacheKey.values()];
+  }
+
+  /**
    * @brief Resolve one stored artifact entry with explicit lookup-order details
    *
    * @param artifactKey - Stable artifact key being read

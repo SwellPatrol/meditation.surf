@@ -368,6 +368,19 @@ export class VfsController {
   }
 
   /**
+   * @brief List derived artifacts whose cache keys share one stable prefix
+   *
+   * @param cacheKeyPrefix - Stable cache-key prefix used to filter artifacts
+   *
+   * @returns Matching derived artifact entries
+   */
+  public async listDerivedArtifactsByCacheKeyPrefix(
+    cacheKeyPrefix: string,
+  ): Promise<DerivedArtifactEntry[]> {
+    return await this.artifacts.listArtifactsByCacheKeyPrefix(cacheKeyPrefix);
+  }
+
+  /**
    * @brief Release a leased artifact URL without deleting stored bytes
    *
    * @param artifactKey - Stable artifact key whose render URL should be released

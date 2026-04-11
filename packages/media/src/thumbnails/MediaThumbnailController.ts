@@ -387,6 +387,13 @@ export class MediaThumbnailController {
    */
   private async processQueue(): Promise<void> {
     while (true) {
+      const restoredCount: number =
+        await this.restorePendingCachedThumbnailResults();
+
+      if (restoredCount > 0) {
+        continue;
+      }
+
       const nextSourceId: string | null = this.selectNextPendingSourceId();
 
       if (nextSourceId === null) {
@@ -946,7 +953,12 @@ export class MediaThumbnailController {
       return;
     }
 
-    await this.vfsController.deleteDerivedArtifact(artifactKey);
+    /**
+     * Releasing an in-memory thumbnail entry must not delete the persisted VFS
+     * still. Keeping the stored bytes alive makes browse revisits and app
+     * restarts much stickier without changing the image content itself.
+     */
+    this.vfsController.releaseDerivedArtifact(artifactKey);
   }
 
   /**
@@ -1160,18 +1172,17 @@ export class MediaThumbnailController {
   private async tryRestoreCachedThumbnailResult(
     request: MediaThumbnailRequest,
   ): Promise<MediaThumbnailResult | null> {
-    const artifactDescriptor: DerivedArtifactDescriptor =
-      this.createArtifactDescriptorForRequest(request);
-    const derivedArtifactResult: DerivedArtifactResult =
-      await this.vfsController.resolveDerivedArtifact(
-        artifactDescriptor.artifactKey,
-        "VFS had no previously extracted still for this thumbnail request.",
-      );
+    const restoredArtifactResult: DerivedArtifactResult | null =
+      await this.resolveReusableThumbnailArtifact(request);
     const storedArtifact: DerivedArtifactEntry | null =
-      derivedArtifactResult.entry;
+      restoredArtifactResult?.entry ?? null;
     const viewUrl: string | null = storedArtifact?.viewUrl ?? null;
 
-    if (storedArtifact === null || viewUrl === null) {
+    if (
+      restoredArtifactResult === null ||
+      storedArtifact === null ||
+      viewUrl === null
+    ) {
       return null;
     }
 
@@ -1195,14 +1206,16 @@ export class MediaThumbnailController {
       ),
       wasApproximate: storedArtifact.metadata.wasApproximate === true,
       debug: {
-        resolvedLayer: derivedArtifactResult.resolvedLayer,
-        lookupSteps: derivedArtifactResult.lookupSteps.map(
-          (lookupStep): (typeof derivedArtifactResult.lookupSteps)[number] => ({
+        resolvedLayer: restoredArtifactResult.resolvedLayer,
+        lookupSteps: restoredArtifactResult.lookupSteps.map(
+          (
+            lookupStep,
+          ): (typeof restoredArtifactResult.lookupSteps)[number] => ({
             ...lookupStep,
           }),
         ),
         reusedFromVfs: true,
-        fallbackReason: derivedArtifactResult.fallbackReason,
+        fallbackReason: restoredArtifactResult.fallbackReason,
         audioPolicyDecision: this.cloneAudioPolicyDecision(
           request.audioPolicyDecision,
         ),
@@ -1801,6 +1814,317 @@ export class MediaThumbnailController {
       request.sourceDescriptor,
       "thumbnail-still",
       artifactVariantKey,
+    );
+  }
+
+  /**
+   * @brief Attempt to restore every pending entry from VFS before extraction
+   *
+   * Restoring the whole pending set first lets hero, focused, and first-row
+   * browse items become ready from local storage before any expensive decode
+   * work starts.
+   *
+   * @returns Number of pending requests satisfied from cached artifacts
+   */
+  private async restorePendingCachedThumbnailResults(): Promise<number> {
+    const pendingSourceIds: string[] = this.getOrderedPendingSourceIds();
+    let restoredCount: number = 0;
+
+    for (const pendingSourceId of pendingSourceIds) {
+      const cacheEntry: MediaThumbnailCacheEntry | undefined =
+        this.cacheEntriesBySourceId.get(pendingSourceId);
+
+      if (
+        cacheEntry === undefined ||
+        cacheEntry.request === null ||
+        cacheEntry.state === "ready"
+      ) {
+        this.pendingSourceIds.delete(pendingSourceId);
+        continue;
+      }
+
+      const restoredThumbnailResult: MediaThumbnailResult | null =
+        await this.tryRestoreCachedThumbnailResult(cacheEntry.request);
+
+      if (restoredThumbnailResult === null) {
+        continue;
+      }
+
+      restoredCount += 1;
+      this.telemetryController.recordEvent({
+        domain: "thumbnail",
+        kind: "cache-reused",
+        occurredAtMs: Date.now(),
+        sourceId: cacheEntry.request.sourceId,
+        strategy: cacheEntry.request.extractionPolicy.strategy,
+        latencyMs: 0,
+        reason:
+          "VFS restored an existing cached thumbnail artifact before extraction started.",
+      });
+      this.applyCompletedThumbnailResult(
+        pendingSourceId,
+        cacheEntry.request,
+        restoredThumbnailResult,
+      );
+    }
+
+    return restoredCount;
+  }
+
+  /**
+   * @brief Return pending source identifiers in the shared extraction order
+   *
+   * @returns Deterministically ordered pending source identifiers
+   */
+  private getOrderedPendingSourceIds(): string[] {
+    return [...this.pendingSourceIds.values()]
+      .map(
+        (sourceId: string): MediaThumbnailCacheEntry | null =>
+          this.cacheEntriesBySourceId.get(sourceId) ?? null,
+      )
+      .filter(
+        (
+          cacheEntry: MediaThumbnailCacheEntry | null,
+        ): cacheEntry is MediaThumbnailCacheEntry =>
+          cacheEntry !== null &&
+          cacheEntry.request !== null &&
+          cacheEntry.state !== "ready" &&
+          cacheEntry.state !== "unsupported",
+      )
+      .sort(
+        (
+          leftEntry: MediaThumbnailCacheEntry,
+          rightEntry: MediaThumbnailCacheEntry,
+        ): number => this.comparePendingEntries(leftEntry, rightEntry),
+      )
+      .map(
+        (cacheEntry: MediaThumbnailCacheEntry): string =>
+          cacheEntry.descriptor.sourceId,
+      );
+  }
+
+  /**
+   * @brief Resolve one reusable artifact using exact and same-source fallback keys
+   *
+   * The exact request key remains the preferred path. A broader same-source
+   * scan is only used for startup-safe first-frame requests so we can reuse a
+   * larger cached still across sessions without changing the chosen frame.
+   *
+   * @param request - Shared thumbnail request being restored
+   *
+   * @returns Matching VFS artifact result, or `null` when none is reusable
+   */
+  private async resolveReusableThumbnailArtifact(
+    request: MediaThumbnailRequest,
+  ): Promise<DerivedArtifactResult | null> {
+    const artifactDescriptor: DerivedArtifactDescriptor =
+      this.createArtifactDescriptorForRequest(request);
+    const exactArtifactResult: DerivedArtifactResult =
+      await this.vfsController.resolveDerivedArtifact(
+        artifactDescriptor.artifactKey,
+        "VFS had no previously extracted still for this thumbnail request.",
+      );
+
+    if (exactArtifactResult.entry !== null) {
+      return exactArtifactResult;
+    }
+
+    if (!this.shouldAttemptSourceLevelRestoreFallback(request)) {
+      return null;
+    }
+
+    const sourceArtifactPrefix: string = [
+      "derived-artifact",
+      request.sourceId,
+      "thumbnail-still",
+      "",
+    ].join("|");
+    const sourceArtifacts: DerivedArtifactEntry[] =
+      await this.vfsController.listDerivedArtifactsByCacheKeyPrefix(
+        sourceArtifactPrefix,
+      );
+    const reusableArtifact: DerivedArtifactEntry | null =
+      this.selectReusableSourceArtifact(request, sourceArtifacts);
+
+    if (reusableArtifact === null) {
+      return null;
+    }
+
+    return {
+      entry: reusableArtifact,
+      lookupSteps: [
+        ...exactArtifactResult.lookupSteps.map(
+          (
+            lookupStep: (typeof exactArtifactResult.lookupSteps)[number],
+          ): (typeof exactArtifactResult.lookupSteps)[number] => ({
+            ...lookupStep,
+          }),
+        ),
+        {
+          key: reusableArtifact.descriptor.artifactKey.cacheKey,
+          layer:
+            reusableArtifact.tier === "persistent"
+              ? "disk-persistent"
+              : "memory-hot",
+          outcome: "hit",
+          requestUrl: request.sourceDescriptor.url,
+          detail:
+            "VFS reused a previously stored same-source thumbnail artifact whose still was already suitable for this request.",
+          recordedAt: Date.now(),
+        },
+      ],
+      resolvedLayer:
+        reusableArtifact.tier === "persistent"
+          ? "disk-persistent"
+          : "memory-hot",
+      fallbackReason:
+        "VFS reused a same-source cached thumbnail artifact after the exact request key missed.",
+    };
+  }
+
+  /**
+   * @brief Decide whether a request can safely reuse same-source still variants
+   *
+   * @param request - Shared thumbnail request being evaluated
+   *
+   * @returns `true` when broader same-source reuse is still image-correct
+   */
+  private shouldAttemptSourceLevelRestoreFallback(
+    request: MediaThumbnailRequest,
+  ): boolean {
+    return (
+      request.extractionPolicy.strategy === "first-frame-fast-path" &&
+      (request.timeHintMs ?? 0) === 0
+    );
+  }
+
+  /**
+   * @brief Pick the best reusable same-source artifact for one request
+   *
+   * @param request - Shared thumbnail request being restored
+   * @param sourceArtifacts - Same-source thumbnail artifacts already in VFS
+   *
+   * @returns Best matching artifact, or `null` when none are safe to reuse
+   */
+  private selectReusableSourceArtifact(
+    request: MediaThumbnailRequest,
+    sourceArtifacts: readonly DerivedArtifactEntry[],
+  ): DerivedArtifactEntry | null {
+    const requestedWidth: number = Math.max(
+      1,
+      request.targetWidth ?? request.extractionPolicy.targetWidth ?? 1,
+    );
+    const requestedHeight: number = Math.max(
+      1,
+      request.targetHeight ?? request.extractionPolicy.targetHeight ?? 1,
+    );
+    const reusableArtifacts: DerivedArtifactEntry[] = sourceArtifacts
+      .filter((artifactEntry: DerivedArtifactEntry): boolean =>
+        this.isReusableSourceArtifact(
+          artifactEntry,
+          request,
+          requestedWidth,
+          requestedHeight,
+        ),
+      )
+      .sort(
+        (
+          leftArtifact: DerivedArtifactEntry,
+          rightArtifact: DerivedArtifactEntry,
+        ): number =>
+          this.compareReusableSourceArtifacts(leftArtifact, rightArtifact),
+      );
+
+    return reusableArtifacts[0] ?? null;
+  }
+
+  /**
+   * @brief Check whether one same-source artifact is safe for reuse
+   *
+   * @param artifactEntry - Cached artifact being evaluated
+   * @param request - Shared thumbnail request being restored
+   * @param requestedWidth - Minimum acceptable output width
+   * @param requestedHeight - Minimum acceptable output height
+   *
+   * @returns `true` when the artifact can satisfy the request without re-extracting
+   */
+  private isReusableSourceArtifact(
+    artifactEntry: DerivedArtifactEntry,
+    request: MediaThumbnailRequest,
+    requestedWidth: number,
+    requestedHeight: number,
+  ): boolean {
+    const artifactWidth: number = Number(artifactEntry.metadata.width ?? 0);
+    const artifactHeight: number = Number(artifactEntry.metadata.height ?? 0);
+    const strategyUsed: string = `${artifactEntry.metadata.strategyUsed ?? ""}`;
+    const artifactFrameTimeMs: number | null =
+      artifactEntry.metadata.frameTimeMs === null
+        ? null
+        : Number(artifactEntry.metadata.frameTimeMs ?? 0);
+
+    if (artifactEntry.descriptor.artifactKind !== "thumbnail-still") {
+      return false;
+    }
+
+    if (artifactEntry.descriptor.artifactKey.sourceId !== request.sourceId) {
+      return false;
+    }
+
+    if (strategyUsed !== request.extractionPolicy.strategy) {
+      return false;
+    }
+
+    if (
+      (request.timeHintMs ?? 0) !== 0 ||
+      (artifactFrameTimeMs !== null && artifactFrameTimeMs !== 0)
+    ) {
+      return false;
+    }
+
+    if (artifactWidth < requestedWidth) {
+      return false;
+    }
+
+    if (artifactHeight < requestedHeight) {
+      return false;
+    }
+
+    return artifactEntry.viewUrl !== null;
+  }
+
+  /**
+   * @brief Compare reusable same-source artifacts so the strongest one wins
+   *
+   * @param leftArtifact - First candidate artifact
+   * @param rightArtifact - Second candidate artifact
+   *
+   * @returns Sort order that prefers larger, newer, durable artifacts
+   */
+  private compareReusableSourceArtifacts(
+    leftArtifact: DerivedArtifactEntry,
+    rightArtifact: DerivedArtifactEntry,
+  ): number {
+    const leftArea: number =
+      Number(leftArtifact.metadata.width ?? 0) *
+      Math.max(1, Number(leftArtifact.metadata.height ?? 1));
+    const rightArea: number =
+      Number(rightArtifact.metadata.width ?? 0) *
+      Math.max(1, Number(rightArtifact.metadata.height ?? 1));
+
+    if (leftArea !== rightArea) {
+      return rightArea - leftArea;
+    }
+
+    if (leftArtifact.updatedAt !== rightArtifact.updatedAt) {
+      return rightArtifact.updatedAt - leftArtifact.updatedAt;
+    }
+
+    if (leftArtifact.tier !== rightArtifact.tier) {
+      return leftArtifact.tier === "persistent" ? -1 : 1;
+    }
+
+    return leftArtifact.descriptor.artifactKey.cacheKey.localeCompare(
+      rightArtifact.descriptor.artifactKey.cacheKey,
     );
   }
 }
