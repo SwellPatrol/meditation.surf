@@ -6,6 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
+import sharedSiteMetadataJson from "./SiteMetadata.json";
+
 /**
  * @brief Website-root path for the shared brand icon
  *
@@ -13,4 +15,4 @@
  * manifests, and metadata can continue to reference a stable root-relative
  * path. This package simply centralizes that path for app code.
  */
-export const BRAND_ICON_URL: string = "/images/icon-1500x1500.png";
+export const BRAND_ICON_URL: string = sharedSiteMetadataJson.imagePath;

@@ -66,6 +66,7 @@
     "lint:prettier": "prettier --check .",
     "preview": "pnpm --dir apps/tv-lightning exec vite preview",
     "start": "pnpm dev",
+    "sync:manifest": "node ./scripts/SyncWebManifest.mjs",
     "test": "vitest run --passWithNoTests",
     "test:ui": "vitest --ui"
   },

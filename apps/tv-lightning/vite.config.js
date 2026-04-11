@@ -15,6 +15,7 @@ import {
 import { createRequire } from "node:module";
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
+import { createSharedSiteMetadataHtmlTags } from "../../packages/assets/src/SiteMetadata";
 
 const require = createRequire(import.meta.url);
 const lightningSettingsEntry =
@@ -31,6 +32,22 @@ const playerCoreEntry = fileURLToPath(
 const playerEntry = fileURLToPath(
   new URL("../../packages/player/src/index.ts", import.meta.url),
 );
+
+/**
+ * @brief Inject the shared site metadata into the generated HTML shell
+ *
+ * Keeping this as a Vite transform lets the app HTML stay focused on
+ * structural tags while shared SEO and social metadata comes from a single
+ * source of truth.
+ */
+function sharedMetadataPlugin() {
+  return {
+    name: "shared-site-metadata",
+    transformIndexHtml() {
+      return createSharedSiteMetadataHtmlTags();
+    },
+  };
+}
 
 // Vite configuration for the LightningJS-based application. The configuration
 // is intentionally simple and primarily enables the Blits plugin along with the
@@ -51,6 +68,7 @@ export default defineConfig({
     blitsFileConverter(),
     reactivityGuard(),
     preCompiler(),
+    sharedMetadataPlugin(),
   ],
 
   server: {

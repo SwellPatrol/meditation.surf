@@ -9,3 +9,7 @@
 export { BRAND_ICON_SOURCE } from "./BrandNative";
 export { BRAND_ICON_URL } from "./BrandWeb";
 export { OPEN_SANS_MEDIUM_FONT_PATH } from "./OpenSansMedium";
+export {
+  createSharedSiteMetadataHtmlTags,
+  SITE_METADATA,
+} from "./SiteMetadata";

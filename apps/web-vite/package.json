@@ -4,8 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "vite build",
-    "dev": "vite dev --host",
+    "build": "pnpm --dir ../.. sync:manifest && vite build",
+    "dev": "pnpm --dir ../.. sync:manifest && vite dev --host",
     "preview": "vite preview"
   },
   "dependencies": {
