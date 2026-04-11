@@ -14,8 +14,8 @@ import type {
 import type { MediaItem, PlaybackSequenceState } from "@meditation-surf/core";
 import type { CenteredOverlaySize } from "@meditation-surf/layout";
 import type { OverlayState } from "@meditation-surf/overlay";
+import type { ExpoVideoPlayerViewProps } from "@meditation-surf/player/expo";
 import type { PlaybackVisualReadinessState } from "@meditation-surf/player-core";
-import { useVideoPlayer, type VideoPlayer } from "expo-video";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, useWindowDimensions } from "react-native";
 
@@ -35,7 +35,8 @@ export interface UseExpoAppRuntimeProps {
  */
 export interface ExpoVideoViewProps {
   readonly contentFit: "cover";
-  readonly onFirstFrameRender: () => void;
+  readonly onFirstFrameRender?: () => void;
+  readonly player: NonNullable<ExpoVideoPlayerViewProps["player"]>;
   readonly playsInline: boolean;
 }
 
@@ -50,7 +51,6 @@ export interface ExpoAppRuntime {
   readonly loadingOpacity: Animated.Value;
   readonly overlayOpacity: Animated.Value;
   readonly overlaySize: CenteredOverlaySize;
-  readonly videoPlayer: VideoPlayer;
   readonly videoViewProps: ExpoVideoViewProps;
 }
 
@@ -85,22 +85,17 @@ export function useExpoAppRuntime(
   const overlayOpacity: Animated.Value = useRef<Animated.Value>(
     new Animated.Value(0),
   ).current;
-  const videoPlayer: VideoPlayer = useVideoPlayer(
-    experienceAdapter.backgroundVideoController.createVideoSource(),
-    (player: VideoPlayer): void => {
-      experienceAdapter.backgroundVideoController.configurePlayer(player);
-    },
-  );
 
-  // Bind the experience's background video controller to the Expo video player
+  // Bind the shared background player to the current Expo runtime lifecycle
   useEffect((): (() => void) => {
+    experienceAdapter.backgroundVideoController.initialize();
     const removePlaybackSequenceSubscription: () => void =
-      experienceAdapter.backgroundVideoController.connectPlayer(videoPlayer);
+      experienceAdapter.backgroundVideoController.connect();
 
     return (): void => {
       removePlaybackSequenceSubscription();
     };
-  }, [experienceAdapter, videoPlayer]);
+  }, [experienceAdapter]);
 
   // Bind the experience adapter's browse content to the Expo screen state
   useEffect((): (() => void) => {
@@ -147,7 +142,9 @@ export function useExpoAppRuntime(
           duration:
             experienceAdapter.overlayController.getConfig().fadeDurationMs,
           easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
+          // Expo can render this simple readiness fade on the JS driver
+          // without depending on the native animated module being present.
+          useNativeDriver: false,
         }).start();
       },
     );
@@ -162,7 +159,9 @@ export function useExpoAppRuntime(
           duration:
             experienceAdapter.overlayController.getConfig().fadeDurationMs,
           easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
+          // This browse overlay opacity fade is presentation-only, so the JS
+          // driver is the safest choice across Expo runtimes.
+          useNativeDriver: false,
         }).start();
       },
     );
@@ -180,7 +179,8 @@ export function useExpoAppRuntime(
     );
   const backgroundVideoViewProps: {
     readonly contentFit: "cover";
-    readonly onFirstFrameRender: () => void;
+    readonly onFirstFrameRender?: () => void;
+    readonly player: NonNullable<ExpoVideoPlayerViewProps["player"]>;
     readonly playsInline: boolean;
   } = experienceAdapter.backgroundVideoController.getVideoViewProps();
   const browseInputBindings: ExpoBrowseInputBindings =
@@ -194,10 +194,10 @@ export function useExpoAppRuntime(
     loadingOpacity,
     overlayOpacity,
     overlaySize,
-    videoPlayer,
     videoViewProps: {
       contentFit: backgroundVideoViewProps.contentFit,
       onFirstFrameRender: backgroundVideoViewProps.onFirstFrameRender,
+      player: backgroundVideoViewProps.player,
       playsInline: backgroundVideoViewProps.playsInline,
     },
   };

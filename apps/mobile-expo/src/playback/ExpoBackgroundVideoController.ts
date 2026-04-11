@@ -8,30 +8,38 @@
 
 import type {
   BackgroundVideoPlaybackPolicy,
-  CommittedPlaybackDecision,
   MediaItem,
   PlaybackSequenceController,
   PlaybackSequenceState,
 } from "@meditation-surf/core";
 import type { BackgroundLayerLayout } from "@meditation-surf/layout";
-import type {
-  PlaybackSource,
-  PlaybackVisualReadinessController,
-} from "@meditation-surf/player-core";
-import type { VideoPlayer, VideoSource } from "expo-video";
+import {
+  VideoPlayer,
+  type VideoPlayerEvent,
+  type VideoSource,
+} from "@meditation-surf/player";
+import {
+  ExpoVideoPlayerRuntime,
+  type ExpoVideoPlayerViewProps,
+} from "@meditation-surf/player/expo";
+import type { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
 /**
  * @brief Adapt the shared background video model into Expo runtime behavior
  *
- * Expo keeps its player implementation local. This controller owns the mapping
- * from the shared background video model to Expo video source and playback
- * configuration.
+ * Expo keeps its `VideoView` surface local, while the shared player package now
+ * owns the playback primitive and lifecycle. This controller keeps the mobile
+ * background orchestration intact while swapping the underlying player path.
  */
 export class ExpoBackgroundVideoController {
   private readonly backgroundLayer: BackgroundLayerLayout;
   private readonly playbackSequenceController: PlaybackSequenceController;
+  private readonly backgroundVideoPlayer: VideoPlayer;
+  private readonly backgroundVideoPlayerRuntime: ExpoVideoPlayerRuntime;
   private readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
   private currentSourceUrl: string | null;
+  private pendingSourceUrl: string | null;
+  private removeBackgroundPlayerSubscription: (() => void) | null;
 
   /**
    * @brief Capture the shared background video model used by the Expo app
@@ -41,68 +49,62 @@ export class ExpoBackgroundVideoController {
   public constructor(
     backgroundLayer: BackgroundLayerLayout,
     playbackSequenceController: PlaybackSequenceController,
+    backgroundVideoPlayer: VideoPlayer,
+    backgroundVideoPlayerRuntime: ExpoVideoPlayerRuntime,
     playbackVisualReadinessController: PlaybackVisualReadinessController,
   ) {
     this.backgroundLayer = backgroundLayer;
     this.playbackSequenceController = playbackSequenceController;
+    this.backgroundVideoPlayer = backgroundVideoPlayer;
+    this.backgroundVideoPlayerRuntime = backgroundVideoPlayerRuntime;
     this.playbackVisualReadinessController = playbackVisualReadinessController;
     this.currentSourceUrl = null;
+    this.pendingSourceUrl = null;
+    this.removeBackgroundPlayerSubscription = null;
   }
 
   /**
-   * @brief Build the Expo-specific source shape from the shared background model
-   *
-   * @returns Expo video source metadata for the runtime player
+   * @brief Prepare the shared background player for Expo playback
    */
-  public createVideoSource(): VideoSource {
-    return this.createExpoVideoSource(
-      this.playbackSequenceController.getActiveItem()?.getPlaybackSource() ??
-        this.backgroundLayer.getBackgroundVideo().getPlaybackSource(),
-    );
+  public initialize(): void {
+    this.backgroundVideoPlayer.initialize();
+
+    if (this.removeBackgroundPlayerSubscription !== null) {
+      return;
+    }
+
+    this.removeBackgroundPlayerSubscription =
+      this.backgroundVideoPlayer.subscribe(
+        (backgroundPlayerEvent: VideoPlayerEvent): void => {
+          this.handleBackgroundPlayerEvent(backgroundPlayerEvent);
+        },
+      );
   }
 
   /**
-   * @brief Apply the shared playback policy to the Expo player instance
-   *
-   * @param player - Expo video player instance
-   */
-  public configurePlayer(player: VideoPlayer): void {
-    const playbackPolicy: BackgroundVideoPlaybackPolicy = this.backgroundLayer
-      .getBackgroundVideo()
-      .getPlaybackPolicy();
-    const committedPlaybackDecision: CommittedPlaybackDecision | null =
-      this.playbackSequenceController.getCommittedPlaybackDecision();
-
-    player.loop = playbackPolicy.loop;
-    player.muted = this.resolveMutedState(
-      playbackPolicy,
-      committedPlaybackDecision,
-    );
-  }
-
-  /**
-   * @brief Start playback once the Expo player is ready
-   *
-   * @param player - Expo video player instance
-   */
-  public startPlayback(player: VideoPlayer): void {
-    this.playbackVisualReadinessController.beginLoading();
-    player.play();
-  }
-
-  /**
-   * @brief Subscribe the Expo player to shared active-item changes
-   *
-   * @param player - Expo video player instance
+   * @brief Subscribe the shared player to active-item changes
    *
    * @returns Cleanup callback that removes the active-item subscription
    */
-  public connectPlayer(player: VideoPlayer): () => void {
+  public connect(): () => void {
     return this.playbackSequenceController.subscribe(
       (playbackSequenceState: PlaybackSequenceState): void => {
-        this.handlePlaybackSequenceState(player, playbackSequenceState);
+        void this.handlePlaybackSequenceState(playbackSequenceState);
       },
     );
+  }
+
+  /**
+   * @brief Tear down the shared background player
+   *
+   * @returns Promise that resolves after the player is released
+   */
+  public async destroy(): Promise<void> {
+    this.removeBackgroundPlayerSubscription?.();
+    this.removeBackgroundPlayerSubscription = null;
+    this.currentSourceUrl = null;
+    this.pendingSourceUrl = null;
+    await this.backgroundVideoPlayer.destroy();
   }
 
   /**
@@ -110,93 +112,110 @@ export class ExpoBackgroundVideoController {
    *
    * @returns Expo VideoView configuration derived from the shared model
    */
-  public getVideoViewProps(): {
-    contentFit: "cover";
-    onFirstFrameRender: () => void;
-    playsInline: boolean;
+  public getVideoViewProps(): ExpoVideoPlayerViewProps & {
+    readonly contentFit: "cover";
+    readonly player: NonNullable<ExpoVideoPlayerViewProps["player"]>;
+    readonly playsInline: boolean;
   } {
     const playbackPolicy: BackgroundVideoPlaybackPolicy = this.backgroundLayer
       .getBackgroundVideo()
       .getPlaybackPolicy();
+    const videoViewProps: ExpoVideoPlayerViewProps & {
+      readonly player: NonNullable<ExpoVideoPlayerViewProps["player"]>;
+    } = this.backgroundVideoPlayerRuntime.getVideoViewProps();
 
     return {
+      ...videoViewProps,
       contentFit: playbackPolicy.objectFit,
-      // Expo Video emits this after the first frame is rendered into VideoView.
-      onFirstFrameRender: (): void => {
-        this.playbackVisualReadinessController.markVisualReady();
-      },
       playsInline: playbackPolicy.playsInline,
     };
   }
 
   /**
-   * @brief Build Expo's source object from the shared playback source
+   * @brief Resolve the current shared background playback source
    *
-   * @param playbackSource - Shared playback source metadata
+   * @param activeItem - Active playback item, when one exists
    *
-   * @returns Expo-specific source object
+   * @returns Player source chosen for the background lane
    */
-  private createExpoVideoSource(playbackSource: PlaybackSource): VideoSource {
-    return {
-      contentType: "hls",
-      uri: playbackSource.url,
-    };
+  private getPlaybackSource(activeItem: MediaItem | null): VideoSource {
+    return (
+      activeItem?.getPlaybackSource() ??
+      this.backgroundLayer.getBackgroundVideo().getPlaybackSource()
+    );
   }
 
   /**
-   * @brief Apply active-item changes to the Expo player instance
+   * @brief Apply active-item changes to the shared player instance
    *
-   * @param player - Expo video player instance
    * @param playbackSequenceState - Shared playback sequence snapshot
    */
-  private handlePlaybackSequenceState(
-    player: VideoPlayer,
+  private async handlePlaybackSequenceState(
     playbackSequenceState: PlaybackSequenceState,
-  ): void {
+  ): Promise<void> {
     const activeItem: MediaItem | null = playbackSequenceState.activeItem;
-    const committedPlaybackDecision: CommittedPlaybackDecision | null =
-      playbackSequenceState.committedPlaybackDecision;
+    const playbackSource: VideoSource = this.getPlaybackSource(activeItem);
+    const nextSourceUrl: string = playbackSource.url;
+    const shouldMute: boolean = this.resolveMutedState();
 
-    if (activeItem === null) {
-      this.currentSourceUrl = null;
+    if (this.pendingSourceUrl === nextSourceUrl) {
+      this.backgroundVideoPlayer.setMuted(shouldMute);
       return;
     }
 
-    const playbackPolicy: BackgroundVideoPlaybackPolicy = this.backgroundLayer
-      .getBackgroundVideo()
-      .getPlaybackPolicy();
-    const nextSourceUrl: string = activeItem.getPlaybackSource().url;
-
-    player.muted = this.resolveMutedState(
-      playbackPolicy,
-      committedPlaybackDecision,
-    );
-
     if (this.currentSourceUrl === nextSourceUrl) {
+      this.backgroundVideoPlayer.setMuted(shouldMute);
+      await this.backgroundVideoPlayer.play();
       return;
     }
 
     this.currentSourceUrl = nextSourceUrl;
-    this.playbackVisualReadinessController.beginLoading();
-    player.replace(this.createExpoVideoSource(activeItem.getPlaybackSource()));
-    player.play();
+    this.pendingSourceUrl = nextSourceUrl;
+    this.backgroundVideoPlayer.setMuted(true);
+
+    try {
+      await this.backgroundVideoPlayer.load(playbackSource);
+      this.pendingSourceUrl = null;
+      this.backgroundVideoPlayer.setMuted(shouldMute);
+      await this.backgroundVideoPlayer.play();
+    } catch (error: unknown) {
+      if (this.currentSourceUrl === nextSourceUrl) {
+        this.currentSourceUrl = null;
+      }
+
+      if (this.pendingSourceUrl === nextSourceUrl) {
+        this.pendingSourceUrl = null;
+      }
+
+      throw error;
+    }
   }
 
   /**
    * @brief Resolve whether committed background playback should be muted
    *
-   * @param playbackPolicy - Shared background playback policy
-   * @param committedPlaybackDecision - Current committed playback decision
-   *
    * @returns `true` when Expo background playback should be muted
    */
-  private resolveMutedState(
-    playbackPolicy: BackgroundVideoPlaybackPolicy,
-    committedPlaybackDecision: CommittedPlaybackDecision | null,
-  ): boolean {
-    return committedPlaybackDecision?.audioActivationMode === undefined ||
-      committedPlaybackDecision.audioActivationMode === "muted-preview"
-      ? playbackPolicy.muted
-      : false;
+  private resolveMutedState(): boolean {
+    return true;
+  }
+
+  /**
+   * @brief React to shared player lifecycle events with readiness updates
+   *
+   * @param backgroundPlayerEvent - Lifecycle event emitted by the shared player
+   */
+  private handleBackgroundPlayerEvent(
+    backgroundPlayerEvent: VideoPlayerEvent,
+  ): void {
+    if (backgroundPlayerEvent.type === "loading-started") {
+      this.playbackVisualReadinessController.beginLoading();
+
+      return;
+    }
+
+    if (backgroundPlayerEvent.type === "first-frame-ready") {
+      this.playbackVisualReadinessController.markVisualReady();
+    }
   }
 }

@@ -22,6 +22,10 @@ import type {
 } from "./ExpoVideoPrimitives";
 import { ExpoVideoSourceFactory } from "./ExpoVideoSourceFactory";
 
+type ExpoVideoPlayerRuntimeOptions = {
+  readonly loop: boolean;
+};
+
 /**
  * @brief Expo runtime backed by the `expo-video` player primitive
  *
@@ -33,16 +37,30 @@ export class ExpoVideoPlayerRuntime implements VideoPlayerRuntime {
   private readonly listeners: Set<VideoPlayerRuntimeListener>;
   private readonly player: ExpoVideoPlayerPrimitive;
   private readonly sourceFactory: ExpoVideoSourceFactory;
+  private readonly videoViewProps: ExpoVideoPlayerViewProps & {
+    readonly player: ExpoVideoPlayerPrimitive;
+  };
+  private currentSourceKey: string | null;
   private hasReportedFirstFrameForCurrentLoad: boolean;
+  private pendingSourceKey: string | null;
 
   /**
    * @brief Build one Expo runtime around its native playback primitive
    */
-  public constructor() {
+  public constructor(options: ExpoVideoPlayerRuntimeOptions) {
     this.listeners = new Set<VideoPlayerRuntimeListener>();
     this.player = createVideoPlayer(null);
+    this.player.loop = options.loop;
     this.sourceFactory = new ExpoVideoSourceFactory();
+    this.videoViewProps = {
+      onFirstFrameRender: (): void => {
+        this.handleFirstFrameRender();
+      },
+      player: this.player,
+    };
+    this.currentSourceKey = null;
     this.hasReportedFirstFrameForCurrentLoad = false;
+    this.pendingSourceKey = null;
     this.attachPlayerListeners();
   }
 
@@ -70,8 +88,32 @@ export class ExpoVideoPlayerRuntime implements VideoPlayerRuntime {
    * @returns Promise that resolves after the source has been prepared
    */
   public async load(source: VideoPlayerLoadRequest): Promise<void> {
+    const nextSourceKey: string = this.getSourceKey(source);
+
+    if (
+      this.currentSourceKey === nextSourceKey ||
+      this.pendingSourceKey === nextSourceKey
+    ) {
+      return;
+    }
+
     this.hasReportedFirstFrameForCurrentLoad = false;
-    await this.player.replaceAsync(this.sourceFactory.createSource(source));
+    this.pendingSourceKey = nextSourceKey;
+
+    try {
+      await this.player.replaceAsync(this.sourceFactory.createSource(source));
+      this.currentSourceKey = nextSourceKey;
+    } catch (error: unknown) {
+      if (this.shouldIgnoreSupersededLoadAbort(error, nextSourceKey)) {
+        return;
+      }
+
+      throw error;
+    } finally {
+      if (this.pendingSourceKey === nextSourceKey) {
+        this.pendingSourceKey = null;
+      }
+    }
   }
 
   /**
@@ -80,9 +122,7 @@ export class ExpoVideoPlayerRuntime implements VideoPlayerRuntime {
    * @returns Promise that resolves after playback has been requested
    */
   public play(): Promise<void> {
-    this.player.play();
-
-    return Promise.resolve();
+    return Promise.resolve(this.player.play());
   }
 
   /**
@@ -116,7 +156,9 @@ export class ExpoVideoPlayerRuntime implements VideoPlayerRuntime {
    * @returns Promise that resolves after teardown completes
    */
   public destroy(): Promise<void> {
+    this.currentSourceKey = null;
     this.hasReportedFirstFrameForCurrentLoad = false;
+    this.pendingSourceKey = null;
     this.player.pause();
     this.player.replace(null);
 
@@ -143,13 +185,49 @@ export class ExpoVideoPlayerRuntime implements VideoPlayerRuntime {
    *
    * @returns Expo `VideoView` props that bind the shared player
    */
-  public getVideoViewProps(): ExpoVideoPlayerViewProps {
-    return {
-      onFirstFrameRender: (): void => {
-        this.handleFirstFrameRender();
-      },
-      player: this.player,
-    };
+  public getVideoViewProps(): ExpoVideoPlayerViewProps & {
+    readonly player: ExpoVideoPlayerPrimitive;
+  } {
+    return this.videoViewProps;
+  }
+
+  /**
+   * @brief Build one stable identity for Expo source reuse checks
+   *
+   * @param source - Shared player load request
+   *
+   * @returns Stable source identity for Expo runtime reload guards
+   */
+  private getSourceKey(source: VideoPlayerLoadRequest): string {
+    return `${source.url}::${source.mimeType ?? "auto"}`;
+  }
+
+  /**
+   * @brief Ignore aborts that only indicate a newer load superseded this one
+   *
+   * @param error - Runtime load failure raised by Expo
+   * @param sourceKey - Source key associated with the rejected load
+   *
+   * @returns `true` when the abort was caused by a newer Expo load request
+   */
+  private shouldIgnoreSupersededLoadAbort(
+    error: unknown,
+    sourceKey: string,
+  ): boolean {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    const errorName: string = error.name;
+    const errorMessage: string = error.message;
+    const wasSupersededByNewerLoad: boolean =
+      this.pendingSourceKey !== null && this.pendingSourceKey !== sourceKey;
+
+    return (
+      wasSupersededByNewerLoad &&
+      errorName === "AbortError" &&
+      errorMessage.includes("interrupted by a new load request")
+    );
   }
 
   /**

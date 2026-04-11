@@ -84,6 +84,9 @@ importers:
       '@meditation-surf/overlay':
         specifier: workspace:*
         version: link:../../packages/overlay
+      '@meditation-surf/player':
+        specifier: workspace:*
+        version: link:../../packages/player
       '@meditation-surf/player-core':
         specifier: workspace:*
         version: link:../../packages/player-core

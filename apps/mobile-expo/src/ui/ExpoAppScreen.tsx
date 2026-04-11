@@ -6,7 +6,6 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { VideoView } from "expo-video";
 import { type JSX, useEffect, useRef } from "react";
 import { Animated, View } from "react-native";
 
@@ -14,6 +13,7 @@ import type { ExpoApp } from "../bootstrap/ExpoApp";
 import type { ExpoAppRuntime } from "../bootstrap/UseExpoAppRuntime";
 import { useExpoAppRuntime } from "../bootstrap/UseExpoAppRuntime";
 import type { ExpoFocusableElement } from "../input/ExpoBrowseInputAdapter";
+import { ExpoBackgroundVideoSurface } from "./ExpoBackgroundVideoSurface";
 import { ExpoBrowseOverlay } from "./ExpoBrowseOverlay";
 
 /**
@@ -50,11 +50,10 @@ export function ExpoAppScreen(props: ExpoAppScreenProps): JSX.Element {
       style={runtime.experienceAdapter.appLayoutController.getContainerStyle()}
       tabIndex={runtime.browseInputBindings.rootInputProps.tabIndex}
     >
-      <VideoView
+      <ExpoBackgroundVideoSurface
         contentFit={runtime.videoViewProps.contentFit}
-        nativeControls={false}
         onFirstFrameRender={runtime.videoViewProps.onFirstFrameRender}
-        player={runtime.videoPlayer}
+        player={runtime.videoViewProps.player}
         playsInline={runtime.videoViewProps.playsInline}
         style={runtime.experienceAdapter.appLayoutController.getBackgroundLayerStyle()}
       />

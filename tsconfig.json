@@ -15,6 +15,7 @@
     "target": "esnext",
     "types": ["node", "vite/client"],
     "baseUrl": ".",
+    "customConditions": ["react-native"],
     "paths": {
       "@meditation-surf/assets": ["packages/assets/src/index.ts"],
       "@meditation-surf/assets/brand/native": [
@@ -29,7 +30,7 @@
       "@meditation-surf/layout": ["packages/layout/src/index.ts"],
       "@meditation-surf/media": ["packages/media/src/index.ts"],
       "@meditation-surf/overlay": ["packages/overlay/src/index.ts"],
-      "@meditation-surf/player": ["packages/player/src/index.ts"],
+      "@meditation-surf/player": ["packages/player"],
       "@meditation-surf/player-core": ["packages/player-core/src/index.ts"],
       "@meditation-surf/vfs": ["packages/vfs/src/index.ts"]
     }

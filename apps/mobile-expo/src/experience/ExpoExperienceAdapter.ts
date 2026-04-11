@@ -13,6 +13,7 @@ import {
   type BrowseSelectionController,
 } from "@meditation-surf/browse";
 import {
+  type BackgroundVideoPlaybackPolicy,
   type MediaCapabilityProfile,
   type MediaExecutionController,
   type MediaKernelController,
@@ -21,6 +22,8 @@ import {
   type PlaybackSequenceController,
 } from "@meditation-surf/core";
 import type { OverlayController } from "@meditation-surf/overlay";
+import { VideoPlayer } from "@meditation-surf/player";
+import { ExpoVideoPlayerRuntime } from "@meditation-surf/player/expo";
 import type { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
 import { ExpoBrowseInputAdapter } from "../input/ExpoBrowseInputAdapter";
@@ -81,6 +84,21 @@ export class ExpoExperienceAdapter {
    * @param experience - Shared meditation experience
    */
   public constructor(experience: MeditationExperience) {
+    const playbackVisualReadinessController: PlaybackVisualReadinessController =
+      experience.getPlaybackVisualReadinessController();
+    const backgroundPlaybackPolicy: BackgroundVideoPlaybackPolicy =
+      experience.appLayout
+        .getBackgroundLayer()
+        .getBackgroundVideo()
+        .getPlaybackPolicy();
+    const backgroundVideoPlayerRuntime: ExpoVideoPlayerRuntime =
+      new ExpoVideoPlayerRuntime({
+        loop: backgroundPlaybackPolicy.loop,
+      });
+    const backgroundVideoPlayer: VideoPlayer = new VideoPlayer({
+      runtime: backgroundVideoPlayerRuntime,
+    });
+
     this.mediaKernelController = experience.getMediaKernelController();
     this.mediaExecutionController = experience.getMediaExecutionController();
     this.mediaThumbnailController = experience.getMediaThumbnailController();
@@ -103,7 +121,9 @@ export class ExpoExperienceAdapter {
     this.backgroundVideoController = new ExpoBackgroundVideoController(
       experience.appLayout.getBackgroundLayer(),
       experience.getPlaybackSequenceController(),
-      experience.getPlaybackVisualReadinessController(),
+      backgroundVideoPlayer,
+      backgroundVideoPlayerRuntime,
+      playbackVisualReadinessController,
     );
     this.browseContentAdapter = new BrowseContentAdapter(experience.catalog);
     this.browseFocusController = experience.getBrowseFocusController();
@@ -118,7 +138,6 @@ export class ExpoExperienceAdapter {
     this.overlayController = experience.getOverlayController();
     this.playbackSequenceController =
       experience.getPlaybackSequenceController();
-    this.playbackVisualReadinessController =
-      experience.getPlaybackVisualReadinessController();
+    this.playbackVisualReadinessController = playbackVisualReadinessController;
   }
 }
