@@ -15,10 +15,10 @@ import {
 /**
  * @brief Persisted audio configuration for the video player
  *
- * The mute state and volume are stored in local storage so they survive page
+ * The mute preference and volume are stored in local storage so they survive page
  * reloads and Lightning restarts.
  */
-export class AudioState {
+export class Audio {
   // Shared storage implementation used by the TV app
   private static readonly storage: IAudioPreferencesStorage =
     new BrowserAudioPreferencesStorage();
@@ -29,7 +29,7 @@ export class AudioState {
    * @returns `true` when audio should be muted
    */
   public static isMuted(): boolean {
-    const audioPreferences: AudioPreferences = AudioState.storage.load();
+    const audioPreferences: AudioPreferences = Audio.storage.load();
 
     return audioPreferences.muted;
   }
@@ -40,7 +40,7 @@ export class AudioState {
    * @returns Volume level clamped to [0, 1]
    */
   public static getVolume(): number {
-    const audioPreferences: AudioPreferences = AudioState.storage.load();
+    const audioPreferences: AudioPreferences = Audio.storage.load();
 
     return audioPreferences.volume;
   }
@@ -51,9 +51,9 @@ export class AudioState {
    * @param muted - Whether audio should be muted
    */
   public static setMuted(muted: boolean): void {
-    const audioPreferences: AudioPreferences = AudioState.storage.load();
+    const audioPreferences: AudioPreferences = Audio.storage.load();
 
-    AudioState.storage.save(audioPreferences.withMuted(muted));
+    Audio.storage.save(audioPreferences.withMuted(muted));
   }
 
   /**
@@ -62,10 +62,10 @@ export class AudioState {
    * @param volume - Volume value in [0, 1]
    */
   public static setVolume(volume: number): void {
-    const audioPreferences: AudioPreferences = AudioState.storage.load();
+    const audioPreferences: AudioPreferences = Audio.storage.load();
 
-    AudioState.storage.save(audioPreferences.withVolume(volume));
+    Audio.storage.save(audioPreferences.withVolume(volume));
   }
 }
 
-export default AudioState;
+export default Audio;

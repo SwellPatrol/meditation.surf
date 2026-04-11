@@ -21,6 +21,8 @@ const require = createRequire(import.meta.url);
 const lightningSettingsEntry =
   require.resolve("@lightningjs/sdk/src/Settings/index.js");
 const metrologicalSdkEntry = require.resolve("@metrological/sdk/index.js");
+const shakaCompiledEntry =
+  require.resolve("shaka-player/dist/shaka-player.compiled.js");
 const coreEntry = fileURLToPath(
   new URL("../../packages/core/src/index.ts", import.meta.url),
 );
@@ -32,6 +34,9 @@ const sharedBrandIconEntry = fileURLToPath(
 );
 const playerCoreEntry = fileURLToPath(
   new URL("../../packages/player-core/src/index.ts", import.meta.url),
+);
+const playerEntry = fileURLToPath(
+  new URL("../../packages/player/src/index.ts", import.meta.url),
 );
 const sharedBrandIconPublicPath = "/assets/icon-1500x1500.png";
 
@@ -108,9 +113,11 @@ export default defineConfig({
     alias: {
       "@meditation-surf/core/brand/web": coreBrandWebEntry,
       "@meditation-surf/core": coreEntry,
+      "@meditation-surf/player": playerEntry,
       "@meditation-surf/player-core": playerCoreEntry,
       "@lightningjs/sdk/src/Settings": lightningSettingsEntry,
       "@metrological/sdk": metrologicalSdkEntry,
+      "shaka-player/dist/shaka-player.compiled.js": shakaCompiledEntry,
     },
   },
 

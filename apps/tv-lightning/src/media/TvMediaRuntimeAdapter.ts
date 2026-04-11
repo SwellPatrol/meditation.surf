@@ -461,7 +461,7 @@ export class TvMediaRuntimeAdapter implements MediaRuntimeAdapter {
   /**
    * @brief Reflect whether TV accepted the requested shared audio mode
    *
-   * @param command - Shared execution command carrying the requested audio state
+   * @param command - Shared execution command carrying the requested audio mode
    * @param runtimeAcceptedRequestedMode - Whether TV honored the request
    *
    * @returns Cloned audio execution snapshot, or `null` when absent

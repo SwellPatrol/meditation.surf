@@ -14,11 +14,12 @@ import type {
   PlaybackSequenceState,
 } from "@meditation-surf/core";
 import type { BackgroundLayerLayout } from "@meditation-surf/layout";
-import type {
-  IPlaybackController,
-  PlaybackSource,
-  PlaybackVisualReadinessController,
-} from "@meditation-surf/player-core";
+import {
+  VideoPlayer,
+  type VideoPlayerEvent,
+  type VideoSource,
+} from "@meditation-surf/player";
+import type { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
 /**
  * @brief Adapt the shared background scene into TV playback behavior
@@ -30,17 +31,11 @@ export class TvBackgroundVideoController {
   private readonly experience: MeditationExperience;
   private readonly backgroundLayer: BackgroundLayerLayout;
   private readonly playbackSequenceController: PlaybackSequenceController;
-  private readonly playbackController: IPlaybackController & {
-    setDisplayBounds(
-      left: number,
-      top: number,
-      width: number,
-      height: number,
-    ): void;
-  };
+  private readonly backgroundVideoPlayer: VideoPlayer;
   private readonly playbackVisualReadinessController: PlaybackVisualReadinessController;
   private currentSourceUrl: string | null;
   private removePlaybackSequenceSubscription: (() => void) | null;
+  private removeBackgroundPlayerSubscription: (() => void) | null;
 
   /**
    * @brief Build the TV background playback controller
@@ -53,30 +48,30 @@ export class TvBackgroundVideoController {
     experience: MeditationExperience,
     backgroundLayer: BackgroundLayerLayout,
     playbackSequenceController: PlaybackSequenceController,
-    playbackController: IPlaybackController & {
-      setDisplayBounds(
-        left: number,
-        top: number,
-        width: number,
-        height: number,
-      ): void;
-    },
+    backgroundVideoPlayer: VideoPlayer,
     playbackVisualReadinessController: PlaybackVisualReadinessController,
   ) {
     this.experience = experience;
     this.backgroundLayer = backgroundLayer;
     this.playbackSequenceController = playbackSequenceController;
-    this.playbackController = playbackController;
+    this.backgroundVideoPlayer = backgroundVideoPlayer;
     this.playbackVisualReadinessController = playbackVisualReadinessController;
     this.currentSourceUrl = null;
     this.removePlaybackSequenceSubscription = null;
+    this.removeBackgroundPlayerSubscription = null;
   }
 
   /**
    * @brief Prepare the TV playback adapter for background playback
    */
   public initialize(): void {
-    this.playbackController.initialize();
+    this.backgroundVideoPlayer.initialize();
+    this.removeBackgroundPlayerSubscription =
+      this.backgroundVideoPlayer.subscribe(
+        (backgroundPlayerEvent: VideoPlayerEvent): void => {
+          this.handleBackgroundPlayerEvent(backgroundPlayerEvent);
+        },
+      );
   }
 
   /**
@@ -107,7 +102,7 @@ export class TvBackgroundVideoController {
     width: number,
     height: number,
   ): void {
-    this.playbackController.setDisplayBounds(left, top, width, height);
+    this.backgroundVideoPlayer.setDisplayBounds(left, top, width, height);
   }
 
   /**
@@ -117,16 +112,19 @@ export class TvBackgroundVideoController {
    */
   public async destroy(): Promise<void> {
     this.removePlaybackSequenceSubscription?.();
+    this.removeBackgroundPlayerSubscription?.();
     this.removePlaybackSequenceSubscription = null;
-    await this.playbackController.destroy();
+    this.removeBackgroundPlayerSubscription = null;
+    this.currentSourceUrl = null;
+    await this.backgroundVideoPlayer.destroy();
   }
 
   /**
    * @brief Resolve the shared playback source used for the TV background
    *
-   * @returns Playback source chosen by the shared experience
+   * @returns Player source chosen by the shared experience
    */
-  private getPlaybackSource(): PlaybackSource {
+  private getPlaybackSource(): VideoSource {
     const activeItem: MediaItem | null = this.experience.getActiveItem();
 
     return (
@@ -146,22 +144,28 @@ export class TvBackgroundVideoController {
     const activeItem: MediaItem | null = playbackSequenceState.activeItem;
     const committedPlaybackDecision: CommittedPlaybackDecision | null =
       playbackSequenceState.committedPlaybackDecision;
-    const playbackSource: PlaybackSource =
+    const playbackSource: VideoSource =
       activeItem?.getPlaybackSource() ?? this.getPlaybackSource();
     const shouldMute: boolean = this.resolveMutedState(
       committedPlaybackDecision,
     );
 
     if (this.currentSourceUrl === playbackSource.url) {
-      this.playbackController.setMuted(shouldMute);
+      this.backgroundVideoPlayer.setMuted(shouldMute);
+      await this.backgroundVideoPlayer.play();
       return;
     }
 
-    this.currentSourceUrl = playbackSource.url;
-    this.playbackVisualReadinessController.beginLoading();
-    await this.playbackController.load(playbackSource);
-    await this.playbackController.play();
-    this.playbackController.setMuted(shouldMute);
+    this.backgroundVideoPlayer.setMuted(true);
+
+    try {
+      await this.backgroundVideoPlayer.load(playbackSource);
+      await this.backgroundVideoPlayer.play();
+      this.currentSourceUrl = playbackSource.url;
+    } catch (error: unknown) {
+      this.currentSourceUrl = null;
+      throw error;
+    }
   }
 
   /**
@@ -178,5 +182,24 @@ export class TvBackgroundVideoController {
       committedPlaybackDecision?.audioActivationMode === undefined ||
       committedPlaybackDecision.audioActivationMode === "muted-preview"
     );
+  }
+
+  /**
+   * @brief React to thin player lifecycle events with shared readiness updates
+   *
+   * @param backgroundPlayerEvent - Lifecycle event emitted by the thin player
+   */
+  private handleBackgroundPlayerEvent(
+    backgroundPlayerEvent: VideoPlayerEvent,
+  ): void {
+    if (backgroundPlayerEvent.type === "loading-started") {
+      this.playbackVisualReadinessController.beginLoading();
+
+      return;
+    }
+
+    if (backgroundPlayerEvent.type === "first-frame-ready") {
+      this.playbackVisualReadinessController.markVisualReady();
+    }
   }
 }

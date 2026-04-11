@@ -25,6 +25,7 @@
       "@meditation-surf/layout": ["packages/layout/src/index.ts"],
       "@meditation-surf/media": ["packages/media/src/index.ts"],
       "@meditation-surf/overlay": ["packages/overlay/src/index.ts"],
+      "@meditation-surf/player": ["packages/player/src/index.ts"],
       "@meditation-surf/player-core": ["packages/player-core/src/index.ts"],
       "@meditation-surf/vfs": ["packages/vfs/src/index.ts"]
     }
@@ -47,6 +48,7 @@
     "packages/layout/**/*",
     "packages/media/**/*",
     "packages/overlay/**/*",
+    "packages/player/**/*",
     "packages/player-core/**/*",
     "packages/vfs/**/*",
     "test/**/*"

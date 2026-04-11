@@ -1,0 +1,13 @@
+{
+  "name": "@meditation-surf/player",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "expo-video": "^55.0.15",
+    "shaka-player": "^5.0.9"
+  }
+}

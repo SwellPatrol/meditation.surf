@@ -47,7 +47,7 @@
     "build:tv": "pnpm --dir apps/tv-lightning build",
     "build:web": "pnpm --dir apps/web-vite build",
     "check": "pnpm install --frozen-lockfile && pnpm audit-ci && pnpm format && pnpm build && pnpm test",
-    "clean": "rm -rf node_modules packages/core/node_modules packages/media/node_modules packages/player-core/node_modules && packages/vfs/node_modules pnpm clean:ios && pnpm clean:mobile && pnpm clean:tv && pnpm clean:web",
+    "clean": "rm -rf node_modules packages/*/node_modules && pnpm clean:ios && pnpm clean:mobile && pnpm clean:tv && pnpm clean:web",
     "clean:ios": "rm -rf apps/mobile-expo/ios",
     "clean:mobile": "rm -rf apps/mobile-expo/.expo apps/mobile-expo/dist apps/mobile-expo/node_modules",
     "clean:tv": "rm -rf apps/tv-lightning/dist apps/tv-lightning/node_modules",

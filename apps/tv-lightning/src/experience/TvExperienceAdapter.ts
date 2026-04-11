@@ -21,12 +21,12 @@ import {
   type PlaybackSequenceController,
 } from "@meditation-surf/core";
 import type { OverlayController } from "@meditation-surf/overlay";
+import { BackgroundVideoElement, VideoPlayer } from "@meditation-surf/player";
 import type { PlaybackVisualReadinessController } from "@meditation-surf/player-core";
 
 import { TvAppLayoutController } from "../layout/TvAppLayoutController";
 import { TvMediaRuntimeAdapter } from "../media/TvMediaRuntimeAdapter";
 import { TvMediaThumbnailRuntimeAdapter } from "../media/TvMediaThumbnailRuntimeAdapter";
-import lightningPlaybackAdapter from "../playback/LightningPlaybackAdapter";
 import { TvBackgroundVideoController } from "../playback/TvBackgroundVideoController";
 
 /**
@@ -99,15 +99,15 @@ export class TvExperienceAdapter {
         experience.getPlaybackSequenceController(),
       ),
     );
-    lightningPlaybackAdapter.setPlaybackVisualReadinessController(
-      playbackVisualReadinessController,
-    );
+    const backgroundVideoPlayer: VideoPlayer = new VideoPlayer({
+      videoElement: new BackgroundVideoElement(),
+    });
     this.appLayoutController = new TvAppLayoutController(experience.appLayout);
     this.backgroundVideoController = new TvBackgroundVideoController(
       experience,
       experience.appLayout.getBackgroundLayer(),
       experience.getPlaybackSequenceController(),
-      lightningPlaybackAdapter,
+      backgroundVideoPlayer,
       playbackVisualReadinessController,
     );
     this.browseContentAdapter = new BrowseContentAdapter(experience.catalog);
