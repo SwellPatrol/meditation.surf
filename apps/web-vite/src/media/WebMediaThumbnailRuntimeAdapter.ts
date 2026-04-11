@@ -636,26 +636,12 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
         "Thumbnail extraction attempted renderer routing from the hidden video extraction path.",
       ],
     );
-    const canvasContext: CanvasRenderingContext2D | null =
-      canvasElement.getContext("2d");
-
-    if (canvasContext === null) {
-      throw new Error("The browser could not create a 2D canvas context.");
-    }
-
-    canvasElement.width = targetSize.width;
-    canvasElement.height = targetSize.height;
-    canvasContext.drawImage(
+    const imagePayload: Blob = await this.serializeNormalizedFrameSource(
       videoElement,
-      0,
-      0,
-      targetSize.width,
-      targetSize.height,
+      canvasElement,
+      targetSize,
+      request.qualityHint,
     );
-
-    const imagePayload: Blob =
-      routedRendererResult.imagePayload ??
-      (await this.serializeCanvas(canvasElement, request.qualityHint));
     const extractionAttempt: MediaThumbnailExtractionAttempt =
       this.createExtractionAttempt(
         request,
@@ -736,27 +722,18 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
         "Thumbnail extraction attempted renderer routing from the custom decode frame handoff path.",
       ],
     );
-    const serializedFrame: {
-      imagePayload: Blob;
-      width: number;
-      height: number;
-    } =
-      routedRendererResult.imagePayload === null
-        ? await this.withRemainingTimeout(
-            customDecodeSessionAdapter.serializeBitmap(
-              frameResult.bitmap,
-              request.targetWidth ?? request.extractionPolicy.targetWidth,
-              request.targetHeight ?? request.extractionPolicy.targetHeight,
-              request.qualityHint,
-            ),
-            request.extractionPolicy.timeoutMs,
-            extractionStartedAt,
-          )
-        : {
-            imagePayload: routedRendererResult.imagePayload,
-            width: targetSize.width,
-            height: targetSize.height,
-          };
+    const canvasElement: HTMLCanvasElement =
+      this.ensureExtractionCanvasElement();
+    const imagePayload: Blob = await this.withRemainingTimeout(
+      this.serializeNormalizedFrameSource(
+        frameResult.bitmap,
+        canvasElement,
+        targetSize,
+        request.qualityHint,
+      ),
+      request.extractionPolicy.timeoutMs,
+      extractionStartedAt,
+    );
     const nextCustomDecode: CustomDecodeSnapshot = {
       ...this.cloneCustomDecodeSnapshot(customDecode)!,
       selectedFrame: {
@@ -783,10 +760,10 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
 
     return {
       sourceId: request.sourceId,
-      imagePayload: serializedFrame.imagePayload,
-      imageContentType: serializedFrame.imagePayload.type || "image/jpeg",
-      width: serializedFrame.width,
-      height: serializedFrame.height,
+      imagePayload,
+      imageContentType: imagePayload.type || "image/jpeg",
+      width: targetSize.width,
+      height: targetSize.height,
       frameTimeMs: frameResult.actualFrameTimeMs,
       extractedAt: Date.now(),
       wasApproximate: selectionDecision.fallbackUsed,
@@ -800,6 +777,46 @@ export class WebMediaThumbnailRuntimeAdapter implements MediaThumbnailRuntimeAda
         routedRendererResult.renderer,
       ),
     };
+  }
+
+  /**
+   * @brief Normalize one frame source through the trusted 2D canvas path
+   *
+   * Renderer routing may still run for diagnostics and backend selection, but
+   * the persisted thumbnail must come from this normalized canvas serialization
+   * path so the final still uses stable browser 2D rasterization semantics.
+   *
+   * @param frameSource - Canvas-friendly source holding the selected frame
+   * @param canvasElement - Reusable canvas used for normalization
+   * @param targetSize - Resolved output size for the persisted thumbnail
+   * @param qualityHint - Shared quality hint used for JPEG serialization
+   *
+   * @returns Encoded JPEG blob generated from the normalized 2D canvas
+   */
+  private async serializeNormalizedFrameSource(
+    frameSource: CanvasImageSource,
+    canvasElement: HTMLCanvasElement,
+    targetSize: { width: number; height: number },
+    qualityHint: MediaThumbnailRequest["qualityHint"],
+  ): Promise<Blob> {
+    const canvasContext: CanvasRenderingContext2D | null =
+      canvasElement.getContext("2d");
+
+    if (canvasContext === null) {
+      throw new Error("The browser could not create a 2D canvas context.");
+    }
+
+    canvasElement.width = targetSize.width;
+    canvasElement.height = targetSize.height;
+    canvasContext.drawImage(
+      frameSource,
+      0,
+      0,
+      targetSize.width,
+      targetSize.height,
+    );
+
+    return await this.serializeCanvas(canvasElement, qualityHint);
   }
 
   /**
