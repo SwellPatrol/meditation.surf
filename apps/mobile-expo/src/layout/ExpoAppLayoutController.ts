@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { BRAND_OVERLAY_ICON_SOURCE } from "@meditation-surf/core/brand/native";
+import { BRAND_ICON_SOURCE } from "@meditation-surf/assets";
 import type {
   AppLayout,
   CenteredOverlayLayout,
@@ -132,8 +132,8 @@ export class ExpoAppLayoutController {
    *
    * @returns React Native image source for the brand icon
    */
-  public getCenteredOverlaySource(): typeof BRAND_OVERLAY_ICON_SOURCE {
-    return BRAND_OVERLAY_ICON_SOURCE;
+  public getCenteredOverlaySource(): typeof BRAND_ICON_SOURCE {
+    return BRAND_ICON_SOURCE;
   }
 
   /**

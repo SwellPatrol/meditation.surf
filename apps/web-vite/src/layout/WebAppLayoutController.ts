@@ -6,7 +6,7 @@
  * See the file LICENSE.txt for more information.
  */
 
-import { BRAND_OVERLAY_ICON_URL } from "@meditation-surf/core/brand/web";
+import { BRAND_ICON_URL } from "@meditation-surf/assets";
 import type {
   AppLayout,
   CenteredOverlayLayout,
@@ -46,7 +46,7 @@ export class WebAppLayoutController {
     centeredOverlayElement.className = "overlay-icon";
     centeredOverlayElement.alt = "";
     centeredOverlayElement.dataset.elementId = centeredOverlay.id;
-    centeredOverlayElement.src = BRAND_OVERLAY_ICON_URL;
+    centeredOverlayElement.src = BRAND_ICON_URL;
 
     return centeredOverlayElement;
   }

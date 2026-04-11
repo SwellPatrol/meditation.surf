@@ -69,6 +69,9 @@ importers:
 
   apps/mobile-expo:
     dependencies:
+      '@meditation-surf/assets':
+        specifier: workspace:*
+        version: link:../../packages/assets
       '@meditation-surf/browse':
         specifier: workspace:*
         version: link:../../packages/browse
@@ -124,6 +127,9 @@ importers:
       '@lightningjs/sdk':
         specifier: ^5.5.7
         version: 5.5.7
+      '@meditation-surf/assets':
+        specifier: workspace:*
+        version: link:../../packages/assets
       '@meditation-surf/browse':
         specifier: workspace:*
         version: link:../../packages/browse
@@ -151,6 +157,9 @@ importers:
 
   apps/web-vite:
     dependencies:
+      '@meditation-surf/assets':
+        specifier: workspace:*
+        version: link:../../packages/assets
       '@meditation-surf/browse':
         specifier: workspace:*
         version: link:../../packages/browse
@@ -166,6 +175,8 @@ importers:
       shaka-player:
         specifier: ^5.0.9
         version: 5.0.10
+
+  packages/assets: {}
 
   packages/browse:
     dependencies:
@@ -3995,7 +4006,6 @@ packages:
 
   shaka-player@5.0.10:
     resolution: {integrity: sha512-jyS7P3NEMaIsjHG+UXzqwKxptCYIzJ/PmjdLR7y/NypBRmfaHZXgxRwpfS9xYOJuY6YfRoFOu2G+iDCz1SuiSg==}
-    engines: {node: '>=18'}
 
   shebang-command@2.0.0:
     resolution: {integrity: sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==}

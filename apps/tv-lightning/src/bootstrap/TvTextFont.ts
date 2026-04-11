@@ -6,6 +6,8 @@
  * See the file LICENSE.txt for more information.
  */
 
+import { OPEN_SANS_MEDIUM_FONT_PATH } from "@meditation-surf/assets";
+
 /**
  * @brief Describes the single Lightning web-font asset loaded at application start
  *
@@ -23,12 +25,11 @@ export class TvTextFont {
    * @brief Resolve the only bundled font asset used by the TV Lightning app
    *
    * Lightning's font loader is more reliable with a fully resolved runtime URL
-   * than with a bare root-relative path. Using `document.baseURI` keeps the
-   * asset tied to the active app origin and base path without reintroducing
-   * per-component font configuration.
+   * than with a bare root-relative path. The shared asset package owns the
+   * canonical public path and this getter resolves it for the active origin.
    */
   public static get file(): string {
-    const fontUrl: URL = new URL("fonts/OpenSans-Medium.ttf", document.baseURI);
+    const fontUrl: URL = new URL(OPEN_SANS_MEDIUM_FONT_PATH, document.baseURI);
 
     return fontUrl.toString();
   }

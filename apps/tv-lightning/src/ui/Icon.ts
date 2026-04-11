@@ -7,7 +7,7 @@
  */
 
 import Blits from "@lightningjs/blits";
-import { BRAND_OVERLAY_ICON_URL } from "@meditation-surf/core/brand/web";
+import { BRAND_ICON_URL } from "@meditation-surf/assets";
 
 import { TvAppLayoutController } from "../layout/TvAppLayoutController";
 
@@ -101,7 +101,7 @@ const Icon: IconFactory = Blits.Component("Icon", {
      * @returns {string} The resolved icon asset URL
      */
     iconSource(): string {
-      return BRAND_OVERLAY_ICON_URL;
+      return BRAND_ICON_URL;
     },
   },
 

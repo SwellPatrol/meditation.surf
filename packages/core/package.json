@@ -4,9 +4,7 @@
   "type": "module",
   "private": true,
   "exports": {
-    ".": "./src/index.ts",
-    "./brand/native": "./src/brand/native.ts",
-    "./brand/web": "./src/brand/web.ts"
+    ".": "./src/index.ts"
   },
   "dependencies": {
     "@meditation-surf/browse": "workspace:*",

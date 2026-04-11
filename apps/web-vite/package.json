@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@meditation-surf/assets": "workspace:*",
     "@meditation-surf/browse": "workspace:*",
     "@meditation-surf/core": "workspace:*",
     "@meditation-surf/layout": "workspace:*",
